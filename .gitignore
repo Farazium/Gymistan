@@ -2,10 +2,13 @@
 __pycache__/
 *.py[cod]
 *.pyo
-*.pyd
 .Python
-venv/
 *.egg-info/
+
+# Virtual environment
+venv/
+env/
+.venv/
 
 # Django
 *.log
@@ -14,19 +17,17 @@ db.sqlite3
 media/
 staticfiles/
 
-# Environment variables - NEVER commit these
+# Environment variables — NEVER commit these
 .env
 
 # Node
 node_modules/
 dist/
-.npm
-
-# OS
-.DS_Store
-Thumbs.db
 
 # IDE
 .vscode/
 .idea/
-*.swp
+
+# OS
+Thumbs.db
+Desktop.ini
