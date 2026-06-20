@@ -54,7 +54,7 @@ export default function Members() {
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             className="input pl-9"
-            placeholder="Search by name, phone, CNIC..."
+            placeholder="Search by name or phone..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -63,7 +63,6 @@ export default function Members() {
           <option value="">All Status</option>
           <option value="ACTIVE">Active</option>
           <option value="EXPIRED">Expired</option>
-          <option value="SUSPENDED">Suspended</option>
         </select>
       </div>
 

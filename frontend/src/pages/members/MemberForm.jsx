@@ -3,10 +3,26 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import api from '../../api/axios'
 import toast from 'react-hot-toast'
 
+function calcExpiry(joinDateStr) {
+  if (!joinDateStr) return ''
+  const joinDay = new Date(joinDateStr).getDate()
+  const now = new Date()
+  const expiry = new Date(now.getFullYear(), now.getMonth() + 1, joinDay)
+  return expiry.toISOString().split('T')[0]
+}
+
+function formatPK(dateStr) {
+  if (!dateStr) return ''
+  const [y, m, day] = dateStr.split('-')
+  return `${day}/${m}/${y}`
+}
+
 export default function MemberForm({ member, onSuccess }) {
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
+  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm({
     defaultValues: member || {},
   })
+
+  const joinDate = watch('join_date')
 
   const { data: packages } = useQuery({
     queryKey: ['packages'],
@@ -17,10 +33,12 @@ export default function MemberForm({ member, onSuccess }) {
   })
 
   const mutation = useMutation({
-    mutationFn: (payload) =>
-      member
-        ? api.patch(`/members/${member.id}/`, payload)
-        : api.post('/members/', payload),
+    mutationFn: (payload) => {
+      const body = { ...payload, expiry_date: calcExpiry(payload.join_date) }
+      return member
+        ? api.patch(`/members/${member.id}/`, body)
+        : api.post('/members/', body)
+    },
     onSuccess: () => {
       toast.success(member ? 'Member updated' : 'Member added')
       onSuccess()
@@ -44,13 +62,8 @@ export default function MemberForm({ member, onSuccess }) {
         </div>
 
         <div>
-          <label className="label">Email</label>
-          <input className="input" type="email" {...register('email')} />
-        </div>
-
-        <div>
-          <label className="label">CNIC</label>
-          <input className="input" placeholder="XXXXX-XXXXXXX-X" {...register('cnic')} />
+          <label className="label">Father's Name <span className="text-gray-400 text-xs">(optional)</span></label>
+          <input className="input" {...register('father_name')} />
         </div>
 
         <div>
@@ -64,8 +77,12 @@ export default function MemberForm({ member, onSuccess }) {
         </div>
 
         <div>
-          <label className="label">Expiry Date</label>
-          <input className="input" type="date" {...register('expiry_date')} />
+          <label className="label">Joining Date *</label>
+          <input className="input" type="date" {...register('join_date', { required: 'Required' })} />
+          {errors.join_date && <p className="text-red-500 text-xs mt-1">{errors.join_date.message}</p>}
+          {joinDate && (
+            <p className="text-xs text-gray-400 mt-1">Expires: {formatPK(calcExpiry(joinDate))}</p>
+          )}
         </div>
 
         <div>
@@ -73,17 +90,16 @@ export default function MemberForm({ member, onSuccess }) {
           <select className="input" {...register('status')}>
             <option value="ACTIVE">Active</option>
             <option value="EXPIRED">Expired</option>
-            <option value="SUSPENDED">Suspended</option>
           </select>
         </div>
 
         <div className="col-span-2">
-          <label className="label">Address</label>
+          <label className="label">Address <span className="text-gray-400 text-xs">(optional)</span></label>
           <input className="input" {...register('address')} />
         </div>
 
         <div className="col-span-2">
-          <label className="label">Notes</label>
+          <label className="label">Notes <span className="text-gray-400 text-xs">(optional)</span></label>
           <textarea className="input h-20 resize-none" {...register('notes')} />
         </div>
       </div>
