@@ -45,20 +45,14 @@ export default function PaymentForm({ onSuccess }) {
         </select>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="label">Package</label>
-          <select className="input" {...register('package')}>
-            <option value="">No package</option>
-            {packages.map((p) => (
-              <option key={p.id} value={p.id}>{p.name} — PKR {Number(p.price).toLocaleString()}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="label">Month</label>
-          <input className="input" placeholder="e.g. June 2025" {...register('month')} />
-        </div>
+      <div>
+        <label className="label">Package</label>
+        <select className="input" {...register('package')}>
+          <option value="">No package</option>
+          {packages.map((p) => (
+            <option key={p.id} value={p.id}>{p.name} — PKR {Number(p.price).toLocaleString()}</option>
+          ))}
+        </select>
       </div>
 
       {selectedPkg && (

@@ -14,13 +14,18 @@ const fetchPackages = async () => {
 function PackageForm({ pkg, onSuccess }) {
   const { register, handleSubmit, formState: { isSubmitting } } = useForm({
     defaultValues: pkg
-      ? { ...pkg, features: pkg.features?.join(', ') }
-      : { duration_days: 30 },
+      ? { ...pkg, duration_months: Math.round(pkg.duration_days / 30) || 1, features: pkg.features?.join(', ') }
+      : { duration_months: 1 },
   })
 
   const mutation = useMutation({
     mutationFn: (payload) => {
-      const body = { ...payload, features: payload.features ? payload.features.split(',').map(f => f.trim()).filter(Boolean) : [] }
+      const body = {
+        ...payload,
+        duration_days: Number(payload.duration_months) * 30,
+        features: payload.features ? payload.features.split(',').map(f => f.trim()).filter(Boolean) : [],
+      }
+      delete body.duration_months
       return pkg ? api.patch(`/packages/${pkg.id}/`, body) : api.post('/packages/', body)
     },
     onSuccess: () => { toast.success(pkg ? 'Package updated' : 'Package created'); onSuccess() },
@@ -39,8 +44,12 @@ function PackageForm({ pkg, onSuccess }) {
           <input className="input" type="number" placeholder="2500" {...register('price', { required: true })} />
         </div>
         <div>
-          <label className="label">Duration (Days) *</label>
-          <input className="input" type="number" placeholder="30" {...register('duration_days', { required: true })} />
+          <label className="label">Duration (Months) *</label>
+          <select className="input" {...register('duration_months', { required: true })}>
+            {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
+              <option key={m} value={m}>{m} {m === 1 ? 'Month' : 'Months'}</option>
+            ))}
+          </select>
         </div>
       </div>
       <div>
@@ -103,7 +112,7 @@ export default function Packages() {
               </div>
               <h3 className="font-semibold text-gray-900">{pkg.name}</h3>
               <p className="text-2xl font-bold text-primary-600 mt-1">PKR {Number(pkg.price).toLocaleString()}</p>
-              <p className="text-sm text-gray-500 mt-0.5">{pkg.duration_days} days</p>
+              <p className="text-sm text-gray-500 mt-0.5">{Math.round(pkg.duration_days / 30)} {Math.round(pkg.duration_days / 30) === 1 ? 'Month' : 'Months'}</p>
               {pkg.features?.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-1">
                   {pkg.features.map((f, i) => (

@@ -26,7 +26,13 @@ class PaymentListCreateView(generics.ListCreateAPIView):
         )
 
     def perform_create(self, serializer):
-        serializer.save(gym=self.request.user.gym, collected_by=self.request.user)
+        payment = serializer.save(gym=self.request.user.gym, collected_by=self.request.user)
+        if payment.status == 'PAID' and payment.package:
+            member = payment.member
+            base = member.expiry_date if member.expiry_date else datetime.date.today()
+            member.expiry_date = base + datetime.timedelta(days=payment.package.duration_days)
+            member.status = 'ACTIVE'
+            member.save(update_fields=['expiry_date', 'status'])
 
 
 class PaymentDetailView(generics.RetrieveUpdateAPIView):

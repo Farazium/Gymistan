@@ -27,13 +27,16 @@
     @apply btn bg-red-600 text-white hover:bg-red-700;
   }
   .input {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition;
+    @apply w-full px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition;
   }
   .label {
-    @apply block text-sm font-medium text-gray-700 mb-1;
+    @apply block text-sm font-medium text-gray-300 mb-1;
   }
   .card {
-    @apply bg-white rounded-xl border border-gray-200 shadow-sm;
+    @apply bg-gray-800/85 rounded-xl border border-gray-700 shadow-sm text-gray-100;
+  }
+  .card p, .card span, .card td, .card th, .card h1, .card h2, .card h3 {
+    @apply text-gray-100;
   }
   .badge-active {
     @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700;

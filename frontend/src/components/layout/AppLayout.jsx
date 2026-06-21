@@ -7,9 +7,9 @@ export default function AppLayout() {
   if (!isAuthenticated) return <Navigate to="/login" replace />
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto bg-cover bg-center bg-no-repeat" style={{ backgroundImage: "url('/Gym_BG.jpg')" }}>
         <div className="p-6 max-w-7xl mx-auto">
           <Outlet />
         </div>

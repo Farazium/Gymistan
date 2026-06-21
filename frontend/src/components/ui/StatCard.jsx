@@ -1,10 +1,10 @@
 export default function StatCard({ title, value, subtitle, icon: Icon, color = 'primary', trend }) {
   const colors = {
-    primary: 'bg-primary-50 text-primary-600',
-    green: 'bg-green-50 text-green-600',
-    yellow: 'bg-yellow-50 text-yellow-600',
-    red: 'bg-red-50 text-red-600',
-    blue: 'bg-blue-50 text-blue-600',
+    primary: 'bg-gray-700 text-primary-400',
+    green: 'bg-gray-700 text-green-400',
+    yellow: 'bg-gray-700 text-yellow-400',
+    red: 'bg-gray-700 text-red-400',
+    blue: 'bg-gray-700 text-blue-400',
   }
 
   return (

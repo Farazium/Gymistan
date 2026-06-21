@@ -9,7 +9,7 @@ export function Table({ children }) {
 export function Thead({ children }) {
   return (
     <thead>
-      <tr className="border-b border-gray-200 bg-gray-50">
+      <tr className="border-b border-gray-600 bg-gray-700/60">
         {children}
       </tr>
     </thead>
@@ -18,20 +18,20 @@ export function Thead({ children }) {
 
 export function Th({ children, className = '' }) {
   return (
-    <th className={`px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide ${className}`}>
+    <th className={`px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wide ${className}`}>
       {children}
     </th>
   )
 }
 
 export function Tbody({ children }) {
-  return <tbody className="divide-y divide-gray-100">{children}</tbody>
+  return <tbody className="divide-y divide-gray-600">{children}</tbody>
 }
 
 export function Tr({ children, className = '' }) {
-  return <tr className={`hover:bg-gray-50 transition-colors ${className}`}>{children}</tr>
+  return <tr className={`hover:bg-gray-700/40 transition-colors ${className}`}>{children}</tr>
 }
 
 export function Td({ children, className = '' }) {
-  return <td className={`px-4 py-3 text-gray-700 ${className}`}>{children}</td>
+  return <td className={`px-4 py-3 text-gray-100 ${className}`}>{children}</td>
 }

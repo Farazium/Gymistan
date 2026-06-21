@@ -11,7 +11,7 @@ class Payment(models.Model):
         PARTIAL = 'PARTIAL', 'Partial'
 
     gym = models.ForeignKey(Gym, on_delete=models.CASCADE, related_name='payments')
-    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='payments')
+    member = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, related_name='payments')
     package = models.ForeignKey(Package, on_delete=models.SET_NULL, null=True, blank=True, related_name='payments')
     collected_by = models.ForeignKey(
         'accounts.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='collected_payments'

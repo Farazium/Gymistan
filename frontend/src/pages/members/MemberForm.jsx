@@ -3,26 +3,49 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import api from '../../api/axios'
 import toast from 'react-hot-toast'
 
-function calcExpiry(joinDateStr) {
-  if (!joinDateStr) return ''
-  const joinDay = new Date(joinDateStr).getDate()
-  const now = new Date()
-  const expiry = new Date(now.getFullYear(), now.getMonth() + 1, joinDay)
-  return expiry.toISOString().split('T')[0]
+// dd/mm/yyyy → yyyy-mm-dd for API
+function toISO(ddmmyyyy) {
+  if (!ddmmyyyy || ddmmyyyy.length < 10) return ''
+  const [d, m, y] = ddmmyyyy.split('/')
+  if (!d || !m || !y || y.length < 4) return ''
+  return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`
 }
 
-function formatPK(dateStr) {
-  if (!dateStr) return ''
-  const [y, m, day] = dateStr.split('-')
-  return `${day}/${m}/${y}`
+// yyyy-mm-dd → dd/mm/yyyy for display (when editing existing member)
+function toDDMMYYYY(iso) {
+  if (!iso) return ''
+  const [y, m, d] = iso.split('-')
+  return `${d}/${m}/${y}`
+}
+
+// Returns expiry as dd/mm/yyyy: +1 month if active, -1 month if expired
+function calcExpiryDisplay(ddmmyyyy, status) {
+  if (!ddmmyyyy || ddmmyyyy.length < 10) return ''
+  const [d, m, y] = ddmmyyyy.split('/')
+  if (!d || !m || !y || y.length < 4) return ''
+  const joinDay = parseInt(d, 10)
+  const now = new Date()
+  const offset = status === 'EXPIRED' ? 0 : 1
+  const expiry = new Date(now.getFullYear(), now.getMonth() + offset, joinDay)
+  const ed = String(expiry.getDate()).padStart(2, '0')
+  const em = String(expiry.getMonth() + 1).padStart(2, '0')
+  return `${ed}/${em}/${expiry.getFullYear()}`
+}
+
+function calcExpiryISO(ddmmyyyy, status) {
+  const display = calcExpiryDisplay(ddmmyyyy, status)
+  return toISO(display)
 }
 
 export default function MemberForm({ member, onSuccess }) {
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm({
-    defaultValues: member || {},
+    defaultValues: member
+      ? { ...member, join_date: toDDMMYYYY(member.join_date) }
+      : {},
   })
 
   const joinDate = watch('join_date')
+  const status = watch('status')
 
   const { data: packages } = useQuery({
     queryKey: ['packages'],
@@ -34,7 +57,11 @@ export default function MemberForm({ member, onSuccess }) {
 
   const mutation = useMutation({
     mutationFn: (payload) => {
-      const body = { ...payload, expiry_date: calcExpiry(payload.join_date) }
+      const body = {
+        ...payload,
+        join_date: toISO(payload.join_date),
+        expiry_date: calcExpiryISO(payload.join_date, payload.status),
+      }
       return member
         ? api.patch(`/members/${member.id}/`, body)
         : api.post('/members/', body)
@@ -78,10 +105,24 @@ export default function MemberForm({ member, onSuccess }) {
 
         <div>
           <label className="label">Joining Date *</label>
-          <input className="input" type="date" {...register('join_date', { required: 'Required' })} />
+          <input
+            className="input"
+            placeholder="DD/MM/YYYY"
+            maxLength={10}
+            {...register('join_date', {
+              required: 'Required',
+              pattern: { value: /^\d{2}\/\d{2}\/\d{4}$/, message: 'Use DD/MM/YYYY format' },
+            })}
+            onChange={(e) => {
+              let v = e.target.value.replace(/[^\d]/g, '')
+              if (v.length >= 3) v = v.slice(0,2) + '/' + v.slice(2)
+              if (v.length >= 6) v = v.slice(0,5) + '/' + v.slice(5,9)
+              e.target.value = v
+            }}
+          />
           {errors.join_date && <p className="text-red-500 text-xs mt-1">{errors.join_date.message}</p>}
-          {joinDate && (
-            <p className="text-xs text-gray-400 mt-1">Expires: {formatPK(calcExpiry(joinDate))}</p>
+          {calcExpiryDisplay(joinDate, status) && (
+            <p className="text-xs text-gray-400 mt-1">Expires: {calcExpiryDisplay(joinDate, status)}</p>
           )}
         </div>
 
@@ -92,6 +133,13 @@ export default function MemberForm({ member, onSuccess }) {
             <option value="EXPIRED">Expired</option>
           </select>
         </div>
+
+        {!member && (
+          <div>
+            <label className="label">Admission Fee (PKR) <span className="text-gray-400 text-xs">(optional)</span></label>
+            <input className="input" type="number" placeholder="0" {...register('admission_fee')} />
+          </div>
+        )}
 
         <div className="col-span-2">
           <label className="label">Address <span className="text-gray-400 text-xs">(optional)</span></label>
