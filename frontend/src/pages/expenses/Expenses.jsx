@@ -10,13 +10,13 @@ import toast from 'react-hot-toast'
 const CATEGORIES = ['RENT', 'UTILITIES', 'SALARIES', 'EQUIPMENT', 'MAINTENANCE', 'MARKETING', 'OTHER']
 
 const categoryColors = {
-  RENT: 'bg-blue-100 text-blue-700',
-  UTILITIES: 'bg-yellow-100 text-yellow-700',
-  SALARIES: 'bg-green-100 text-green-700',
-  EQUIPMENT: 'bg-purple-100 text-purple-700',
-  MAINTENANCE: 'bg-orange-100 text-orange-700',
-  MARKETING: 'bg-pink-100 text-pink-700',
-  OTHER: 'bg-gray-100 text-gray-700',
+  RENT: 'bg-gray-700 text-blue-400',
+  UTILITIES: 'bg-gray-700 text-yellow-400',
+  SALARIES: 'bg-gray-700 text-green-400',
+  EQUIPMENT: 'bg-gray-700 text-purple-400',
+  MAINTENANCE: 'bg-gray-700 text-orange-400',
+  MARKETING: 'bg-gray-700 text-pink-400',
+  OTHER: 'bg-gray-700 text-gray-300',
 }
 
 const fmt = (n) => `PKR ${Number(n).toLocaleString('en-PK')}`
@@ -90,7 +90,7 @@ export default function Expenses() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Expenses</h1>
+          <h1 className="text-2xl font-bold text-blue-400">Expenses</h1>
           <p className="text-gray-500 text-sm mt-1">
             {now.toLocaleString('en-PK', { month: 'long', year: 'numeric' })} — Total: <span className="font-semibold text-red-600">{fmt(total)}</span>
           </p>

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Users, CreditCard, TrendingUp, AlertTriangle, Receipt, DollarSign } from 'lucide-react'
+import { Users, CreditCard, TrendingUp, AlertTriangle, Receipt, DollarSign, Boxes, ShoppingCart } from 'lucide-react'
 import api from '../../api/axios'
 import StatCard from '../../components/ui/StatCard'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
@@ -23,7 +23,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <h1 className="text-2xl font-bold text-blue-400">Dashboard</h1>
         <p className="text-gray-500 text-sm mt-1">Overview of your gym's performance</p>
       </div>
 
@@ -38,7 +38,13 @@ export default function Dashboard() {
         <StatCard title="Expiring Soon" value={data.members.expiring_soon} subtitle="Within 7 days" icon={AlertTriangle} color="yellow" />
         <StatCard title="Expired Members" value={data.members.expired} subtitle="Need renewal" icon={Users} color="red" />
         <StatCard title="New This Month" value={data.members.new_this_month} subtitle="Joined this month" icon={TrendingUp} color="blue" />
-        <StatCard title="Pending Payments" value={fmt(data.pending_payments.total)} subtitle={`${data.pending_payments.count} records`} icon={CreditCard} color="yellow" />
+        <StatCard title="Inventory Products" value={data.inventory.total_products} subtitle={data.inventory.low_stock_count > 0 ? `⚠ ${data.inventory.low_stock_count} low stock` : 'All stocked'} icon={Boxes} color={data.inventory.low_stock_count > 0 ? 'yellow' : 'primary'} />
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        <StatCard title="Inventory Stock Value" value={fmt(data.inventory.stock_value)} subtitle="At selling price" icon={Boxes} color="primary" />
+        <StatCard title="Inventory Sales (Month)" value={fmt(data.inventory.revenue_this_month)} subtitle="From product sales" icon={ShoppingCart} color="green" />
+        <StatCard title="Inventory Profit (Month)" value={fmt(data.inventory.profit_this_month)} subtitle="Sales minus cost" icon={DollarSign} color={data.inventory.profit_this_month >= 0 ? 'green' : 'red'} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -83,7 +83,7 @@ export default function Packages() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Packages</h1>
+          <h1 className="text-2xl font-bold text-blue-400">Packages</h1>
           <p className="text-gray-500 text-sm mt-1">Manage your gym membership packages</p>
         </div>
         <button onClick={() => { setEditPkg(null); setShowModal(true) }} className="btn-primary">
@@ -98,8 +98,8 @@ export default function Packages() {
           {packages.map((pkg) => (
             <div key={pkg.id} className={`card p-5 ${!pkg.is_active ? 'opacity-50' : ''}`}>
               <div className="flex items-start justify-between mb-3">
-                <div className="p-2 bg-primary-50 rounded-lg">
-                  <PackageIcon size={20} className="text-primary-600" />
+                <div className="p-2 bg-gray-700 rounded-lg">
+                  <PackageIcon size={20} className="text-primary-400" />
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => { setEditPkg(pkg); setShowModal(true) }} className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition">
@@ -116,7 +116,7 @@ export default function Packages() {
               {pkg.features?.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-1">
                   {pkg.features.map((f, i) => (
-                    <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{f}</span>
+                    <span key={i} className="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full">{f}</span>
                   ))}
                 </div>
               )}

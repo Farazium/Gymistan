@@ -9,6 +9,8 @@ import Packages from './pages/packages/Packages'
 import Payments from './pages/payments/Payments'
 import Expenses from './pages/expenses/Expenses'
 import Gyms from './pages/superadmin/Gyms'
+import Inventory from './pages/inventory/Inventory'
+import MemberProfile from './pages/members/MemberProfile'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30000 } },
@@ -26,6 +28,8 @@ export default function App() {
             <Route path="/packages" element={<Packages />} />
             <Route path="/payments" element={<Payments />} />
             <Route path="/expenses" element={<Expenses />} />
+            <Route path="/inventory" element={<Inventory />} />
+            <Route path="/members/:id" element={<MemberProfile />} />
             <Route path="/admin/gyms" element={<Gyms />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Search, UserPlus } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import api from '../../api/axios'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
 import Modal from '../../components/ui/Modal'
@@ -21,6 +22,7 @@ export default function Members() {
   const [showModal, setShowModal] = useState(false)
   const [editMember, setEditMember] = useState(null)
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
 
   const { data, isLoading } = useQuery({
     queryKey: ['members', search, statusFilter],
@@ -41,7 +43,7 @@ export default function Members() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Members</h1>
+          <h1 className="text-2xl font-bold text-blue-400">Members</h1>
           <p className="text-gray-500 text-sm mt-1">{members.length} total members</p>
         </div>
         <button onClick={() => { setEditMember(null); setShowModal(true) }} className="btn-primary">
@@ -84,7 +86,11 @@ export default function Members() {
             <Tbody>
               {members.map((m) => (
                 <Tr key={m.id}>
-                  <Td className="font-medium">{m.name}</Td>
+                  <Td className="font-medium">
+                    <button onClick={() => navigate(`/members/${m.id}`)} className="hover:text-primary-400 transition text-left">
+                      {m.name}
+                    </button>
+                  </Td>
                   <Td>{m.phone}</Td>
                   <Td>{m.package_name || <span className="text-gray-400">—</span>}</Td>
                   <Td>

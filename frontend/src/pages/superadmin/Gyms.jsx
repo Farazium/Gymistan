@@ -73,7 +73,7 @@ export default function Gyms() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gyms</h1>
+          <h1 className="text-2xl font-bold text-blue-400">Gyms</h1>
           <p className="text-gray-500 text-sm mt-1">{gyms.length} gyms registered</p>
         </div>
         <button onClick={() => setShowModal(true)} className="btn-primary">

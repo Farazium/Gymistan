@@ -7,6 +7,7 @@ from datetime import timedelta
 from apps.members.models import Member
 from apps.payments.models import Payment
 from apps.expenses.models import Expense
+from apps.inventory.models import Product, StockLog
 from apps.accounts.permissions import IsGymMember
 
 
@@ -50,7 +51,7 @@ class DashboardView(APIView):
         recent_payments_data = [
             {
                 'id': p.id,
-                'member_name': p.member.name,
+                'member_name': p.member.name if p.member else '—',
                 'amount_paid': float(p.amount_paid),
                 'status': p.status,
                 'payment_date': p.payment_date,
@@ -61,6 +62,24 @@ class DashboardView(APIView):
         members_expiring = members.filter(
             status='ACTIVE', expiry_date__lte=today + timedelta(days=7), expiry_date__gte=today
         ).values('id', 'name', 'phone', 'expiry_date')[:10]
+
+        products = list(Product.objects.filter(gym=gym, is_active=True))
+        total_products = len(products)
+        low_stock_count = sum(1 for p in products if p.is_low_stock)
+        inventory_sell_value = sum(float(p.sell_price) * p.quantity for p in products)
+
+        sales_this_month = StockLog.objects.filter(
+            product__gym=gym,
+            action='SELL',
+            created_at__date__gte=month_start,
+        ).select_related('product')
+        inventory_revenue_this_month = sum(
+            float(log.product.sell_price) * log.quantity for log in sales_this_month
+        )
+        inventory_profit_this_month = sum(
+            (float(log.product.sell_price) - float(log.product.cost_price)) * log.quantity
+            for log in sales_this_month
+        )
 
         return Response({
             'members': {
@@ -82,9 +101,12 @@ class DashboardView(APIView):
                 'this_month': float(expenses_this_month),
             },
             'net_profit': net_profit,
-            'pending_payments': {
-                'total': float(pending_payments['total'] or 0),
-                'count': pending_payments['count'] or 0,
+            'inventory': {
+                'total_products': total_products,
+                'low_stock_count': low_stock_count,
+                'stock_value': round(inventory_sell_value, 2),
+                'revenue_this_month': round(inventory_revenue_this_month, 2),
+                'profit_this_month': round(inventory_profit_this_month, 2),
             },
             'recent_payments': recent_payments_data,
             'members_expiring_soon': list(members_expiring),
