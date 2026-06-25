@@ -196,6 +196,7 @@ export default function MemberProfile() {
         <div className="card p-5">
           <h3 className="font-semibold text-gray-100 mb-2">Member Information</h3>
           <InfoRow icon={Phone} label="Phone" value={member.phone} />
+          <InfoRow icon={User} label="Gender" value={member.gender === 'FEMALE' ? 'Female' : member.gender === 'MALE' ? 'Male' : null} />
           <InfoRow icon={User} label="Father's Name" value={member.father_name} />
           <InfoRow icon={Package} label="Package" value={member.package_detail?.name} />
           <InfoRow icon={Calendar} label="Joining Date" value={member.join_date ? new Date(member.join_date).toLocaleDateString('en-PK') : null} />

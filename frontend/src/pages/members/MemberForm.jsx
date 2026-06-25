@@ -18,34 +18,36 @@ function toDDMMYYYY(iso) {
   return `${d}/${m}/${y}`
 }
 
-// Returns expiry as dd/mm/yyyy: +1 month if active, -1 month if expired
-function calcExpiryDisplay(ddmmyyyy, status) {
+// EXPIRED: joining day + current month/year (member needs renewal now)
+// ACTIVE:  joining day + current month + package months (member is paid up)
+function calcExpiryDisplay(ddmmyyyy, status, months) {
   if (!ddmmyyyy || ddmmyyyy.length < 10) return ''
   const [d, m, y] = ddmmyyyy.split('/')
   if (!d || !m || !y || y.length < 4) return ''
   const joinDay = parseInt(d, 10)
   const now = new Date()
-  const offset = status === 'EXPIRED' ? 0 : 1
-  const expiry = new Date(now.getFullYear(), now.getMonth() + offset, joinDay)
+  const offset = status === 'EXPIRED' ? 0 : (months || 1)
+  const totalMonths = now.getMonth() + offset
+  const expiry = new Date(now.getFullYear() + Math.floor(totalMonths / 12), totalMonths % 12, joinDay)
   const ed = String(expiry.getDate()).padStart(2, '0')
   const em = String(expiry.getMonth() + 1).padStart(2, '0')
   return `${ed}/${em}/${expiry.getFullYear()}`
 }
 
-function calcExpiryISO(ddmmyyyy, status) {
-  const display = calcExpiryDisplay(ddmmyyyy, status)
+function calcExpiryISO(ddmmyyyy, status, months) {
+  const display = calcExpiryDisplay(ddmmyyyy, status, months)
   return toISO(display)
 }
 
 export default function MemberForm({ member, onSuccess }) {
-  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm({
+  const { register, handleSubmit, watch, formState: { errors } } = useForm({
     defaultValues: member
       ? { ...member, join_date: toDDMMYYYY(member.join_date) }
       : {},
   })
 
   const joinDate = watch('join_date')
-  const status = watch('status')
+  const selectedPkgId = watch('package')
 
   const { data: packages } = useQuery({
     queryKey: ['packages'],
@@ -55,12 +57,18 @@ export default function MemberForm({ member, onSuccess }) {
     },
   })
 
+  const status = watch('status')
+  const selectedPkg = packages?.find((p) => String(p.id) === String(selectedPkgId))
+  const pkgMonths = selectedPkg ? Math.round(selectedPkg.duration_days / 30) : null
+
   const mutation = useMutation({
     mutationFn: (payload) => {
+      const pkg = packages?.find((p) => String(p.id) === String(payload.package))
+      const months = pkg ? Math.round(pkg.duration_days / 30) : null
       const body = {
         ...payload,
         join_date: toISO(payload.join_date),
-        expiry_date: calcExpiryISO(payload.join_date, payload.status),
+        expiry_date: calcExpiryISO(payload.join_date, payload.status, months),
       }
       return member
         ? api.patch(`/members/${member.id}/`, body)
@@ -89,18 +97,28 @@ export default function MemberForm({ member, onSuccess }) {
         </div>
 
         <div>
+          <label className="label">Gender *</label>
+          <select className="input" {...register('gender', { required: 'Required' })}>
+            <option value="MALE">Male</option>
+            <option value="FEMALE">Female</option>
+          </select>
+          {errors.gender && <p className="text-red-500 text-xs mt-1">{errors.gender.message}</p>}
+        </div>
+
+        <div>
           <label className="label">Father's Name <span className="text-gray-400 text-xs">(optional)</span></label>
           <input className="input" {...register('father_name')} />
         </div>
 
         <div>
-          <label className="label">Package</label>
-          <select className="input" {...register('package')}>
-            <option value="">No Package</option>
+          <label className="label">Package *</label>
+          <select className="input" {...register('package', { required: 'Package is required' })}>
+            <option value="">Select a package</option>
             {packages?.map((p) => (
               <option key={p.id} value={p.id}>{p.name} — PKR {Number(p.price).toLocaleString()}</option>
             ))}
           </select>
+          {errors.package && <p className="text-red-500 text-xs mt-1">{errors.package.message}</p>}
         </div>
 
         <div>
@@ -121,8 +139,8 @@ export default function MemberForm({ member, onSuccess }) {
             }}
           />
           {errors.join_date && <p className="text-red-500 text-xs mt-1">{errors.join_date.message}</p>}
-          {calcExpiryDisplay(joinDate, status) && (
-            <p className="text-xs text-gray-400 mt-1">Expires: {calcExpiryDisplay(joinDate, status)}</p>
+          {calcExpiryDisplay(joinDate, status, pkgMonths) && (
+            <p className="text-xs text-gray-400 mt-1">Expires: {calcExpiryDisplay(joinDate, status, pkgMonths)}</p>
           )}
         </div>
 
@@ -153,8 +171,8 @@ export default function MemberForm({ member, onSuccess }) {
       </div>
 
       <div className="flex gap-3 pt-2">
-        <button type="submit" disabled={isSubmitting} className="btn-primary flex-1 justify-center">
-          {isSubmitting ? 'Saving...' : member ? 'Update Member' : 'Add Member'}
+        <button type="submit" disabled={mutation.isPending} className="btn-primary flex-1 justify-center">
+          {mutation.isPending ? 'Saving...' : member ? 'Update Member' : 'Add Member'}
         </button>
       </div>
     </form>

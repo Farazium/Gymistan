@@ -29,6 +29,13 @@ class MeView(APIView):
     def get(self, request):
         return Response(UserSerializer(request.user).data)
 
+    def patch(self, request):
+        user = request.user
+        if 'name' in request.data:
+            user.name = request.data['name']
+            user.save(update_fields=['name'])
+        return Response(UserSerializer(user).data)
+
 
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]

@@ -1,31 +1,34 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Download, MessageCircle, Search } from 'lucide-react'
+import { Plus, Download, MessageCircle, Search, Trash2 } from 'lucide-react'
 import api from '../../api/axios'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
 import Modal from '../../components/ui/Modal'
 import PaymentForm from './PaymentForm'
 import toast from 'react-hot-toast'
 
-const fetchPayments = async (search, status) => {
-  const params = {}
-  if (search) params.search = search
-  if (status) params.status = status
-  const { data } = await api.get('/payments/', { params })
-  return data?.results || data || []
-}
-
 const fmt = (n) => `PKR ${Number(n).toLocaleString('en-PK')}`
 
 export default function Payments() {
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
+  const [packageFilter, setPackageFilter] = useState('')
   const [showModal, setShowModal] = useState(false)
   const queryClient = useQueryClient()
 
+  const { data: packages = [] } = useQuery({
+    queryKey: ['packages'],
+    queryFn: async () => { const { data } = await api.get('/packages/'); return data?.results || data || [] },
+  })
+
   const { data: payments = [], isLoading } = useQuery({
-    queryKey: ['payments', search, statusFilter],
-    queryFn: () => fetchPayments(search, statusFilter),
+    queryKey: ['payments', search, packageFilter],
+    queryFn: async () => {
+      const params = {}
+      if (search) params.search = search
+      if (packageFilter) params.package = packageFilter
+      const { data } = await api.get('/payments/', { params })
+      return data?.results || data || []
+    },
   })
 
   const downloadSlip = async (id) => {
@@ -35,6 +38,12 @@ export default function Payments() {
       const a = document.createElement('a'); a.href = url; a.download = `slip_${id}.pdf`; a.click()
     } catch { toast.error('Failed to download slip') }
   }
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/payments/${id}/`),
+    onSuccess: () => { queryClient.invalidateQueries(['payments']); toast.success('Payment deleted') },
+    onError: () => toast.error('Failed to delete payment'),
+  })
 
   const sendWhatsApp = useMutation({
     mutationFn: (id) => api.post(`/payments/${id}/whatsapp/`),
@@ -59,11 +68,9 @@ export default function Payments() {
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input className="input pl-9" placeholder="Search member..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <select className="input w-auto" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option value="">All Status</option>
-          <option value="PAID">Paid</option>
-          <option value="PENDING">Pending</option>
-          <option value="PARTIAL">Partial</option>
+        <select className="input w-auto" value={packageFilter} onChange={(e) => setPackageFilter(e.target.value)}>
+          <option value="">All Packages</option>
+          {packages.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       </div>
 
@@ -77,7 +84,7 @@ export default function Payments() {
               <Th>Package</Th>
               <Th>Amount</Th>
               <Th>Paid</Th>
-              <Th>Status</Th>
+              <Th>Method</Th>
               <Th>Date</Th>
               <Th>Actions</Th>
             </Thead>
@@ -90,10 +97,14 @@ export default function Payments() {
                       <p className="text-xs text-gray-400">{p.member_phone}</p>
                     </div>
                   </Td>
-                  <Td>{p.package_name || <span className="text-gray-400">—</span>}</Td>
+                  <Td>{p.package_name ? <span className="text-blue-400 text-xs">{p.package_name}</span> : (p.notes === 'Admission fee' ? <span className="text-blue-400 text-xs">Admission Fee</span> : <span className="text-gray-400">—</span>)}</Td>
                   <Td>{fmt(p.amount)}</Td>
                   <Td className="font-semibold text-gray-900">{fmt(p.amount_paid)}</Td>
-                  <Td><span className={`badge-${p.status.toLowerCase()}`}>{p.status}</span></Td>
+                  <Td>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.payment_method === 'ONLINE' ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-700 text-gray-300'}`}>
+                      {p.payment_method === 'ONLINE' ? 'Online' : 'Cash'}
+                    </span>
+                  </Td>
                   <Td className="text-gray-400">{new Date(p.payment_date).toLocaleDateString('en-PK')}</Td>
                   <Td>
                     <div className="flex items-center gap-1">
@@ -104,6 +115,9 @@ export default function Payments() {
                         <MessageCircle size={14} />
                       </button>
                       {p.slip_sent && <span className="text-xs text-green-500 ml-1">✓ Sent</span>}
+                      <button onClick={() => { if (confirm('Delete this payment record?')) deleteMutation.mutate(p.id) }} title="Delete" className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition">
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </Td>
                 </Tr>

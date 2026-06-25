@@ -11,7 +11,7 @@ import datetime
 class MemberListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated, IsGymMember]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['status', 'package']
+    filterset_fields = ['status', 'package', 'gender']
     search_fields = ['name', 'phone']
     ordering_fields = ['name', 'join_date', 'expiry_date']
     ordering = ['-created_at']

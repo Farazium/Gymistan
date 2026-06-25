@@ -10,6 +10,10 @@ class Payment(models.Model):
         PENDING = 'PENDING', 'Pending'
         PARTIAL = 'PARTIAL', 'Partial'
 
+    class PaymentMethod(models.TextChoices):
+        CASH = 'CASH', 'Cash'
+        ONLINE = 'ONLINE', 'Online'
+
     gym = models.ForeignKey(Gym, on_delete=models.CASCADE, related_name='payments')
     member = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, related_name='payments')
     package = models.ForeignKey(Package, on_delete=models.SET_NULL, null=True, blank=True, related_name='payments')
@@ -20,6 +24,7 @@ class Payment(models.Model):
     discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     amount_paid = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PAID)
+    payment_method = models.CharField(max_length=20, choices=PaymentMethod.choices, default=PaymentMethod.CASH)
     payment_date = models.DateField(auto_now_add=True)
     due_date = models.DateField(null=True, blank=True)
     month = models.CharField(max_length=20, blank=True)

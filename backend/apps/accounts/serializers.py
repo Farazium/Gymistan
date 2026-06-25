@@ -5,10 +5,11 @@ from .models import User
 
 class UserSerializer(serializers.ModelSerializer):
     gym_name = serializers.CharField(source='gym.name', read_only=True)
+    gym_logo = serializers.ImageField(source='gym.logo', read_only=True)
 
     class Meta:
         model = User
-        fields = ['id', 'name', 'email', 'role', 'is_active', 'gym', 'gym_name', 'created_at']
+        fields = ['id', 'name', 'email', 'role', 'is_active', 'gym', 'gym_name', 'gym_logo', 'created_at']
 
 
 class LoginSerializer(serializers.Serializer):

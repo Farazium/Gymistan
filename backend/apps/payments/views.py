@@ -30,12 +30,14 @@ class PaymentListCreateView(generics.ListCreateAPIView):
         if payment.status == 'PAID' and payment.package:
             member = payment.member
             base = member.expiry_date if member.expiry_date else datetime.date.today()
-            member.expiry_date = base + datetime.timedelta(days=payment.package.duration_days)
+            months = round(payment.package.duration_days / 30)
+            m = base.month - 1 + months
+            member.expiry_date = base.replace(year=base.year + m // 12, month=m % 12 + 1)
             member.status = 'ACTIVE'
             member.save(update_fields=['expiry_date', 'status'])
 
 
-class PaymentDetailView(generics.RetrieveUpdateAPIView):
+class PaymentDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = PaymentSerializer
     permission_classes = [IsAuthenticated, IsGymMember]
 

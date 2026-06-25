@@ -8,10 +8,11 @@ import Modal from '../../components/ui/Modal'
 import MemberForm from './MemberForm'
 import toast from 'react-hot-toast'
 
-const fetchMembers = async (search, status) => {
+const fetchMembers = async (search, status, gender) => {
   const params = {}
   if (search) params.search = search
   if (status) params.status = status
+  if (gender) params.gender = gender
   const { data } = await api.get('/members/', { params })
   return data
 }
@@ -19,14 +20,15 @@ const fetchMembers = async (search, status) => {
 export default function Members() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [genderFilter, setGenderFilter] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editMember, setEditMember] = useState(null)
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
   const { data, isLoading } = useQuery({
-    queryKey: ['members', search, statusFilter],
-    queryFn: () => fetchMembers(search, statusFilter),
+    queryKey: ['members', search, statusFilter, genderFilter],
+    queryFn: () => fetchMembers(search, statusFilter, genderFilter),
   })
 
   const deleteMutation = useMutation({
@@ -66,6 +68,11 @@ export default function Members() {
           <option value="ACTIVE">Active</option>
           <option value="EXPIRED">Expired</option>
         </select>
+        <select className="input w-auto" value={genderFilter} onChange={(e) => setGenderFilter(e.target.value)}>
+          <option value="">All Gender</option>
+          <option value="MALE">Male</option>
+          <option value="FEMALE">Female</option>
+        </select>
       </div>
 
       <div className="card">
@@ -78,6 +85,7 @@ export default function Members() {
             <Thead>
               <Th>Name</Th>
               <Th>Phone</Th>
+              <Th>Gender</Th>
               <Th>Package</Th>
               <Th>Status</Th>
               <Th>Expiry</Th>
@@ -92,6 +100,11 @@ export default function Members() {
                     </button>
                   </Td>
                   <Td>{m.phone}</Td>
+                  <Td>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${m.gender === 'FEMALE' ? 'bg-pink-500/20 text-pink-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                      {m.gender === 'FEMALE' ? 'Female' : 'Male'}
+                    </span>
+                  </Td>
                   <Td>{m.package_name || <span className="text-gray-400">—</span>}</Td>
                   <Td>
                     <span className={`badge-${m.status.toLowerCase()}`}>{m.status}</span>
@@ -121,7 +134,7 @@ export default function Members() {
               ))}
               {!members.length && (
                 <Tr>
-                  <Td colSpan={6} className="text-center py-16 text-gray-400">
+                  <Td colSpan={7} className="text-center py-16 text-gray-400">
                     <UserPlus size={32} className="mx-auto mb-2 opacity-30" />
                     No members found. Add your first member.
                   </Td>
