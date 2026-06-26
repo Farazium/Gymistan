@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Package as PackageIcon, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Package as PackageIcon, Pencil, Trash2, FileDown } from 'lucide-react'
+import { exportToExcel } from '../../utils/exportExcel'
 import { useForm } from 'react-hook-form'
 import api from '../../api/axios'
 import Modal from '../../components/ui/Modal'
@@ -86,9 +87,25 @@ export default function Packages() {
           <h1 className="text-2xl font-bold text-blue-400">Packages</h1>
           <p className="text-gray-500 text-sm mt-1">Manage your gym membership packages</p>
         </div>
-        <button onClick={() => { setEditPkg(null); setShowModal(true) }} className="btn-primary">
-          <Plus size={16} /> New Package
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => exportToExcel(packages.map((p) => ({
+              Name: p.name,
+              'Price (PKR)': p.price,
+              'Duration (Months)': Math.round(p.duration_days / 30),
+              Features: p.features?.join(', ') || '',
+              Description: p.description || '',
+              'Members Enrolled': p.member_count || 0,
+              Active: p.is_active ? 'Yes' : 'No',
+            })), 'Packages')}
+            className="btn-secondary flex items-center gap-2"
+          >
+            <FileDown size={16} /> Export
+          </button>
+          <button onClick={() => { setEditPkg(null); setShowModal(true) }} className="btn-primary">
+            <Plus size={16} /> New Package
+          </button>
+        </div>
       </div>
 
       {isLoading ? (

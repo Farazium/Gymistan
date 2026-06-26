@@ -9,6 +9,8 @@ import Packages from './pages/packages/Packages'
 import Payments from './pages/payments/Payments'
 import Expenses from './pages/expenses/Expenses'
 import Gyms from './pages/superadmin/Gyms'
+import GymProfile from './pages/superadmin/GymProfile'
+import Tiers from './pages/superadmin/Tiers'
 import Inventory from './pages/inventory/Inventory'
 import MemberProfile from './pages/members/MemberProfile'
 
@@ -31,6 +33,8 @@ export default function App() {
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/members/:id" element={<MemberProfile />} />
             <Route path="/admin/gyms" element={<Gyms />} />
+            <Route path="/admin/gyms/:id" element={<GymProfile />} />
+            <Route path="/admin/tiers" element={<Tiers />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

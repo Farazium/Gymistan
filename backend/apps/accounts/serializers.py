@@ -6,10 +6,11 @@ from .models import User
 class UserSerializer(serializers.ModelSerializer):
     gym_name = serializers.CharField(source='gym.name', read_only=True)
     gym_logo = serializers.ImageField(source='gym.logo', read_only=True)
+    gym_tier = serializers.CharField(source='gym.tier', read_only=True)
 
     class Meta:
         model = User
-        fields = ['id', 'name', 'email', 'role', 'is_active', 'gym', 'gym_name', 'gym_logo', 'created_at']
+        fields = ['id', 'name', 'email', 'role', 'is_active', 'gym', 'gym_name', 'gym_logo', 'gym_tier', 'created_at']
 
 
 class LoginSerializer(serializers.Serializer):
@@ -22,6 +23,8 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError('Invalid credentials')
         if not user.is_active:
             raise serializers.ValidationError('Account is disabled')
+        if user.gym and not user.gym.is_active:
+            raise serializers.ValidationError('This gym has been deactivated. Contact support.')
         data['user'] = user
         return data
 

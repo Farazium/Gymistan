@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, UserPlus } from 'lucide-react'
+import { Plus, Search, UserPlus, FileDown, ChevronUp, ChevronDown } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../api/axios'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
 import Modal from '../../components/ui/Modal'
 import MemberForm from './MemberForm'
 import toast from 'react-hot-toast'
+import { exportToExcel } from '../../utils/exportExcel'
 
 const fetchMembers = async (search, status, gender) => {
   const params = {}
@@ -23,6 +24,14 @@ export default function Members() {
   const [genderFilter, setGenderFilter] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editMember, setEditMember] = useState(null)
+  const [sort, setSort] = useState({ key: null, dir: 'asc' })
+
+  const toggleSort = (key) => setSort((s) => ({ key, dir: s.key === key && s.dir === 'asc' ? 'desc' : 'asc' }))
+
+  const SortIcon = ({ col }) => {
+    if (sort.key !== col) return <ChevronUp size={13} className="text-gray-600" />
+    return sort.dir === 'asc' ? <ChevronUp size={13} className="text-blue-400" /> : <ChevronDown size={13} className="text-blue-400" />
+  }
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
@@ -39,7 +48,15 @@ export default function Members() {
     },
   })
 
-  const members = data?.results || data || []
+  const rawMembers = data?.results || data || []
+  const members = [...rawMembers].sort((a, b) => {
+    if (!sort.key) return 0
+    let av = a[sort.key] ?? ''
+    let bv = b[sort.key] ?? ''
+    if (sort.key === 'expiry_date') { av = av ? new Date(av) : 0; bv = bv ? new Date(bv) : 0 }
+    else { av = av.toString().toLowerCase(); bv = bv.toString().toLowerCase() }
+    return sort.dir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1)
+  })
 
   return (
     <div className="space-y-5">
@@ -48,9 +65,28 @@ export default function Members() {
           <h1 className="text-2xl font-bold text-blue-400">Members</h1>
           <p className="text-gray-500 text-sm mt-1">{members.length} total members</p>
         </div>
-        <button onClick={() => { setEditMember(null); setShowModal(true) }} className="btn-primary">
-          <UserPlus size={16} /> Add Member
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => exportToExcel(members.map((m) => ({
+              Name: m.name,
+              Phone: m.phone,
+              Gender: m.gender === 'FEMALE' ? 'Female' : 'Male',
+              'Father Name': m.father_name || '',
+              Package: m.package_name || '',
+              Status: m.status,
+              'Join Date': m.join_date || '',
+              'Expiry Date': m.expiry_date || '',
+              Address: m.address || '',
+              Notes: m.notes || '',
+            })), 'Members')}
+            className="btn-secondary flex items-center gap-2"
+          >
+            <FileDown size={16} /> Export
+          </button>
+          <button onClick={() => { setEditMember(null); setShowModal(true) }} className="btn-primary">
+            <UserPlus size={16} /> Add Member
+          </button>
+        </div>
       </div>
 
       <div className="card p-4 flex flex-col sm:flex-row gap-3">
@@ -83,12 +119,20 @@ export default function Members() {
         ) : (
           <Table>
             <Thead>
-              <Th>Name</Th>
+              <Th>
+                <button onClick={() => toggleSort('name')} className="flex items-center gap-1 hover:text-blue-400 transition">
+                  Name <SortIcon col="name" />
+                </button>
+              </Th>
               <Th>Phone</Th>
               <Th>Gender</Th>
               <Th>Package</Th>
               <Th>Status</Th>
-              <Th>Expiry</Th>
+              <Th>
+                <button onClick={() => toggleSort('expiry_date')} className="flex items-center gap-1 hover:text-blue-400 transition">
+                  Expiry <SortIcon col="expiry_date" />
+                </button>
+              </Th>
               <Th>Actions</Th>
             </Thead>
             <Tbody>

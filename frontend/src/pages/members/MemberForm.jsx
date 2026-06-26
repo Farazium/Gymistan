@@ -3,51 +3,64 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import api from '../../api/axios'
 import toast from 'react-hot-toast'
 
-// dd/mm/yyyy → yyyy-mm-dd for API
-function toISO(ddmmyyyy) {
-  if (!ddmmyyyy || ddmmyyyy.length < 10) return ''
-  const [d, m, y] = ddmmyyyy.split('/')
-  if (!d || !m || !y || y.length < 4) return ''
-  return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`
-}
+function calcExpiry(isoDate, status, pkgMonths) {
+  if (!isoDate || isoDate.length < 10) return null
+  const [jy, jm, jd] = isoDate.split('-').map(Number)
+  if (!jd || !jm || !jy) return null
 
-// yyyy-mm-dd → dd/mm/yyyy for display (when editing existing member)
-function toDDMMYYYY(iso) {
-  if (!iso) return ''
-  const [y, m, d] = iso.split('-')
-  return `${d}/${m}/${y}`
-}
-
-// EXPIRED: joining day + current month/year (member needs renewal now)
-// ACTIVE:  joining day + current month + package months (member is paid up)
-function calcExpiryDisplay(ddmmyyyy, status, months) {
-  if (!ddmmyyyy || ddmmyyyy.length < 10) return ''
-  const [d, m, y] = ddmmyyyy.split('/')
-  if (!d || !m || !y || y.length < 4) return ''
-  const joinDay = parseInt(d, 10)
   const now = new Date()
-  const offset = status === 'EXPIRED' ? 0 : (months || 1)
-  const totalMonths = now.getMonth() + offset
-  const expiry = new Date(now.getFullYear() + Math.floor(totalMonths / 12), totalMonths % 12, joinDay)
-  const ed = String(expiry.getDate()).padStart(2, '0')
-  const em = String(expiry.getMonth() + 1).padStart(2, '0')
-  return `${ed}/${em}/${expiry.getFullYear()}`
+  const currentDD = now.getDate()
+  const currentMM = now.getMonth() + 1
+  const currentYY = now.getFullYear()
+  const pkg = pkgMonths || 1
+
+  let mm, yy
+  const dd = jd
+
+  if (jd < currentDD) {
+    // joining day already passed this month
+    mm = status === 'EXPIRED' ? currentMM : currentMM + pkg
+    yy = currentYY
+  } else {
+    // joining day hasn't come yet this month
+    // EXPIRED: rewind to joining month of current year (currentMM - difference = jm)
+    mm = status === 'EXPIRED' ? jm : jm + pkg
+    yy = currentYY
+  }
+
+  // normalize month overflow / underflow
+  if (mm > 12) {
+    yy += Math.floor((mm - 1) / 12)
+    mm = ((mm - 1) % 12) + 1
+  } else if (mm < 1) {
+    const years = Math.ceil((1 - mm) / 12)
+    yy -= years
+    mm += years * 12
+  }
+
+  return { dd, mm, yy }
 }
 
-function calcExpiryISO(ddmmyyyy, status, months) {
-  const display = calcExpiryDisplay(ddmmyyyy, status, months)
-  return toISO(display)
+function calcExpiryDisplay(isoDate, status, pkgMonths) {
+  const r = calcExpiry(isoDate, status, pkgMonths)
+  if (!r) return ''
+  return `${String(r.mm).padStart(2, '0')}/${String(r.dd).padStart(2, '0')}/${r.yy}`
+}
+
+function calcExpiryISO(isoDate, status, pkgMonths) {
+  const r = calcExpiry(isoDate, status, pkgMonths)
+  if (!r) return ''
+  return `${r.yy}-${String(r.mm).padStart(2, '0')}-${String(r.dd).padStart(2, '0')}`
 }
 
 export default function MemberForm({ member, onSuccess }) {
   const { register, handleSubmit, watch, formState: { errors } } = useForm({
-    defaultValues: member
-      ? { ...member, join_date: toDDMMYYYY(member.join_date) }
-      : {},
+    defaultValues: member ? { ...member } : {},
   })
 
   const joinDate = watch('join_date')
   const selectedPkgId = watch('package')
+  const status = watch('status')
 
   const { data: packages } = useQuery({
     queryKey: ['packages'],
@@ -57,7 +70,6 @@ export default function MemberForm({ member, onSuccess }) {
     },
   })
 
-  const status = watch('status')
   const selectedPkg = packages?.find((p) => String(p.id) === String(selectedPkgId))
   const pkgMonths = selectedPkg ? Math.round(selectedPkg.duration_days / 30) : null
 
@@ -67,7 +79,6 @@ export default function MemberForm({ member, onSuccess }) {
       const months = pkg ? Math.round(pkg.duration_days / 30) : null
       const body = {
         ...payload,
-        join_date: toISO(payload.join_date),
         expiry_date: calcExpiryISO(payload.join_date, payload.status, months),
       }
       return member
@@ -124,23 +135,15 @@ export default function MemberForm({ member, onSuccess }) {
         <div>
           <label className="label">Joining Date *</label>
           <input
-            className="input"
-            placeholder="DD/MM/YYYY"
-            maxLength={10}
-            {...register('join_date', {
-              required: 'Required',
-              pattern: { value: /^\d{2}\/\d{2}\/\d{4}$/, message: 'Use DD/MM/YYYY format' },
-            })}
-            onChange={(e) => {
-              let v = e.target.value.replace(/[^\d]/g, '')
-              if (v.length >= 3) v = v.slice(0,2) + '/' + v.slice(2)
-              if (v.length >= 6) v = v.slice(0,5) + '/' + v.slice(5,9)
-              e.target.value = v
-            }}
+            type="date"
+            className="input [color-scheme:dark]"
+            {...register('join_date', { required: 'Required' })}
           />
           {errors.join_date && <p className="text-red-500 text-xs mt-1">{errors.join_date.message}</p>}
           {calcExpiryDisplay(joinDate, status, pkgMonths) && (
-            <p className="text-xs text-gray-400 mt-1">Expires: {calcExpiryDisplay(joinDate, status, pkgMonths)}</p>
+            <p className="text-xs text-gray-400 mt-1">
+              Expires: {calcExpiryDisplay(joinDate, status, pkgMonths)}
+            </p>
           )}
         </div>
 

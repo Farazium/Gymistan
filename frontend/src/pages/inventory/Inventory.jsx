@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
-import { Plus, Package, Pencil, Trash2, AlertTriangle, TrendingDown, TrendingUp, SlidersHorizontal } from 'lucide-react'
+import { Plus, Package, Pencil, Trash2, AlertTriangle, TrendingDown, TrendingUp, SlidersHorizontal, FileDown } from 'lucide-react'
+import { exportToExcel } from '../../utils/exportExcel'
 import api from '../../api/axios'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
@@ -134,9 +135,26 @@ export default function Inventory() {
             {lowStockCount > 0 && <span className="ml-2 text-yellow-400 font-medium">· {lowStockCount} low stock</span>}
           </p>
         </div>
-        <button onClick={() => setShowAddModal(true)} className="btn-primary">
-          <Plus size={16} /> Add Product
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => exportToExcel(products.map((p) => ({
+              Name: p.name,
+              Category: p.category,
+              Quantity: p.quantity,
+              'Sell Price (PKR)': p.sell_price,
+              'Cost Price (PKR)': p.cost_price || 0,
+              'Low Stock Alert': p.low_stock_alert,
+              'Low Stock': p.is_low_stock ? 'Yes' : 'No',
+              Description: p.description || '',
+            })), 'Inventory')}
+            className="btn-secondary flex items-center gap-2"
+          >
+            <FileDown size={16} /> Export
+          </button>
+          <button onClick={() => setShowAddModal(true)} className="btn-primary">
+            <Plus size={16} /> Add Product
+          </button>
+        </div>
       </div>
 
       <div className="card p-4 flex gap-3">

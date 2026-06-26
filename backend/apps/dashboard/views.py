@@ -8,7 +8,8 @@ from apps.members.models import Member
 from apps.payments.models import Payment
 from apps.expenses.models import Expense
 from apps.inventory.models import Product, StockLog
-from apps.accounts.permissions import IsGymMember
+from apps.gyms.models import Gym
+from apps.accounts.permissions import IsGymMember, IsSuperAdmin
 
 
 class DashboardView(APIView):
@@ -110,4 +111,39 @@ class DashboardView(APIView):
             },
             'recent_payments': recent_payments_data,
             'members_expiring_soon': list(members_expiring),
+        })
+
+
+class SuperAdminDashboardView(APIView):
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+
+    def get(self, request):
+        today = timezone.now().date()
+        month_start = today.replace(day=1)
+
+        gyms = Gym.objects.all()
+        total_gyms = gyms.count()
+        active_gyms = gyms.filter(is_active=True).count()
+        inactive_gyms = total_gyms - active_gyms
+
+        total_members = Member.objects.count()
+        active_members = Member.objects.filter(status='ACTIVE').count()
+        new_this_month = Member.objects.filter(join_date__gte=month_start).count()
+
+        revenue = Payment.objects.filter(payment_date__gte=month_start).aggregate(t=Sum('amount_paid'))['t'] or 0
+        expenses = Expense.objects.filter(date__gte=month_start).aggregate(t=Sum('amount'))['t'] or 0
+
+        top_gyms = (
+            gyms.annotate(member_count=Count('members'))
+            .order_by('-member_count')
+            .values('id', 'name', 'is_active', 'member_count')[:5]
+        )
+
+        return Response({
+            'gyms': {'total': total_gyms, 'active': active_gyms, 'inactive': inactive_gyms},
+            'members': {'total': total_members, 'active': active_members, 'new_this_month': new_this_month},
+            'revenue_this_month': float(revenue),
+            'expenses_this_month': float(expenses),
+            'net_profit': float(revenue) - float(expenses),
+            'top_gyms': list(top_gyms),
         })

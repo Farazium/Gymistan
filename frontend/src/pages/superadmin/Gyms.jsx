@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
-import { Plus, Building2, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Plus, Building2, XCircle, CheckCircle } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import api from '../../api/axios'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
 import Modal from '../../components/ui/Modal'
@@ -16,10 +17,11 @@ function GymForm({ onSuccess }) {
   })
   return (
     <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
-      <p className="text-sm text-gray-500 bg-gray-50 rounded-lg p-3">This will create a new gym and an admin account for it.</p>
+      <p className="text-sm text-gray-400 bg-gray-700/50 rounded-lg p-3">This will create a new gym and an admin account for it.</p>
       <div>
         <label className="label">Gym Name *</label>
         <input className="input" placeholder="e.g. Fitness Hub" {...register('name', { required: true })} />
+        {errors.name && <p className="text-red-500 text-xs mt-1">Required</p>}
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -31,8 +33,23 @@ function GymForm({ onSuccess }) {
           <input className="input" {...register('address')} />
         </div>
       </div>
-      <div className="border-t pt-4">
-        <p className="text-sm font-medium text-gray-700 mb-3">Gym Admin Account</p>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="label">Trial Days</label>
+          <input className="input" type="number" placeholder="30" {...register('trial_days')} />
+          <p className="text-xs text-gray-500 mt-1">Expiry = today + trial days</p>
+        </div>
+        <div>
+          <label className="label">Or set expiry date directly</label>
+          <input className="input [color-scheme:dark]" type="date" {...register('expiry_date')} />
+        </div>
+      </div>
+      <div>
+        <label className="label">Subscription Amount (PKR)</label>
+        <input className="input" type="number" placeholder="e.g. 5000" {...register('subscription_amount')} />
+      </div>
+      <div className="border-t border-gray-700 pt-4">
+        <p className="text-sm font-medium text-gray-300 mb-3">Gym Admin Account</p>
         <div className="space-y-3">
           <div>
             <label className="label">Admin Name *</label>
@@ -58,6 +75,7 @@ function GymForm({ onSuccess }) {
 export default function Gyms() {
   const [showModal, setShowModal] = useState(false)
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
 
   const { data: gyms = [], isLoading } = useQuery({
     queryKey: ['gyms'],
@@ -83,16 +101,18 @@ export default function Gyms() {
 
       <div className="card">
         {isLoading ? (
-          <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-primary-500 border-t-transparent rounded-full" /></div>
+          <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full" /></div>
         ) : (
           <Table>
             <Thead>
               <Th>Gym Name</Th>
               <Th>Phone</Th>
               <Th>Members</Th>
-              <Th>Staff</Th>
               <Th>Status</Th>
-              <Th>Created</Th>
+              <Th>Joined</Th>
+              <Th>Expiry</Th>
+              <Th>Tier</Th>
+              <Th>Subscription</Th>
               <Th>Actions</Th>
             </Thead>
             <Tbody>
@@ -100,37 +120,60 @@ export default function Gyms() {
                 <Tr key={g.id}>
                   <Td>
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-primary-50 rounded-lg flex items-center justify-center">
-                        <Building2 size={16} className="text-primary-600" />
+                      <div className="w-9 h-9 bg-gray-700 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Building2 size={17} className="text-blue-400" />
                       </div>
                       <div>
-                        <p className="font-medium">{g.name}</p>
+                        <button onClick={() => navigate(`/admin/gyms/${g.id}`)} className="font-medium text-gray-100 hover:text-blue-400 transition text-left">
+                          {g.name}
+                        </button>
                         {g.address && <p className="text-xs text-gray-400">{g.address}</p>}
                       </div>
                     </div>
                   </Td>
                   <Td>{g.phone || '—'}</Td>
                   <Td>{g.member_count}</Td>
-                  <Td>{g.user_count}</Td>
                   <Td>
-                    <span className={g.is_active ? 'badge-active' : 'badge-expired'}>
+                    <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium border ${g.is_active ? 'bg-green-500/10 text-green-400 border-green-500/30' : 'bg-red-500/10 text-red-400 border-red-500/30'}`}>
                       {g.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </Td>
-                  <Td className="text-gray-400">{new Date(g.created_at).toLocaleDateString('en-PK')}</Td>
+                  <Td className="text-gray-400">{g.joining_date ? new Date(g.joining_date).toLocaleDateString('en-PK') : '—'}</Td>
+                  <Td>
+                    {g.expiry_date ? (
+                      <span className={`text-sm font-medium ${new Date(g.expiry_date) < new Date() ? 'text-red-400' : 'text-gray-300'}`}>
+                        {new Date(g.expiry_date).toLocaleDateString('en-PK')}
+                      </span>
+                    ) : <span className="text-gray-500">—</span>}
+                  </Td>
+                  <Td>
+                    {g.tier === 'TIER1'    && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-500/20 text-blue-300">Basic</span>}
+                    {g.tier === 'TIER2_WA' && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-500/20 text-green-300">WhatsApp</span>}
+                    {g.tier === 'TIER2_AT' && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-500/20 text-purple-300">Attendance</span>}
+                    {g.tier === 'TIER3'    && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-yellow-500/20 text-yellow-300">Pro</span>}
+                    {!g.tier && <span className="text-gray-500">—</span>}
+                  </Td>
+                  <Td className="text-blue-400 font-medium">
+                    {g.subscription_amount ? `PKR ${Number(g.subscription_amount).toLocaleString()}` : <span className="text-gray-500">—</span>}
+                  </Td>
                   <Td>
                     <button
                       onClick={() => toggleMutation.mutate(g.id)}
-                      className={`flex items-center gap-1 text-xs font-medium transition ${g.is_active ? 'text-red-500 hover:text-red-700' : 'text-green-600 hover:text-green-800'}`}
+                      className={`flex items-center gap-1.5 text-xs font-medium transition ${g.is_active ? 'text-red-400 hover:text-red-300' : 'text-green-400 hover:text-green-300'}`}
                     >
-                      {g.is_active ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
-                      {g.is_active ? 'Deactivate' : 'Activate'}
+                      {g.is_active
+                        ? <><XCircle size={15} /> Deactivate</>
+                        : <><CheckCircle size={15} /> Activate</>
+                      }
                     </button>
                   </Td>
                 </Tr>
               ))}
               {!gyms.length && (
-                <Tr><Td colSpan={7} className="text-center py-16 text-gray-400">No gyms yet. Create your first gym.</Td></Tr>
+                <Tr><Td colSpan={8} className="text-center py-16 text-gray-400">
+                  <Building2 size={32} className="mx-auto mb-2 opacity-30" />
+                  No gyms yet. Create your first gym.
+                </Td></Tr>
               )}
             </Tbody>
           </Table>

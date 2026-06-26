@@ -17,4 +17,4 @@ class MemberListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Member
-        fields = ['id', 'name', 'phone', 'gender', 'father_name', 'package', 'package_name', 'status', 'expiry_date', 'join_date']
+        fields = ['id', 'name', 'phone', 'gender', 'father_name', 'package', 'package_name', 'status', 'expiry_date', 'join_date', 'address', 'notes']

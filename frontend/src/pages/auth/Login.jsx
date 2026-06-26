@@ -19,7 +19,10 @@ export default function Login() {
       toast.success(`Welcome back, ${user.name}!`)
       navigate('/dashboard')
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Invalid credentials')
+      const msg = err.response?.data?.non_field_errors?.[0]
+        || err.response?.data?.detail
+        || 'Invalid credentials'
+      toast.error(msg)
     } finally {
       setLoading(false)
     }
@@ -33,11 +36,11 @@ export default function Login() {
             <Dumbbell size={32} className="text-white" />
           </div>
           <h1 className="text-3xl font-bold text-white">GymPro</h1>
-          <p className="text-primary-200 mt-1 text-sm">Gym Management System</p>
+          <p className="text-blue-200 mt-1 text-sm">Gym Management System</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Sign in to your account</h2>
+        <div className="bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-gray-700/50">
+          <h2 className="text-xl font-semibold text-gray-100 mb-6">Sign in to your account</h2>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
@@ -63,7 +66,7 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200"
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -81,7 +84,7 @@ export default function Login() {
           </form>
         </div>
 
-        <p className="text-center text-primary-300 text-xs mt-6">
+        <p className="text-center text-gray-400 text-xs mt-6">
           GymPro © {new Date().getFullYear()} — Built for Pakistan's gyms
         </p>
       </div>

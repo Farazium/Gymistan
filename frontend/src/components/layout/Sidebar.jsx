@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Package, CreditCard, Receipt,
-  Building2, LogOut, Dumbbell, Boxes, Settings
+  Building2, LogOut, Dumbbell, Boxes, Settings, Fingerprint, Lock
 } from 'lucide-react'
 import useAuthStore from '../../store/authStore'
 import ProfileModal from '../ui/ProfileModal'
@@ -18,7 +18,9 @@ const navItems = [
 ]
 
 const superAdminItems = [
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/admin/gyms', icon: Building2, label: 'Gyms' },
+  { to: '/admin/tiers', icon: Package, label: 'Tiers' },
 ]
 
 export default function Sidebar() {
@@ -26,15 +28,15 @@ export default function Sidebar() {
   const navigate = useNavigate()
   const [showProfile, setShowProfile] = useState(false)
 
+  const hasAttendance = ['TIER2_AT', 'TIER3'].includes(user?.gym_tier)
+
   const handleLogout = () => {
     logout()
     navigate('/login')
     toast.success('Logged out')
   }
 
-  const items = user?.role === 'SUPERADMIN'
-    ? [...superAdminItems, ...navItems]
-    : navItems
+  const items = user?.role === 'SUPERADMIN' ? superAdminItems : navItems
 
   return (
     <>
@@ -67,6 +69,34 @@ export default function Sidebar() {
               {label}
             </NavLink>
           ))}
+
+          {/* Attendance — locked or active based on tier */}
+          {user?.role !== 'SUPERADMIN' && (
+            hasAttendance ? (
+              <NavLink
+                to="/attendance"
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                    isActive ? 'bg-gray-700 text-white' : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-100'
+                  }`
+                }
+              >
+                <Fingerprint size={18} />
+                Attendance
+              </NavLink>
+            ) : (
+              <div className="relative group">
+                <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 cursor-not-allowed select-none">
+                  <Fingerprint size={18} />
+                  <span>Attendance</span>
+                  <Lock size={12} className="ml-auto" />
+                </div>
+                <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 bg-gray-900 border border-gray-700 text-gray-300 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition pointer-events-none z-50">
+                  Upgrade to Tier 2.2 or Pro
+                </div>
+              </div>
+            )
+          )}
         </nav>
 
         <div className="p-4 border-t border-gray-700/50 space-y-1">

@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Download, MessageCircle, Search, Trash2 } from 'lucide-react'
+import { Plus, Download, MessageCircle, Search, Trash2, FileDown, Lock } from 'lucide-react'
+import { exportToExcel } from '../../utils/exportExcel'
 import api from '../../api/axios'
+import useAuthStore from '../../store/authStore'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
 import Modal from '../../components/ui/Modal'
 import PaymentForm from './PaymentForm'
@@ -10,6 +12,9 @@ import toast from 'react-hot-toast'
 const fmt = (n) => `PKR ${Number(n).toLocaleString('en-PK')}`
 
 export default function Payments() {
+  const { user } = useAuthStore()
+  const hasWhatsApp = ['TIER2_WA', 'TIER3'].includes(user?.gym_tier)
+
   const [search, setSearch] = useState('')
   const [packageFilter, setPackageFilter] = useState('')
   const [showModal, setShowModal] = useState(false)
@@ -58,9 +63,27 @@ export default function Payments() {
           <h1 className="text-2xl font-bold text-blue-400">Payments</h1>
           <p className="text-gray-500 text-sm mt-1">{payments.length} records</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="btn-primary">
-          <Plus size={16} /> Record Payment
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => exportToExcel(payments.map((p) => ({
+              Member: p.member_name,
+              Phone: p.member_phone || '',
+              Package: p.package_name || (p.notes === 'Admission fee' ? 'Admission Fee' : ''),
+              Amount: p.amount,
+              'Amount Paid': p.amount_paid,
+              Discount: p.discount || 0,
+              Method: p.payment_method === 'ONLINE' ? 'Online' : 'Cash',
+              Date: new Date(p.payment_date).toLocaleDateString('en-PK'),
+              Notes: p.notes || '',
+            })), 'Payments')}
+            className="btn-secondary flex items-center gap-2"
+          >
+            <FileDown size={16} /> Export
+          </button>
+          <button onClick={() => setShowModal(true)} className="btn-primary">
+            <Plus size={16} /> Record Payment
+          </button>
+        </div>
       </div>
 
       <div className="card p-4 flex flex-col sm:flex-row gap-3">
@@ -111,9 +134,19 @@ export default function Payments() {
                       <button onClick={() => downloadSlip(p.id)} title="Download Slip" className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition">
                         <Download size={14} />
                       </button>
-                      <button onClick={() => sendWhatsApp.mutate(p.id)} title="Send via WhatsApp" className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition">
-                        <MessageCircle size={14} />
-                      </button>
+                      {hasWhatsApp ? (
+                        <button onClick={() => sendWhatsApp.mutate(p.id)} title="Send via WhatsApp" className="p-1.5 text-gray-400 hover:text-green-400 hover:bg-green-500/10 rounded-lg transition">
+                          <MessageCircle size={14} />
+                        </button>
+                      ) : (
+                        <button title="Upgrade to Tier 2.1 or Tier 3 to unlock WhatsApp" className="p-1.5 text-gray-600 cursor-not-allowed relative group rounded-lg">
+                          <MessageCircle size={14} />
+                          <Lock size={8} className="absolute -top-0.5 -right-0.5 text-gray-500" />
+                          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-gray-300 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition pointer-events-none z-10">
+                            Upgrade to Tier 2.1 or Pro
+                          </span>
+                        </button>
+                      )}
                       {p.slip_sent && <span className="text-xs text-green-500 ml-1">✓ Sent</span>}
                       <button onClick={() => { if (confirm('Delete this payment record?')) deleteMutation.mutate(p.id) }} title="Delete" className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition">
                         <Trash2 size={14} />

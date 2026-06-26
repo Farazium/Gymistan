@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, Receipt } from 'lucide-react'
+import { Plus, Trash2, Receipt, FileDown, ChevronUp, ChevronDown } from 'lucide-react'
+import { exportToExcel } from '../../utils/exportExcel'
 import { useForm } from 'react-hook-form'
 import api from '../../api/axios'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
@@ -66,8 +67,16 @@ function ExpenseForm({ onSuccess }) {
 export default function Expenses() {
   const [showModal, setShowModal] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState('')
+  const [sort, setSort] = useState({ key: null, dir: 'asc' })
   const queryClient = useQueryClient()
   const now = new Date()
+
+  const toggleSort = (key) => setSort((s) => ({ key, dir: s.key === key && s.dir === 'asc' ? 'desc' : 'asc' }))
+
+  const SortIcon = ({ col }) => {
+    if (sort.key !== col) return <ChevronUp size={13} className="text-gray-600" />
+    return sort.dir === 'asc' ? <ChevronUp size={13} className="text-blue-400" /> : <ChevronDown size={13} className="text-blue-400" />
+  }
 
   const { data: expenses = [], isLoading } = useQuery({
     queryKey: ['expenses', categoryFilter],
@@ -84,6 +93,13 @@ export default function Expenses() {
     onSuccess: () => { queryClient.invalidateQueries(['expenses']); toast.success('Expense deleted') },
   })
 
+  const sortedExpenses = [...expenses].sort((a, b) => {
+    if (!sort.key) return 0
+    let av = sort.key === 'amount' ? Number(a.amount) : new Date(a.date)
+    let bv = sort.key === 'amount' ? Number(b.amount) : new Date(b.date)
+    return sort.dir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1)
+  })
+
   const total = expenses.reduce((sum, e) => sum + Number(e.amount), 0)
 
   return (
@@ -95,9 +111,24 @@ export default function Expenses() {
             {now.toLocaleString('en-PK', { month: 'long', year: 'numeric' })} — Total: <span className="font-semibold text-red-600">{fmt(total)}</span>
           </p>
         </div>
-        <button onClick={() => setShowModal(true)} className="btn-primary">
-          <Plus size={16} /> Add Expense
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => exportToExcel(expenses.map((e) => ({
+              Title: e.title,
+              Category: e.category,
+              Amount: e.amount,
+              Date: new Date(e.date).toLocaleDateString('en-PK'),
+              Description: e.description || '',
+              'Added By': e.added_by_name || '',
+            })), 'Expenses')}
+            className="btn-secondary flex items-center gap-2"
+          >
+            <FileDown size={16} /> Export
+          </button>
+          <button onClick={() => setShowModal(true)} className="btn-primary">
+            <Plus size={16} /> Add Expense
+          </button>
+        </div>
       </div>
 
       <div className="card p-4">
@@ -115,13 +146,21 @@ export default function Expenses() {
             <Thead>
               <Th>Title</Th>
               <Th>Category</Th>
-              <Th>Amount</Th>
-              <Th>Date</Th>
+              <Th>
+                <button onClick={() => toggleSort('amount')} className="flex items-center gap-1 hover:text-blue-400 transition">
+                  Amount <SortIcon col="amount" />
+                </button>
+              </Th>
+              <Th>
+                <button onClick={() => toggleSort('date')} className="flex items-center gap-1 hover:text-blue-400 transition">
+                  Date <SortIcon col="date" />
+                </button>
+              </Th>
               <Th>Added By</Th>
               <Th></Th>
             </Thead>
             <Tbody>
-              {expenses.map((e) => (
+              {sortedExpenses.map((e) => (
                 <Tr key={e.id}>
                   <Td>
                     <p className="font-medium">{e.title}</p>
