@@ -3,7 +3,7 @@ import { Check, Lock, MessageCircle, Fingerprint, Zap } from 'lucide-react'
 const TIERS = [
   {
     id: 'TIER1',
-    name: 'Basic',
+    name: 'Starter',
     label: 'Tier 1',
     icon: Zap,
     color: 'blue',
@@ -22,13 +22,13 @@ const TIERS = [
   },
   {
     id: 'TIER2_WA',
-    name: 'WhatsApp',
+    name: 'Connect',
     label: 'Tier 2.1',
     icon: MessageCircle,
     color: 'green',
-    description: 'Basic + digital payment slips via WhatsApp',
+    description: 'Starter + digital payment slips via WhatsApp',
     features: [
-      'Everything in Basic',
+      'Everything in Starter',
       'WhatsApp payment slips',
       'Digital receipt sharing',
       'Member notification on payment',
@@ -37,13 +37,13 @@ const TIERS = [
   },
   {
     id: 'TIER2_AT',
-    name: 'Attendance',
+    name: 'Track',
     label: 'Tier 2.2',
     icon: Fingerprint,
     color: 'purple',
-    description: 'Basic + member attendance tracking',
+    description: 'Starter + member attendance tracking',
     features: [
-      'Everything in Basic',
+      'Everything in Starter',
       'Member check-in / check-out',
       'Attendance reports',
       'Daily attendance log',
@@ -52,13 +52,13 @@ const TIERS = [
   },
   {
     id: 'TIER3',
-    name: 'Pro',
+    name: 'Elite',
     label: 'Tier 3',
     icon: Zap,
     color: 'yellow',
     description: 'Full package — WhatsApp + Attendance',
     features: [
-      'Everything in Basic',
+      'Everything in Starter',
       'WhatsApp payment slips',
       'Member check-in / check-out',
       'Attendance reports',

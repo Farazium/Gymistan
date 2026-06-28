@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { Users, CreditCard, TrendingUp, AlertTriangle, Receipt, DollarSign, Boxes, ShoppingCart, Building2, Wallet } from 'lucide-react'
+import { useState } from 'react'
+import { Users, CreditCard, TrendingUp, AlertTriangle, Receipt, DollarSign, Boxes, ShoppingCart, Building2, Wallet, Info, X, Check, Lock, Zap, MessageCircle, Fingerprint } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../api/axios'
 import StatCard from '../../components/ui/StatCard'
@@ -92,17 +93,139 @@ function SuperAdminDashboard() {
   )
 }
 
+const TIER_META = {
+  TIER1:    { label: 'Starter', color: 'bg-blue-500/20 text-blue-300 ring-blue-500/40',    icon: Zap },
+  TIER2_WA: { label: 'Connect', color: 'bg-green-500/20 text-green-300 ring-green-500/40', icon: MessageCircle },
+  TIER2_AT: { label: 'Track',   color: 'bg-purple-500/20 text-purple-300 ring-purple-500/40', icon: Fingerprint },
+  TIER3:    { label: 'Elite',   color: 'bg-yellow-500/20 text-yellow-300 ring-yellow-500/40', icon: Zap },
+}
+
+const TIER_FEATURES = {
+  TIER1:    { have: ['Member management','Packages & payments','Expenses tracking','Inventory','Dashboard & reports','Export to Excel'], missing: ['WhatsApp payment slips','Attendance tracking'] },
+  TIER2_WA: { have: ['Member management','Packages & payments','Expenses tracking','Inventory','Dashboard & reports','Export to Excel','WhatsApp payment slips'], missing: ['Attendance tracking'] },
+  TIER2_AT: { have: ['Member management','Packages & payments','Expenses tracking','Inventory','Dashboard & reports','Export to Excel','Attendance tracking'], missing: ['WhatsApp payment slips'] },
+  TIER3:    { have: ['Member management','Packages & payments','Expenses tracking','Inventory','Dashboard & reports','Export to Excel','WhatsApp payment slips','Attendance tracking'], missing: [] },
+}
+
+const ALL_TIERS = [
+  { id: 'TIER1',    label: 'Tier 1', name: 'Starter', icon: Zap,          color: 'blue',   features: ['Member management','Packages & payments','Expenses tracking','Inventory','Dashboard & reports','Export to Excel'] },
+  { id: 'TIER2_WA', label: 'Tier 2.1', name: 'Connect', icon: MessageCircle, color: 'green', features: ['Everything in Starter','WhatsApp payment slips','Digital receipt sharing'] },
+  { id: 'TIER2_AT', label: 'Tier 2.2', name: 'Track',   icon: Fingerprint,  color: 'purple', features: ['Everything in Starter','Member check-in / check-out','Attendance reports'] },
+  { id: 'TIER3',    label: 'Tier 3', name: 'Elite',   icon: Zap,          color: 'yellow', features: ['Everything in Starter','WhatsApp payment slips','Member check-in / check-out','Attendance reports'] },
+]
+
+const TIER_COLORS = {
+  blue:   { card: 'border-blue-500/30 bg-blue-500/5',     badge: 'bg-blue-500/20 text-blue-300',    icon: 'text-blue-400' },
+  green:  { card: 'border-green-500/30 bg-green-500/5',   badge: 'bg-green-500/20 text-green-300',  icon: 'text-green-400' },
+  purple: { card: 'border-purple-500/30 bg-purple-500/5', badge: 'bg-purple-500/20 text-purple-300', icon: 'text-purple-400' },
+  yellow: { card: 'border-yellow-500/30 bg-yellow-500/5', badge: 'bg-yellow-500/20 text-yellow-300', icon: 'text-yellow-400' },
+}
+
+const TIER_RING = {
+  blue:   'ring-blue-500/40',
+  green:  'ring-green-500/40',
+  purple: 'ring-purple-500/40',
+  yellow: 'ring-yellow-500/40',
+}
+const TIER_ICON_BG = {
+  blue:   'bg-blue-500/20 text-blue-400',
+  green:  'bg-green-500/20 text-green-400',
+  purple: 'bg-purple-500/20 text-purple-400',
+  yellow: 'bg-yellow-500/20 text-yellow-400',
+}
+
+function TierInfoModal({ tier, onClose }) {
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-gray-800 rounded-2xl border border-gray-700 shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-gray-700 sticky top-0 bg-gray-800 z-10">
+          <h2 className="text-gray-100 font-semibold">Subscription Plans</h2>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-100 hover:bg-gray-700 rounded-lg transition">
+            <X size={15} />
+          </button>
+        </div>
+        <div className="p-5">
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+            {ALL_TIERS.map((t) => {
+              const isCurrent = t.id === tier
+              const c = TIER_COLORS[t.color]
+              const Icon = t.icon
+              return (
+                <div key={t.id} className={`relative rounded-xl border p-4 flex flex-col ring-1 transition ${isCurrent ? `${c.card} ${TIER_RING[t.color]}` : 'border-gray-700/50 bg-gray-700/10 opacity-50 ring-gray-700/30'}`}>
+                  {isCurrent && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      <span className="bg-green-500 text-gray-900 text-xs font-bold px-3 py-0.5 rounded-full whitespace-nowrap">YOUR PLAN</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 mb-3 mt-1">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${isCurrent ? TIER_ICON_BG[t.color] : 'bg-gray-700 text-gray-600'}`}>
+                      <Icon size={18} />
+                    </div>
+                    <div>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium block mb-0.5 ${isCurrent ? c.badge : 'bg-gray-700 text-gray-600'}`}>{t.label}</span>
+                      <h3 className={`font-bold text-sm leading-tight ${isCurrent ? 'text-gray-100' : 'text-gray-600'}`}>{t.name}</h3>
+                    </div>
+                  </div>
+                  <ul className="space-y-1.5 flex-1">
+                    {t.features.map(f => (
+                      <li key={f} className={`flex items-start gap-1.5 text-xs ${isCurrent ? 'text-gray-300' : 'text-gray-600'}`}>
+                        {isCurrent
+                          ? <Check size={11} className="text-green-400 flex-shrink-0 mt-0.5" />
+                          : <Lock size={11} className="flex-shrink-0 mt-0.5" />
+                        }
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                  {!isCurrent && (
+                    <div className="mt-3 pt-3 border-t border-gray-700/50">
+                      <p className="text-xs text-gray-600 text-center flex items-center justify-center gap-1"><Lock size={10} /> Upgrade required</p>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          <p className="text-xs text-gray-500 text-center mt-4">Contact your Gymistan admin to upgrade.</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function GymDashboard() {
+  const { user } = useAuthStore()
+  const [showTierInfo, setShowTierInfo] = useState(false)
   const { data, isLoading } = useQuery({ queryKey: ['dashboard'], queryFn: async () => { const { data } = await api.get('/dashboard/'); return data }, refetchInterval: 60000 })
+
+  const tier = user?.gym_tier || 'TIER1'
+  const tierMeta = TIER_META[tier]
+  const TierIcon = tierMeta.icon
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full" /></div>
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-blue-400">Dashboard</h1>
-        <p className="text-gray-500 text-sm mt-1">Overview of your gym's performance</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-blue-400">Dashboard</h1>
+          <p className="text-gray-500 text-sm mt-1">Overview of your gym's performance</p>
+        </div>
+        <div className="flex items-center gap-1.5 mt-1">
+          <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ring-1 ${tierMeta.color}`}>
+            <TierIcon size={11} /> {ALL_TIERS.find(t => t.id === tier)?.label} — {tierMeta.label}
+          </span>
+          <button
+            onClick={() => setShowTierInfo(true)}
+            className="p-1 text-gray-500 hover:text-gray-200 hover:bg-gray-700 rounded-full transition"
+            title="Plan info"
+          >
+            <Info size={14} />
+          </button>
+        </div>
       </div>
+      {showTierInfo && <TierInfoModal tier={tier} onClose={() => setShowTierInfo(false)} />}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Active Members" value={data.members.active} subtitle={`${data.members.total} total`} icon={Users} color="primary" />

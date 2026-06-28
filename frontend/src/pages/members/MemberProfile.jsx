@@ -1,9 +1,10 @@
 import { useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Camera, Phone, User, Package, Calendar, MapPin, FileText, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Camera, Phone, User, Package, Calendar, MapPin, FileText, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 import api from '../../api/axios'
 import toast from 'react-hot-toast'
+import useAuthStore from '../../store/authStore'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -107,8 +108,10 @@ function InfoRow({ icon: Icon, label, value }) {
 export default function MemberProfile() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const fileRef = useRef(null)
+  const photoRef = useRef(null)
   const queryClient = useQueryClient()
+  const { user } = useAuthStore()
+  const hasAttendance = ['TIER2_AT', 'TIER3'].includes(user?.gym_tier)
 
   const { data: member, isLoading } = useQuery({
     queryKey: ['member', id],
@@ -142,7 +145,7 @@ export default function MemberProfile() {
   if (!member) return <div className="text-gray-400 text-center py-16">Member not found</div>
 
   const photoUrl = member.photo
-    ? `http://localhost:8000${member.photo}`
+    ? (member.photo.startsWith('http') ? member.photo : `http://localhost:8000${member.photo}`)
     : null
 
   return (
@@ -162,12 +165,15 @@ export default function MemberProfile() {
               }
             </div>
             <button
-              onClick={() => fileRef.current.click()}
-              className="absolute bottom-0 right-0 p-1.5 bg-primary-600 rounded-full hover:bg-primary-700 transition"
+              onClick={() => photoRef.current.click()}
+              className="absolute bottom-0 right-0 p-1.5 bg-blue-600 rounded-full hover:bg-blue-700 transition"
             >
-              <Camera size={12} className="text-white" />
+              {photoMutation.isPending
+                ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                : <Camera size={12} className="text-white" />
+              }
             </button>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden"
+            <input ref={photoRef} type="file" accept="image/*" className="hidden"
               onChange={(e) => e.target.files[0] && photoMutation.mutate(e.target.files[0])} />
           </div>
 
@@ -206,7 +212,7 @@ export default function MemberProfile() {
         </div>
 
         {/* Attendance calendar */}
-        <AttendanceCalendar />
+        {hasAttendance && <AttendanceCalendar />}
       </div>
 
       {/* Payment history */}

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Download, MessageCircle, Search, Trash2, FileDown, Lock } from 'lucide-react'
+import { Plus, Download, MessageCircle, Search, Trash2, FileDown } from 'lucide-react'
 import { exportToExcel } from '../../utils/exportExcel'
 import api from '../../api/axios'
 import useAuthStore from '../../store/authStore'
@@ -134,17 +134,9 @@ export default function Payments() {
                       <button onClick={() => downloadSlip(p.id)} title="Download Slip" className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition">
                         <Download size={14} />
                       </button>
-                      {hasWhatsApp ? (
+                      {hasWhatsApp && (
                         <button onClick={() => sendWhatsApp.mutate(p.id)} title="Send via WhatsApp" className="p-1.5 text-gray-400 hover:text-green-400 hover:bg-green-500/10 rounded-lg transition">
                           <MessageCircle size={14} />
-                        </button>
-                      ) : (
-                        <button title="Upgrade to Tier 2.1 or Tier 3 to unlock WhatsApp" className="p-1.5 text-gray-600 cursor-not-allowed relative group rounded-lg">
-                          <MessageCircle size={14} />
-                          <Lock size={8} className="absolute -top-0.5 -right-0.5 text-gray-500" />
-                          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-gray-300 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition pointer-events-none z-10">
-                            Upgrade to Tier 2.1 or Pro
-                          </span>
                         </button>
                       )}
                       {p.slip_sent && <span className="text-xs text-green-500 ml-1">✓ Sent</span>}

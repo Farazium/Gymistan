@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { Search, AlertCircle, CheckCircle } from 'lucide-react'
+import { Search, AlertCircle, CheckCircle, MessageCircle } from 'lucide-react'
 import api from '../../api/axios'
 import toast from 'react-hot-toast'
+import useAuthStore from '../../store/authStore'
 
 function MemberSearch({ members, value, onChange, onSelect }) {
   const [query, setQuery] = useState('')
@@ -62,6 +63,9 @@ function MemberSearch({ members, value, onChange, onSelect }) {
 export default function PaymentForm({ onSuccess }) {
   const [selectedMemberId, setSelectedMemberId] = useState('')
   const [selectedMember, setSelectedMember] = useState(null)
+  const [sendWhatsApp, setSendWhatsApp] = useState(false)
+  const { user } = useAuthStore()
+  const hasWhatsApp = ['TIER2_WA', 'TIER3'].includes(user?.gym_tier)
   const { register, handleSubmit, control, setValue } = useForm({
     defaultValues: { discount: 0, status: 'PAID' }
   })
@@ -86,15 +90,25 @@ export default function PaymentForm({ onSuccess }) {
     }
   }
 
+  const whatsAppMutation = useMutation({
+    mutationFn: (id) => api.post(`/payments/${id}/whatsapp/`),
+    onSuccess: () => toast.success('Receipt sent via WhatsApp!'),
+    onError: () => toast.error('Payment saved but WhatsApp failed'),
+  })
+
   const mutation = useMutation({
     mutationFn: (payload) => api.post('/payments/', payload),
-    onSuccess: () => { toast.success('Payment recorded'); onSuccess() },
+    onSuccess: (res) => {
+      toast.success('Payment recorded')
+      if (sendWhatsApp && hasWhatsApp) whatsAppMutation.mutate(res.data.id)
+      onSuccess()
+    },
     onError: (err) => toast.error(err.response?.data?.detail || 'Error'),
   })
 
   const onSubmit = (data) => {
     if (!selectedMemberId) { toast.error('Please select a member'); return }
-    const amount = selectedPkg ? selectedPkg.price : data.amount
+    const amount = selectedPkg?.price || 0
     const amountPaid = Number(amount) - Number(data.discount || 0)
     mutation.mutate({ ...data, member: selectedMemberId, amount, amount_paid: amountPaid })
   }
@@ -136,12 +150,6 @@ export default function PaymentForm({ onSuccess }) {
       )}
 
       <div className="grid grid-cols-2 gap-4">
-        {!selectedPkg && (
-          <div>
-            <label className="label">Amount (PKR) *</label>
-            <input className="input" type="number" {...register('amount', { required: !selectedPkg })} />
-          </div>
-        )}
         <div>
           <label className="label">Discount (PKR)</label>
           <input className="input" type="number" defaultValue={0} {...register('discount')} />
@@ -159,6 +167,19 @@ export default function PaymentForm({ onSuccess }) {
         <label className="label">Notes</label>
         <textarea className="input h-16 resize-none" {...register('notes')} />
       </div>
+
+      {hasWhatsApp && (
+        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={sendWhatsApp}
+            onChange={(e) => setSendWhatsApp(e.target.checked)}
+            className="w-4 h-4 rounded accent-green-500"
+          />
+          <MessageCircle size={14} className="text-green-400" />
+          <span className="text-sm text-gray-300">Send receipt via WhatsApp after recording</span>
+        </label>
+      )}
 
       <button type="submit" disabled={mutation.isPending} className="btn-primary w-full justify-center">
         {mutation.isPending ? 'Recording...' : 'Record Payment'}

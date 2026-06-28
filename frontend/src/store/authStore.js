@@ -23,6 +23,13 @@ const useAuthStore = create(
       },
 
       setUser: (user) => set({ user }),
+
+      refreshUser: async () => {
+        try {
+          const { data } = await api.get('/auth/me/')
+          set({ user: data })
+        } catch {}
+      },
     }),
     {
       name: 'auth-storage',

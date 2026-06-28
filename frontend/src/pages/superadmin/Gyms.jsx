@@ -61,10 +61,10 @@ function GymForm({ onSuccess }) {
         <div>
           <label className="label">Tier</label>
           <select className="input" {...register('tier')}>
-            <option value="TIER1">Tier 1 — Basic</option>
-            <option value="TIER2_WA">Tier 2.1 — WhatsApp</option>
-            <option value="TIER2_AT">Tier 2.2 — Attendance</option>
-            <option value="TIER3">Tier 3 — Pro</option>
+            <option value="TIER1">Tier 1 — Starter</option>
+            <option value="TIER2_WA">Tier 2.1 — Connect</option>
+            <option value="TIER2_AT">Tier 2.2 — Track</option>
+            <option value="TIER3">Tier 3 — Elite</option>
           </select>
         </div>
       </div>
@@ -167,10 +167,10 @@ export default function Gyms() {
                     ) : <span className="text-gray-500">—</span>}
                   </Td>
                   <Td>
-                    {g.tier === 'TIER1'    && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-500/20 text-blue-300">Basic</span>}
-                    {g.tier === 'TIER2_WA' && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-500/20 text-green-300">WhatsApp</span>}
-                    {g.tier === 'TIER2_AT' && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-500/20 text-purple-300">Attendance</span>}
-                    {g.tier === 'TIER3'    && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-yellow-500/20 text-yellow-300">Pro</span>}
+                    {g.tier === 'TIER1'    && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-500/20 text-blue-300">Starter</span>}
+                    {g.tier === 'TIER2_WA' && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-500/20 text-green-300">Connect</span>}
+                    {g.tier === 'TIER2_AT' && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-500/20 text-purple-300">Track</span>}
+                    {g.tier === 'TIER3'    && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-yellow-500/20 text-yellow-300">Elite</span>}
                     {!g.tier && <span className="text-gray-500">—</span>}
                   </Td>
                   <Td className="text-blue-400 font-medium">

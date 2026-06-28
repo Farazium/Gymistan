@@ -239,10 +239,10 @@ export default function GymProfile() {
               value={gym.tier || 'TIER1'}
               onChange={(e) => api.patch(`/gyms/${id}/`, { tier: e.target.value }).then(() => { queryClient.invalidateQueries(['gym-stats', id]); toast.success('Tier updated') })}
             >
-              <option value="TIER1">Tier 1 — Basic</option>
-              <option value="TIER2_WA">Tier 2.1 — WhatsApp</option>
-              <option value="TIER2_AT">Tier 2.2 — Attendance</option>
-              <option value="TIER3">Tier 3 — Pro (WhatsApp + Attendance)</option>
+              <option value="TIER1">Tier 1 — Starter</option>
+              <option value="TIER2_WA">Tier 2.1 — Connect</option>
+              <option value="TIER2_AT">Tier 2.2 — Track</option>
+              <option value="TIER3">Tier 3 — Elite</option>
             </select>
           </div>
           <div>
