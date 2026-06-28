@@ -180,7 +180,9 @@ export default function MemberProfile() {
           <div className="flex-1">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-gray-100">{member.name}</h1>
-              <span className={`badge-${member.status.toLowerCase()}`}>{member.status}</span>
+              <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${member.status === 'ACTIVE' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                {member.status === 'ACTIVE' ? 'Active' : 'Expired'}
+              </span>
             </div>
             {member.package_detail?.name && (
               <p className="text-primary-400 text-sm mt-1">{member.package_detail.name}</p>
@@ -227,7 +229,9 @@ export default function MemberProfile() {
                   <p className="text-xs text-gray-400 mt-0.5">{p.notes || 'Monthly payment'}</p>
                 </div>
                 <div className="text-right">
-                  <span className={`badge-${p.status.toLowerCase()} text-xs`}>{p.status}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.status === 'PAID' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                    {p.status === 'PAID' ? 'Paid' : p.status}
+                  </span>
                   <p className="text-xs text-gray-400 mt-1">{new Date(p.payment_date).toLocaleDateString('en-PK')}</p>
                 </div>
               </div>

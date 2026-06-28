@@ -151,7 +151,9 @@ export default function Members() {
                   </Td>
                   <Td>{m.package_name || <span className="text-gray-400">—</span>}</Td>
                   <Td>
-                    <span className={`badge-${m.status.toLowerCase()}`}>{m.status}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${m.status === 'ACTIVE' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                      {m.status === 'ACTIVE' ? 'Active' : 'Expired'}
+                    </span>
                   </Td>
                   <Td className={m.expiry_date ? '' : 'text-gray-400'}>
                     {m.expiry_date ? new Date(m.expiry_date).toLocaleDateString('en-PK') : '—'}

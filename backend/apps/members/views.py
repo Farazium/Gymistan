@@ -11,7 +11,7 @@ import datetime
 class MemberListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated, IsGymMember]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['status', 'package', 'gender']
+    filterset_fields = ['package', 'gender']
     search_fields = ['name', 'phone']
     ordering_fields = ['name', 'join_date', 'expiry_date']
     ordering = ['-created_at']
@@ -22,7 +22,14 @@ class MemberListCreateView(generics.ListCreateAPIView):
         return MemberSerializer
 
     def get_queryset(self):
-        return Member.objects.filter(gym=self.request.user.gym).select_related('package')
+        qs = Member.objects.filter(gym=self.request.user.gym).select_related('package')
+        status = self.request.query_params.get('status')
+        today = datetime.date.today()
+        if status == 'ACTIVE':
+            qs = qs.filter(expiry_date__gte=today) | qs.filter(expiry_date__isnull=True)
+        elif status == 'EXPIRED':
+            qs = qs.filter(expiry_date__lt=today)
+        return qs
 
     def perform_create(self, serializer):
         member = serializer.save(gym=self.request.user.gym)

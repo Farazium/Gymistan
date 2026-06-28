@@ -1,10 +1,21 @@
+import datetime
 from rest_framework import serializers
 from .models import Member
 from apps.packages.serializers import PackageSerializer
 
 
+def compute_status(member):
+    if member.expiry_date and member.expiry_date < datetime.date.today():
+        return 'EXPIRED'
+    return 'ACTIVE'
+
+
 class MemberSerializer(serializers.ModelSerializer):
     package_detail = PackageSerializer(source='package', read_only=True)
+    status = serializers.SerializerMethodField()
+
+    def get_status(self, obj):
+        return compute_status(obj)
 
     class Meta:
         model = Member
@@ -14,6 +25,10 @@ class MemberSerializer(serializers.ModelSerializer):
 
 class MemberListSerializer(serializers.ModelSerializer):
     package_name = serializers.CharField(source='package.name', read_only=True)
+    status = serializers.SerializerMethodField()
+
+    def get_status(self, obj):
+        return compute_status(obj)
 
     class Meta:
         model = Member
