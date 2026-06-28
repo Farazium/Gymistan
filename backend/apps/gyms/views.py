@@ -5,8 +5,8 @@ from rest_framework.permissions import IsAuthenticated
 from django.db.models import Sum
 from django.utils import timezone
 from datetime import timedelta
-from .models import Gym
-from .serializers import GymSerializer, CreateGymSerializer
+from .models import Gym, GymPayment
+from .serializers import GymSerializer, CreateGymSerializer, GymPaymentSerializer
 from apps.accounts.permissions import IsSuperAdmin, IsGymAdminOrAbove
 from apps.members.models import Member
 from apps.payments.models import Payment
@@ -114,6 +114,42 @@ class RenewGymView(APIView):
         gym.expiry_date = new_expiry
         gym.save(update_fields=['expiry_date'])
         return Response({'expiry_date': gym.expiry_date})
+
+
+class GymPaymentListCreateView(APIView):
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+
+    def get(self, request):
+        qs = GymPayment.objects.select_related('gym').all()
+        gym_id = request.query_params.get('gym')
+        if gym_id:
+            qs = qs.filter(gym_id=gym_id)
+        serializer = GymPaymentSerializer(qs, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        import datetime
+        serializer = GymPaymentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        payment = serializer.save()
+
+        gym = payment.gym
+        months = payment.months
+        base = gym.expiry_date if gym.expiry_date and gym.expiry_date >= datetime.date.today() else datetime.date.today()
+        m = base.month - 1 + months
+        gym.expiry_date = base.replace(year=base.year + m // 12, month=m % 12 + 1)
+        gym.save(update_fields=['expiry_date'])
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class GymPaymentDetailView(APIView):
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+
+    def delete(self, request, pk):
+        payment = GymPayment.objects.get(pk=pk)
+        payment.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ResetGymAdminPasswordView(APIView):

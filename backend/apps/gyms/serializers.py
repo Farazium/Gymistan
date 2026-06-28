@@ -1,8 +1,17 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Gym
+from .models import Gym, GymPayment
 
 User = get_user_model()
+
+
+class GymPaymentSerializer(serializers.ModelSerializer):
+    gym_name = serializers.CharField(source='gym.name', read_only=True)
+
+    class Meta:
+        model = GymPayment
+        fields = ['id', 'gym', 'gym_name', 'amount', 'months', 'payment_date', 'payment_method', 'notes', 'created_at']
+        read_only_fields = ['id', 'gym_name', 'created_at']
 
 
 class GymSerializer(serializers.ModelSerializer):
@@ -24,9 +33,10 @@ class CreateGymSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=200)
     address = serializers.CharField(required=False, allow_blank=True)
     phone = serializers.CharField(required=False, allow_blank=True)
-    trial_days = serializers.IntegerField(required=False, default=30, min_value=1)
+    trial_days = serializers.IntegerField(required=False, default=30, min_value=0)
     expiry_date = serializers.DateField(required=False, allow_null=True)
     subscription_amount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
+    tier = serializers.ChoiceField(choices=['TIER1', 'TIER2_WA', 'TIER2_AT', 'TIER3'], required=False, default='TIER1')
     admin_name = serializers.CharField(max_length=150)
     admin_email = serializers.EmailField()
     admin_password = serializers.CharField(min_length=6, write_only=True)
@@ -48,6 +58,7 @@ class CreateGymSerializer(serializers.Serializer):
             joining_date=today,
             expiry_date=expiry_date,
             subscription_amount=validated_data.get('subscription_amount'),
+            tier=validated_data.get('tier', 'TIER1'),
         )
         User.objects.create_user(
             name=validated_data['admin_name'],

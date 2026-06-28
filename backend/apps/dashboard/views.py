@@ -8,7 +8,7 @@ from apps.members.models import Member
 from apps.payments.models import Payment
 from apps.expenses.models import Expense
 from apps.inventory.models import Product, StockLog
-from apps.gyms.models import Gym
+from apps.gyms.models import Gym, GymPayment
 from apps.accounts.permissions import IsGymMember, IsSuperAdmin
 
 
@@ -126,12 +126,16 @@ class SuperAdminDashboardView(APIView):
         active_gyms = gyms.filter(is_active=True).count()
         inactive_gyms = total_gyms - active_gyms
 
-        total_members = Member.objects.count()
-        active_members = Member.objects.filter(status='ACTIVE').count()
-        new_this_month = Member.objects.filter(join_date__gte=month_start).count()
+        subscription_revenue_month = GymPayment.objects.filter(
+            payment_date__gte=month_start
+        ).aggregate(t=Sum('amount'))['t'] or 0
+        subscription_revenue_total = GymPayment.objects.aggregate(t=Sum('amount'))['t'] or 0
 
-        revenue = Payment.objects.filter(payment_date__gte=month_start).aggregate(t=Sum('amount_paid'))['t'] or 0
-        expenses = Expense.objects.filter(date__gte=month_start).aggregate(t=Sum('amount'))['t'] or 0
+        gyms_expiring_soon = gyms.filter(
+            is_active=True,
+            expiry_date__lte=today + timedelta(days=7),
+            expiry_date__gte=today,
+        ).count()
 
         top_gyms = (
             gyms.annotate(member_count=Count('members'))
@@ -139,11 +143,19 @@ class SuperAdminDashboardView(APIView):
             .values('id', 'name', 'is_active', 'member_count')[:5]
         )
 
+        recent_gym_payments = list(
+            GymPayment.objects.select_related('gym')
+            .order_by('-payment_date', '-created_at')[:5]
+            .values('id', 'gym__name', 'amount', 'payment_date', 'payment_method', 'notes')
+        )
+
         return Response({
-            'gyms': {'total': total_gyms, 'active': active_gyms, 'inactive': inactive_gyms},
-            'members': {'total': total_members, 'active': active_members, 'new_this_month': new_this_month},
-            'revenue_this_month': float(revenue),
-            'expenses_this_month': float(expenses),
-            'net_profit': float(revenue) - float(expenses),
+            'gyms': {
+                'total': total_gyms, 'active': active_gyms, 'inactive': inactive_gyms,
+                'expiring_soon': gyms_expiring_soon,
+            },
+            'subscription_revenue_month': float(subscription_revenue_month),
+            'subscription_revenue_total': float(subscription_revenue_total),
             'top_gyms': list(top_gyms),
+            'recent_gym_payments': recent_gym_payments,
         })

@@ -33,8 +33,6 @@ export default function GymProfile() {
   const [editingGym, setEditingGym] = useState(false)
   const [editingAdmin, setEditingAdmin] = useState(false)
   const [gymSubscription, setGymSubscription] = useState('')
-  const [renewMonths, setRenewMonths] = useState(1)
-  const [expiryInput, setExpiryInput] = useState('')
   const [gymName, setGymName] = useState('')
   const [gymPhone, setGymPhone] = useState('')
   const [gymAddress, setGymAddress] = useState('')
@@ -64,18 +62,6 @@ export default function GymProfile() {
       toast.success('Gym updated')
     },
     onError: () => toast.error('Failed to update gym'),
-  })
-
-  const renewMutation = useMutation({
-    mutationFn: () => api.post(`/gyms/${id}/renew/`, { months: renewMonths }),
-    onSuccess: () => { queryClient.invalidateQueries(['gym-stats', id]); toast.success(`Extended by ${renewMonths} month(s)`) },
-    onError: () => toast.error('Failed to renew'),
-  })
-
-  const setExpiryMutation = useMutation({
-    mutationFn: () => api.patch(`/gyms/${id}/`, { expiry_date: expiryInput }),
-    onSuccess: () => { queryClient.invalidateQueries(['gym-stats', id]); toast.success('Expiry date updated'); setExpiryInput('') },
-    onError: () => toast.error('Failed to update expiry'),
   })
 
   const adminMutation = useMutation({
@@ -166,7 +152,7 @@ export default function GymProfile() {
               </div>
               <div>
                 <label className="label">Subscription Amount (PKR)</label>
-                <input className="input" type="number" placeholder="e.g. 5000" value={gymSubscription} onChange={(e) => setGymSubscription(e.target.value)} />
+                <input className="input" type="text" inputMode="numeric" placeholder="e.g. 5000" value={gymSubscription} onChange={(e) => setGymSubscription(e.target.value)} />
               </div>
               <button onClick={() => editMutation.mutate()} disabled={editMutation.isPending} className="btn-primary w-full justify-center">
                 <Save size={14} /> {editMutation.isPending ? 'Saving...' : 'Save Changes'}
@@ -245,74 +231,26 @@ export default function GymProfile() {
         <h2 className="font-semibold text-gray-100 flex items-center gap-2 mb-4">
           <RefreshCw size={15} className="text-blue-400" /> Subscription
         </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
-          <div className="bg-gray-700/40 rounded-lg p-3">
-            <p className="text-xs text-gray-500 uppercase tracking-wide">Joining Date</p>
-            <p className="text-gray-100 font-medium mt-1">{gym.joining_date ? new Date(gym.joining_date).toLocaleDateString('en-PK') : '—'}</p>
-          </div>
-          <div className="bg-gray-700/40 rounded-lg p-3">
-            <p className="text-xs text-gray-500 uppercase tracking-wide">Expiry Date</p>
-            <p className={`font-medium mt-1 ${gym.expiry_date && new Date(gym.expiry_date) < new Date() ? 'text-red-400' : 'text-green-400'}`}>
-              {gym.expiry_date ? new Date(gym.expiry_date).toLocaleDateString('en-PK') : '—'}
-            </p>
-          </div>
-          <div className="bg-gray-700/40 rounded-lg p-3">
-            <p className="text-xs text-gray-500 uppercase tracking-wide">Days Remaining</p>
-            <p className={`font-medium mt-1 ${gym.expiry_date && Math.ceil((new Date(gym.expiry_date) - new Date()) / 86400000) <= 7 ? 'text-red-400' : 'text-gray-100'}`}>
-              {gym.expiry_date ? Math.max(0, Math.ceil((new Date(gym.expiry_date) - new Date()) / 86400000)) + ' days' : '—'}
-            </p>
-          </div>
-          <div className="bg-gray-700/40 rounded-lg p-3">
-            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Subscription (PKR)</p>
-            <div className="flex items-center gap-1.5">
-              <input
-                type="number"
-                className="input py-1 text-sm"
-                placeholder="Amount"
-                value={gymSubscription}
-                onChange={(e) => setGymSubscription(e.target.value)}
-              />
-              <button
-                onClick={() => editMutation.mutate()}
-                disabled={editMutation.isPending}
-                className="p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition flex-shrink-0"
-                title="Save"
-              >
-                <Save size={13} />
-              </button>
-            </div>
-          </div>
-        </div>
-        <div className="mb-4">
-          <label className="label">Tier</label>
-          <select
-            className="input w-full sm:w-64"
-            value={gym.tier || 'TIER1'}
-            onChange={(e) => api.patch(`/gyms/${id}/`, { tier: e.target.value }).then(() => { queryClient.invalidateQueries(['gym-stats', id]); toast.success('Tier updated') })}
-          >
-            <option value="TIER1">Tier 1 — Basic</option>
-            <option value="TIER2_WA">Tier 2.1 — WhatsApp</option>
-            <option value="TIER2_AT">Tier 2.2 — Attendance</option>
-            <option value="TIER3">Tier 3 — Pro (WhatsApp + Attendance)</option>
-          </select>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex items-center gap-2 flex-1">
-            <label className="label whitespace-nowrap">Extend by</label>
-            <select className="input w-28" value={renewMonths} onChange={(e) => setRenewMonths(Number(e.target.value))}>
-              {[1,2,3,6,12].map(m => <option key={m} value={m}>{m} {m === 1 ? 'month' : 'months'}</option>)}
+        <div className="flex flex-col sm:flex-row gap-5 items-start">
+          <div>
+            <label className="label">Tier</label>
+            <select
+              className="input w-64"
+              value={gym.tier || 'TIER1'}
+              onChange={(e) => api.patch(`/gyms/${id}/`, { tier: e.target.value }).then(() => { queryClient.invalidateQueries(['gym-stats', id]); toast.success('Tier updated') })}
+            >
+              <option value="TIER1">Tier 1 — Basic</option>
+              <option value="TIER2_WA">Tier 2.1 — WhatsApp</option>
+              <option value="TIER2_AT">Tier 2.2 — Attendance</option>
+              <option value="TIER3">Tier 3 — Pro (WhatsApp + Attendance)</option>
             </select>
-            <button onClick={() => renewMutation.mutate()} disabled={renewMutation.isPending} className="btn-primary whitespace-nowrap">
-              <RefreshCw size={14} /> {renewMutation.isPending ? 'Renewing...' : 'Renew'}
-            </button>
           </div>
-          <div className="flex items-center gap-2 flex-1">
-            <label className="label whitespace-nowrap">Set date</label>
-            <input type="date" className="input [color-scheme:dark] flex-1" value={expiryInput} onChange={(e) => setExpiryInput(e.target.value)} />
-            <button onClick={() => setExpiryMutation.mutate()} disabled={setExpiryMutation.isPending || !expiryInput} className="btn-primary whitespace-nowrap">
-              <Save size={14} /> Set
-            </button>
+          <div>
+            <p className="label">Subscription Charges</p>
+            <p className="text-lg font-semibold text-blue-400 mt-1">
+              {gym.subscription_amount ? `PKR ${Number(gym.subscription_amount).toLocaleString()}` : <span className="text-gray-500 text-sm">Not set</span>}
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">Edit in Gym Details</p>
           </div>
         </div>
       </div>

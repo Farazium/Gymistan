@@ -26,3 +26,22 @@ class Gym(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class GymPayment(models.Model):
+    METHODS = [('CASH', 'Cash'), ('ONLINE', 'Online')]
+
+    gym = models.ForeignKey(Gym, on_delete=models.CASCADE, related_name='gym_payments')
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    months = models.PositiveIntegerField(default=1)
+    payment_date = models.DateField()
+    payment_method = models.CharField(max_length=20, choices=METHODS, default='CASH')
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'gym_payments'
+        ordering = ['-payment_date', '-created_at']
+
+    def __str__(self):
+        return f'{self.gym.name} – {self.amount}'

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Package, CreditCard, Receipt,
-  Building2, LogOut, Dumbbell, Boxes, Settings, Fingerprint, Lock
+  Building2, LogOut, Dumbbell, Boxes, Settings, Fingerprint, Lock, Wallet
 } from 'lucide-react'
 import useAuthStore from '../../store/authStore'
 import ProfileModal from '../ui/ProfileModal'
@@ -20,6 +20,7 @@ const navItems = [
 const superAdminItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/admin/gyms', icon: Building2, label: 'Gyms' },
+  { to: '/admin/subscriptions', icon: Wallet, label: 'Subscriptions' },
   { to: '/admin/tiers', icon: Package, label: 'Tiers' },
 ]
 

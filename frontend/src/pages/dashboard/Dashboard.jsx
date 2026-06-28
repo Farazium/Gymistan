@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Users, CreditCard, TrendingUp, AlertTriangle, Receipt, DollarSign, Boxes, ShoppingCart, Building2 } from 'lucide-react'
+import { Users, CreditCard, TrendingUp, AlertTriangle, Receipt, DollarSign, Boxes, ShoppingCart, Building2, Wallet } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../api/axios'
 import StatCard from '../../components/ui/StatCard'
@@ -25,49 +25,68 @@ function SuperAdminDashboard() {
         <p className="text-gray-500 text-sm mt-1">Platform-wide overview</p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Total Gyms" value={data.gyms.total} subtitle={`${data.gyms.active} active · ${data.gyms.inactive} inactive`} icon={Building2} color="primary" />
-        <StatCard title="Total Members" value={data.members.total} subtitle={`${data.members.active} active`} icon={Users} color="primary" />
-        <StatCard title="New Members (Month)" value={data.members.new_this_month} subtitle="Joined this month" icon={TrendingUp} color="blue" />
+        <StatCard title="Active Gyms" value={data.gyms.active} subtitle={`${data.gyms.inactive} inactive`} icon={Building2} color="green" />
+        <StatCard title="Expiring Soon" value={data.gyms.expiring_soon} subtitle="Within 7 days" icon={AlertTriangle} color="yellow" />
+        <StatCard title="Subscription (Month)" value={fmt(data.subscription_revenue_month)} subtitle="Collected this month" icon={Wallet} color="green" />
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatCard title="Revenue This Month" value={fmt(data.revenue_this_month)} subtitle="Across all gyms" icon={CreditCard} color="green" />
-        <StatCard title="Expenses This Month" value={fmt(data.expenses_this_month)} subtitle="Across all gyms" icon={Receipt} color="red" />
-        <StatCard title="Net Profit" value={fmt(data.net_profit)} subtitle="Revenue − Expenses" icon={DollarSign} color={data.net_profit >= 0 ? 'green' : 'red'} />
-      </div>
-
-      <div className="card">
-        <div className="p-4 border-b border-gray-700">
-          <h3 className="font-semibold text-gray-100">Top Gyms by Members</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="card">
+          <div className="p-4 border-b border-gray-700">
+            <h3 className="font-semibold text-gray-100">Top Gyms by Members</h3>
+          </div>
+          <Table>
+            <Thead>
+              <Th>Gym</Th>
+              <Th>Members</Th>
+              <Th>Status</Th>
+            </Thead>
+            <Tbody>
+              {data.top_gyms.map((g) => (
+                <Tr key={g.id}>
+                  <Td>
+                    <button onClick={() => navigate(`/admin/gyms/${g.id}`)} className="font-medium text-gray-100 hover:text-blue-400 transition">
+                      {g.name}
+                    </button>
+                  </Td>
+                  <Td>{g.member_count}</Td>
+                  <Td>
+                    <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${g.is_active ? 'bg-green-500/10 text-green-400 border-green-500/30' : 'bg-red-500/10 text-red-400 border-red-500/30'}`}>
+                      {g.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </Td>
+                </Tr>
+              ))}
+              {!data.top_gyms.length && (
+                <Tr><Td colSpan={3} className="text-center py-10 text-gray-400">No gyms yet</Td></Tr>
+              )}
+            </Tbody>
+          </Table>
         </div>
-        <Table>
-          <Thead>
-            <Th>Gym</Th>
-            <Th>Members</Th>
-            <Th>Status</Th>
-          </Thead>
-          <Tbody>
-            {data.top_gyms.map((g) => (
-              <Tr key={g.id}>
-                <Td>
-                  <button onClick={() => navigate(`/admin/gyms/${g.id}`)} className="font-medium text-gray-100 hover:text-blue-400 transition">
-                    {g.name}
-                  </button>
-                </Td>
-                <Td>{g.member_count}</Td>
-                <Td>
-                  <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${g.is_active ? 'bg-green-500/10 text-green-400 border-green-500/30' : 'bg-red-500/10 text-red-400 border-red-500/30'}`}>
-                    {g.is_active ? 'Active' : 'Inactive'}
-                  </span>
-                </Td>
-              </Tr>
-            ))}
-            {!data.top_gyms.length && (
-              <Tr><Td colSpan={3} className="text-center py-10 text-gray-400">No gyms yet</Td></Tr>
-            )}
-          </Tbody>
-        </Table>
+
+        <div className="card">
+          <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+            <h3 className="font-semibold text-gray-100">Recent Subscription Payments</h3>
+            <span className="text-xs text-gray-500">Total: {fmt(data.subscription_revenue_total)}</span>
+          </div>
+          <Table>
+            <Thead><Th>Gym</Th><Th>Amount</Th><Th>Date</Th></Thead>
+            <Tbody>
+              {data.recent_gym_payments.map((p) => (
+                <Tr key={p.id}>
+                  <Td className="font-medium">{p.gym__name}</Td>
+                  <Td className="text-green-400 font-semibold">{fmt(p.amount)}</Td>
+                  <Td className="text-gray-400">{new Date(p.payment_date).toLocaleDateString('en-PK')}</Td>
+                </Tr>
+              ))}
+              {!data.recent_gym_payments.length && (
+                <Tr><Td colSpan={3} className="text-center py-8 text-gray-400">No payments yet</Td></Tr>
+              )}
+            </Tbody>
+          </Table>
+        </div>
       </div>
     </div>
   )

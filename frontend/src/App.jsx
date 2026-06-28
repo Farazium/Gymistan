@@ -11,6 +11,7 @@ import Expenses from './pages/expenses/Expenses'
 import Gyms from './pages/superadmin/Gyms'
 import GymProfile from './pages/superadmin/GymProfile'
 import Tiers from './pages/superadmin/Tiers'
+import GymPayments from './pages/superadmin/GymPayments'
 import Inventory from './pages/inventory/Inventory'
 import MemberProfile from './pages/members/MemberProfile'
 
@@ -34,6 +35,7 @@ export default function App() {
             <Route path="/members/:id" element={<MemberProfile />} />
             <Route path="/admin/gyms" element={<Gyms />} />
             <Route path="/admin/gyms/:id" element={<GymProfile />} />
+            <Route path="/admin/subscriptions" element={<GymPayments />} />
             <Route path="/admin/tiers" element={<Tiers />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

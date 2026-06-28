@@ -9,11 +9,20 @@ import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
 
 function GymForm({ onSuccess }) {
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm()
+  const { register, handleSubmit, formState: { errors } } = useForm()
   const mutation = useMutation({
-    mutationFn: (data) => api.post('/gyms/', data),
+    mutationFn: (data) => {
+      if (!data.expiry_date) delete data.expiry_date
+      if (!data.trial_days) delete data.trial_days
+      if (!data.subscription_amount) delete data.subscription_amount
+      return api.post('/gyms/', data)
+    },
     onSuccess: () => { toast.success('Gym created with admin account'); onSuccess() },
-    onError: (err) => toast.error(err.response?.data?.admin_email?.[0] || err.response?.data?.detail || 'Error'),
+    onError: (err) => {
+      const d = err.response?.data || {}
+      const msg = d.admin_email?.[0] || d.trial_days?.[0] || d.name?.[0] || d.detail || Object.values(d)[0]?.[0] || 'Failed to create gym'
+      toast.error(msg)
+    },
   })
   return (
     <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
@@ -44,9 +53,20 @@ function GymForm({ onSuccess }) {
           <input className="input [color-scheme:dark]" type="date" {...register('expiry_date')} />
         </div>
       </div>
-      <div>
-        <label className="label">Subscription Amount (PKR)</label>
-        <input className="input" type="number" placeholder="e.g. 5000" {...register('subscription_amount')} />
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="label">Subscription Amount (PKR)</label>
+          <input className="input" type="text" inputMode="numeric" placeholder="e.g. 5000" {...register('subscription_amount')} />
+        </div>
+        <div>
+          <label className="label">Tier</label>
+          <select className="input" {...register('tier')}>
+            <option value="TIER1">Tier 1 — Basic</option>
+            <option value="TIER2_WA">Tier 2.1 — WhatsApp</option>
+            <option value="TIER2_AT">Tier 2.2 — Attendance</option>
+            <option value="TIER3">Tier 3 — Pro</option>
+          </select>
+        </div>
       </div>
       <div className="border-t border-gray-700 pt-4">
         <p className="text-sm font-medium text-gray-300 mb-3">Gym Admin Account</p>
@@ -65,8 +85,8 @@ function GymForm({ onSuccess }) {
           </div>
         </div>
       </div>
-      <button type="submit" disabled={isSubmitting} className="btn-primary w-full justify-center">
-        {isSubmitting ? 'Creating...' : 'Create Gym + Admin'}
+      <button type="submit" disabled={mutation.isPending} className="btn-primary w-full justify-center">
+        {mutation.isPending ? 'Creating...' : 'Create Gym + Admin'}
       </button>
     </form>
   )
