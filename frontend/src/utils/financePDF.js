@@ -28,30 +28,55 @@ function fmtDate(s) {
   return d.toLocaleDateString('en-PK')
 }
 
-function drawDumbbell(pdf, cx, cy) {
-  pdf.setFillColor(...WHITE)
-  // bar
-  pdf.rect(cx - 4.2, cy - 0.7, 8.4, 1.4, 'F')
-  // left outer plate
-  pdf.rect(cx - 5.8, cy - 2.8, 1.4, 5.6, 'F')
-  // left inner collar
-  pdf.rect(cx - 4.4, cy - 2.0, 1.0, 4.0, 'F')
-  // right outer plate
-  pdf.rect(cx + 4.4, cy - 2.8, 1.4, 5.6, 'F')
-  // right inner collar
-  pdf.rect(cx + 3.4, cy - 2.0, 1.0, 4.0, 'F')
+let _logoCache = null
+async function getLogo() {
+  if (_logoCache) return _logoCache
+  const SIZE = 128
+  const canvas = document.createElement('canvas')
+  canvas.width = SIZE
+  canvas.height = SIZE
+  const ctx = canvas.getContext('2d')
+
+  // Blue circle background
+  ctx.fillStyle = '#3b82f6'
+  ctx.beginPath()
+  ctx.arc(SIZE / 2, SIZE / 2, SIZE / 2, 0, Math.PI * 2)
+  ctx.fill()
+
+  // Scale Lucide 24x24 SVG paths into canvas with padding
+  const pad = 22
+  const scale = (SIZE - pad * 2) / 24
+  ctx.save()
+  ctx.translate(pad, pad)
+  ctx.scale(scale, scale)
+  ctx.strokeStyle = '#ffffff'
+  ctx.lineWidth = 2.2 / scale
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+
+  const paths = [
+    'M17.596 12.768a2 2 0 1 0 2.829-2.829l-1.768-1.767a2 2 0 0 0 2.828-2.829l-2.828-2.828a2 2 0 0 0-2.829 2.828l-1.767-1.768a2 2 0 1 0-2.829 2.829z',
+    'm2.5 21.5 1.4-1.4',
+    'm20.1 3.9 1.4-1.4',
+    'M5.343 21.485a2 2 0 1 0 2.829-2.828l1.767 1.768a2 2 0 1 0 2.829-2.829l-6.364-6.364a2 2 0 1 0-2.829 2.829l1.768 1.767a2 2 0 0 0-2.828 2.829z',
+    'm9.6 14.4 4.8-4.8',
+  ]
+  for (const d of paths) {
+    ctx.stroke(new Path2D(d))
+  }
+  ctx.restore()
+
+  _logoCache = canvas.toDataURL('image/png')
+  return _logoCache
 }
 
-function drawHeader(pdf, title, subtitle) {
+function drawHeader(pdf, logo, title, subtitle) {
   pdf.setFillColor(...HEADER_BG)
   pdf.rect(0, 0, PAGE_W, 30, 'F')
 
-  // Logo background circle
-  pdf.setFillColor(...BLUE)
-  pdf.circle(MARGIN + 7, 15, 8, 'F')
-
-  // Dumbbell icon inside
-  drawDumbbell(pdf, MARGIN + 7, 15)
+  if (logo) {
+    pdf.addImage(logo, 'PNG', MARGIN, 7, 16, 16)
+  }
 
   pdf.setTextColor(...WHITE)
   pdf.setFont('helvetica', 'bold')
@@ -95,10 +120,10 @@ function summaryCard(pdf, x, y, w, h, label, value, bgColor, accentColor, textCo
 
 // ─── LEDGER ─────────────────────────────────────────────────────────────────
 export async function exportLedgerPDF(data, start, end) {
-  const { default: jsPDF } = await import('jspdf')
+  const [{ default: jsPDF }, logo] = await Promise.all([import('jspdf'), getLogo()])
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
 
-  drawHeader(pdf, 'Ledger Report', `${fmtDate(start)} — ${fmtDate(end)}`)
+  drawHeader(pdf, logo, 'Ledger Report', `${fmtDate(start)} — ${fmtDate(end)}`)
 
   let y = 38
 
@@ -142,7 +167,7 @@ export async function exportLedgerPDF(data, start, end) {
       drawFooter(pdf, pages.length, '?')
       pdf.addPage()
       pages.push(1)
-      drawHeader(pdf, 'Ledger Report (cont.)', `${fmtDate(start)} — ${fmtDate(end)}`)
+      drawHeader(pdf, logo, 'Ledger Report (cont.)', `${fmtDate(start)} — ${fmtDate(end)}`)
       y = 38
       // re-draw table header
       pdf.setFillColor(...TABLE_HEAD_BG)
@@ -214,11 +239,11 @@ export async function exportLedgerPDF(data, start, end) {
 
 // ─── INCOME STATEMENT ────────────────────────────────────────────────────────
 export async function exportIncomeStatementPDF(data) {
-  const { default: jsPDF } = await import('jspdf')
+  const [{ default: jsPDF }, logo] = await Promise.all([import('jspdf'), getLogo()])
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
 
   const subtitle = `${fmtDate(data.period.start)} — ${fmtDate(data.period.end)}`
-  drawHeader(pdf, 'Income Statement', subtitle)
+  drawHeader(pdf, logo, 'Income Statement', subtitle)
 
   let y = 38
 
@@ -303,10 +328,10 @@ export async function exportIncomeStatementPDF(data) {
 
 // ─── EXPENSE CATEGORIES ──────────────────────────────────────────────────────
 export async function exportExpenseCategoriesPDF(data, start, end) {
-  const { default: jsPDF } = await import('jspdf')
+  const [{ default: jsPDF }, logo] = await Promise.all([import('jspdf'), getLogo()])
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
 
-  drawHeader(pdf, 'Expense Categories', `${fmtDate(start)} — ${fmtDate(end)}`)
+  drawHeader(pdf, logo, 'Expense Categories', `${fmtDate(start)} — ${fmtDate(end)}`)
 
   let y = 38
 
@@ -321,7 +346,7 @@ export async function exportExpenseCategoriesPDF(data, start, end) {
     if (y + entryH > PAGE_H - 16) {
       drawFooter(pdf, 1, 1)
       pdf.addPage()
-      drawHeader(pdf, 'Expense Categories (cont.)', `${fmtDate(start)} — ${fmtDate(end)}`)
+      drawHeader(pdf, logo, 'Expense Categories (cont.)', `${fmtDate(start)} — ${fmtDate(end)}`)
       y = 38
     }
 
