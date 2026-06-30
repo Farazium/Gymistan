@@ -1,3 +1,4 @@
+import datetime
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -46,8 +47,6 @@ class DashboardView(APIView):
             gym=gym, date__gte=month_start
         ).aggregate(total=Sum('amount'))['total'] or 0
 
-        net_profit = float(revenue_this_month) - float(expenses_this_month)
-
         recent_payments = payments.select_related('member', 'package').order_by('-created_at')[:5]
         recent_payments_data = [
             {
@@ -82,6 +81,10 @@ class DashboardView(APIView):
             for log in sales_this_month
         )
 
+        total_revenue_this_month = float(revenue_this_month) + inventory_revenue_this_month
+        total_revenue_last_month = float(revenue_last_month)  # inventory last month not tracked separately
+        net_profit = float(revenue_this_month) + inventory_profit_this_month - float(expenses_this_month)
+
         return Response({
             'members': {
                 'active': active_members,
@@ -91,11 +94,11 @@ class DashboardView(APIView):
                 'total': members.count(),
             },
             'revenue': {
-                'this_month': float(revenue_this_month),
-                'last_month': float(revenue_last_month),
+                'this_month': round(total_revenue_this_month, 2),
+                'last_month': round(total_revenue_last_month, 2),
                 'growth': round(
-                    ((float(revenue_this_month) - float(revenue_last_month)) / float(revenue_last_month) * 100)
-                    if revenue_last_month else 0, 1
+                    ((total_revenue_this_month - total_revenue_last_month) / total_revenue_last_month * 100)
+                    if total_revenue_last_month else 0, 1
                 ),
             },
             'expenses': {
@@ -159,3 +162,172 @@ class SuperAdminDashboardView(APIView):
             'top_gyms': list(top_gyms),
             'recent_gym_payments': recent_gym_payments,
         })
+
+
+class FinanceLedgerView(APIView):
+    permission_classes = [IsAuthenticated, IsGymMember]
+
+    def get(self, request):
+        gym = request.user.gym
+        today = datetime.date.today()
+        five_years_ago = today.replace(year=today.year - 5)
+
+        start_str = request.query_params.get('start')
+        end_str = request.query_params.get('end')
+
+        try:
+            start = datetime.date.fromisoformat(start_str) if start_str else today.replace(day=1)
+            end = datetime.date.fromisoformat(end_str) if end_str else today
+        except ValueError:
+            start = today.replace(day=1)
+            end = today
+
+        start = max(start, five_years_ago)
+        end = min(end, today)
+
+        entries = []
+
+        for p in Payment.objects.filter(gym=gym, payment_date__range=[start, end]).select_related('member'):
+            is_admission = p.notes and p.notes.lower() == 'admission fee'
+            entries.append({
+                'date': p.payment_date.isoformat(),
+                'description': p.member.name if p.member else 'Unknown Member',
+                'category': 'Admission Fee' if is_admission else 'Member Fee',
+                'type': 'IN',
+                'amount': float(p.amount_paid),
+            })
+
+        for s in StockLog.objects.filter(
+            product__gym=gym, action='SELL', created_at__date__range=[start, end]
+        ).select_related('product'):
+            entries.append({
+                'date': s.created_at.date().isoformat(),
+                'description': s.product.name,
+                'category': 'Inventory Sale',
+                'type': 'IN',
+                'amount': round(float(s.quantity * s.product.sell_price), 2),
+            })
+
+        for e in Expense.objects.filter(gym=gym, date__range=[start, end]):
+            entries.append({
+                'date': e.date.isoformat(),
+                'description': e.title,
+                'category': e.get_category_display(),
+                'type': 'OUT',
+                'amount': float(e.amount),
+            })
+
+        entries.sort(key=lambda x: x['date'], reverse=True)
+        total_in = sum(e['amount'] for e in entries if e['type'] == 'IN')
+        total_out = sum(e['amount'] for e in entries if e['type'] == 'OUT')
+
+        return Response({
+            'entries': entries,
+            'total_in': round(total_in, 2),
+            'total_out': round(total_out, 2),
+            'net': round(total_in - total_out, 2),
+        })
+
+
+class FinanceIncomeStatementView(APIView):
+    permission_classes = [IsAuthenticated, IsGymMember]
+
+    def get(self, request):
+        gym = request.user.gym
+        today = datetime.date.today()
+
+        try:
+            year = int(request.query_params.get('year', today.year))
+        except ValueError:
+            year = today.year
+        year = max(year, today.year - 5)
+
+        try:
+            month = int(request.query_params.get('month')) if request.query_params.get('month') else None
+        except ValueError:
+            month = None
+
+        if month:
+            start = datetime.date(year, month, 1)
+            end = datetime.date(year, month + 1, 1) - datetime.timedelta(days=1) if month < 12 else datetime.date(year, 12, 31)
+        else:
+            start = datetime.date(year, 1, 1)
+            end = datetime.date(year, 12, 31)
+
+        end = min(end, today)
+
+        member_revenue = float(
+            Payment.objects.filter(gym=gym, payment_date__range=[start, end], status='PAID')
+            .aggregate(t=Sum('amount_paid'))['t'] or 0
+        )
+        inventory_revenue = sum(
+            float(s.quantity * s.product.sell_price)
+            for s in StockLog.objects.filter(
+                product__gym=gym, action='SELL', created_at__date__range=[start, end]
+            ).select_related('product')
+        )
+        total_revenue = member_revenue + inventory_revenue
+
+        expense_cats = {}
+        for e in Expense.objects.filter(gym=gym, date__range=[start, end]):
+            cat = e.get_category_display()
+            expense_cats[cat] = expense_cats.get(cat, 0) + float(e.amount)
+        total_expenses = sum(expense_cats.values())
+
+        return Response({
+            'period': {'start': start.isoformat(), 'end': end.isoformat(), 'year': year, 'month': month},
+            'revenue': {
+                'member_fees': round(member_revenue, 2),
+                'inventory_sales': round(inventory_revenue, 2),
+                'total': round(total_revenue, 2),
+            },
+            'expenses': {
+                'by_category': [{'name': k, 'amount': round(v, 2)} for k, v in sorted(expense_cats.items(), key=lambda x: -x[1])],
+                'total': round(total_expenses, 2),
+            },
+            'net_profit': round(total_revenue - total_expenses, 2),
+        })
+
+
+class FinanceExpenseCategoriesView(APIView):
+    permission_classes = [IsAuthenticated, IsGymMember]
+
+    def get(self, request):
+        gym = request.user.gym
+        today = datetime.date.today()
+        five_years_ago = today.replace(year=today.year - 5)
+
+        start_str = request.query_params.get('start')
+        end_str = request.query_params.get('end')
+
+        try:
+            start = datetime.date.fromisoformat(start_str) if start_str else today.replace(day=1)
+            end = datetime.date.fromisoformat(end_str) if end_str else today
+        except ValueError:
+            start = today.replace(day=1)
+            end = today
+
+        start = max(start, five_years_ago)
+        end = min(end, today)
+
+        categories = {}
+        for e in Expense.objects.filter(gym=gym, date__range=[start, end]).order_by('-date'):
+            cat = e.get_category_display()
+            if cat not in categories:
+                categories[cat] = {'total': 0, 'count': 0, 'entries': []}
+            categories[cat]['total'] += float(e.amount)
+            categories[cat]['count'] += 1
+            categories[cat]['entries'].append({
+                'date': e.date.isoformat(),
+                'title': e.title,
+                'amount': float(e.amount),
+            })
+
+        total = sum(c['total'] for c in categories.values())
+        result = sorted(
+            [{'category': k, 'pct': round(v['total'] / total * 100, 1) if total else 0, **v}
+             for k, v in categories.items()],
+            key=lambda x: -x['total']
+        )
+
+        return Response({'categories': result, 'total': round(total, 2)})

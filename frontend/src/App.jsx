@@ -14,6 +14,7 @@ import Tiers from './pages/superadmin/Tiers'
 import GymPayments from './pages/superadmin/GymPayments'
 import Inventory from './pages/inventory/Inventory'
 import MemberProfile from './pages/members/MemberProfile'
+import Finance from './pages/finance/Finance'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30000 } },
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="/expenses" element={<Expenses />} />
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/members/:id" element={<MemberProfile />} />
+            <Route path="/finance" element={<Finance />} />
             <Route path="/admin/gyms" element={<Gyms />} />
             <Route path="/admin/gyms/:id" element={<GymProfile />} />
             <Route path="/admin/subscriptions" element={<GymPayments />} />

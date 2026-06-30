@@ -1,0 +1,568 @@
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { BookOpen, TrendingUp, PieChart, ArrowDownCircle, ArrowUpCircle, ChevronDown, ChevronRight, ChevronLeft, CalendarDays } from 'lucide-react'
+import api from '../../api/axios'
+
+const fmt = (n) => `PKR ${Number(n).toLocaleString('en-PK')}`
+
+const today = new Date()
+const todayStr = today.toISOString().slice(0, 10)
+const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10)
+const thisWeekStart = (() => {
+  const d = new Date(today)
+  d.setDate(d.getDate() - d.getDay())
+  return d.toISOString().slice(0, 10)
+})()
+const thisYearStart = `${today.getFullYear()}-01-01`
+const fiveYearsAgo = `${today.getFullYear() - 5}-01-01`
+
+const PRESETS = [
+  { label: 'Today', start: todayStr, end: todayStr },
+  { label: 'This Week', start: thisWeekStart, end: todayStr },
+  { label: 'This Month', start: thisMonthStart, end: todayStr },
+  { label: 'This Year', start: thisYearStart, end: todayStr },
+]
+
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
+const YEARS = Array.from({ length: 6 }, (_, i) => today.getFullYear() - i)
+
+const CAT_COLORS = {
+  'Rent': 'bg-blue-500/20 text-blue-400',
+  'Utilities': 'bg-yellow-500/20 text-yellow-400',
+  'Salaries': 'bg-purple-500/20 text-purple-400',
+  'Equipment': 'bg-orange-500/20 text-orange-400',
+  'Maintenance': 'bg-cyan-500/20 text-cyan-400',
+  'Marketing': 'bg-pink-500/20 text-pink-400',
+  'Other': 'bg-gray-500/20 text-gray-400',
+  'Admission Fee': 'bg-indigo-500/20 text-indigo-400',
+}
+
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
+const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+const DAY_LABELS = ['Su','Mo','Tu','We','Th','Fr','Sa']
+
+function formatDateDisplay(s) {
+  if (!s) return '—'
+  const d = new Date(s + 'T00:00:00')
+  return `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]} ${d.getFullYear()}`
+}
+
+function makeDateStr(year, month, day) {
+  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+function CustomCalendarPicker({ start, end, onStartChange, onEndChange }) {
+  const [open, setOpen] = useState(false)
+  const [picking, setPicking] = useState('start')
+  const [hovered, setHovered] = useState(null)
+  const [viewYear, setViewYear] = useState(() => end ? new Date(end).getFullYear() : today.getFullYear())
+  const [viewMonth, setViewMonth] = useState(() => end ? new Date(end).getMonth() : today.getMonth())
+
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay()
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
+  const cells = []
+  for (let i = 0; i < firstDay; i++) cells.push(null)
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d)
+
+  const prevMonth = () => {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1) }
+    else setViewMonth(m => m - 1)
+  }
+  const nextMonth = () => {
+    const nextDate = new Date(viewYear, viewMonth + 1, 1)
+    if (nextDate <= today) {
+      if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1) }
+      else setViewMonth(m => m + 1)
+    }
+  }
+
+  const handleDay = (d) => {
+    const ds = makeDateStr(viewYear, viewMonth, d)
+    if (ds > todayStr) return
+    if (picking === 'start') {
+      onStartChange(ds)
+      if (end && ds > end) onEndChange(ds)
+      setPicking('end')
+    } else {
+      if (ds < start) { onStartChange(ds); setPicking('end') }
+      else { onEndChange(ds); setOpen(false); setPicking('start') }
+    }
+  }
+
+  const effectiveEnd = picking === 'end' && hovered ? hovered : end
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => { setOpen(o => !o); setPicking('start') }}
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition ${
+          open ? 'bg-blue-600/20 border-blue-500/50 text-blue-300' : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+        }`}
+      >
+        <CalendarDays size={13} />
+        {formatDateDisplay(start)} — {formatDateDisplay(end)}
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => { setOpen(false); setPicking('start') }} />
+          <div className="absolute top-full mt-2 left-0 z-50 bg-gray-850 border border-gray-700 rounded-2xl shadow-2xl p-4 w-72" style={{ background: '#1a2332' }}>
+
+            {/* Month nav */}
+            <div className="flex items-center justify-between mb-3">
+              <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-white transition">
+                <ChevronLeft size={15} />
+              </button>
+              <div className="text-center">
+                <p className="text-sm font-semibold text-gray-100">{MONTH_NAMES[viewMonth]}</p>
+                <p className="text-xs text-gray-500">{viewYear}</p>
+              </div>
+              <button
+                onClick={nextMonth}
+                disabled={new Date(viewYear, viewMonth + 1, 1) > today}
+                className="p-1.5 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-white transition disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <ChevronRight size={15} />
+              </button>
+            </div>
+
+            {/* Day headers */}
+            <div className="grid grid-cols-7 mb-1">
+              {DAY_LABELS.map(d => (
+                <div key={d} className="text-center text-[10px] text-gray-500 font-semibold py-1 tracking-wide">{d}</div>
+              ))}
+            </div>
+
+            {/* Days grid */}
+            <div className="grid grid-cols-7">
+              {cells.map((d, i) => {
+                if (!d) return <div key={`e-${i}`} />
+                const ds = makeDateStr(viewYear, viewMonth, d)
+                const isStart = ds === start
+                const isEnd = ds === end
+                const inRange = effectiveEnd && ds > start && ds < effectiveEnd
+                const isTodayDay = ds === todayStr
+                const isFuture = ds > todayStr
+                const isPast5 = ds < fiveYearsAgo
+
+                return (
+                  <div
+                    key={d}
+                    className={`relative flex items-center justify-center h-9 ${
+                      inRange ? 'bg-blue-500/15' : ''
+                    } ${isStart && end && start !== end ? 'rounded-l-full' : ''} ${isEnd && start !== end ? 'rounded-r-full' : ''}`}
+                  >
+                    <button
+                      disabled={isFuture || isPast5}
+                      onClick={() => handleDay(d)}
+                      onMouseEnter={() => picking === 'end' && setHovered(ds)}
+                      onMouseLeave={() => setHovered(null)}
+                      className={`w-8 h-8 rounded-full text-xs font-medium transition-all
+                        ${isFuture || isPast5 ? 'text-gray-700 cursor-not-allowed' : 'cursor-pointer'}
+                        ${isStart || isEnd ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 scale-105' : ''}
+                        ${isTodayDay && !isStart && !isEnd ? 'ring-1 ring-blue-400/60 text-blue-300' : ''}
+                        ${!isStart && !isEnd && !isFuture && !isPast5 ? 'text-gray-200 hover:bg-blue-500/30' : ''}
+                      `}
+                    >
+                      {d}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Footer */}
+            <div className="mt-3 pt-3 border-t border-gray-700/60 flex items-center justify-between">
+              <div className="space-y-0.5">
+                <p className="text-[11px] text-gray-500">
+                  From <span className="text-blue-400 font-medium">{formatDateDisplay(start)}</span>
+                </p>
+                <p className="text-[11px] text-gray-500">
+                  To <span className="text-blue-400 font-medium">{formatDateDisplay(end)}</span>
+                </p>
+              </div>
+              <div className="flex flex-col gap-1 text-right">
+                <span className="text-[11px] text-gray-500">
+                  {picking === 'start' ? '📍 Pick start date' : '📍 Pick end date'}
+                </span>
+                <button
+                  onClick={() => { onStartChange(thisMonthStart); onEndChange(todayStr); setOpen(false); setPicking('start') }}
+                  className="text-[11px] text-gray-500 hover:text-blue-400 transition"
+                >
+                  Reset to this month
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function DateRangeFilter({ start, end, onStartChange, onEndChange, activePreset, onPreset }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {PRESETS.map(p => (
+        <button
+          key={p.label}
+          onClick={() => onPreset(p)}
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+            activePreset === p.label
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+        >
+          {p.label}
+        </button>
+      ))}
+      <button
+        onClick={() => onPreset(null)}
+        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+          activePreset === null ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+        }`}
+      >
+        Custom
+      </button>
+      {activePreset === null && (
+        <CustomCalendarPicker start={start} end={end} onStartChange={onStartChange} onEndChange={onEndChange} />
+      )}
+    </div>
+  )
+}
+
+function SummaryCard({ label, value, color }) {
+  const colors = {
+    green: 'bg-green-500/10 border-green-500/20 text-green-400',
+    red: 'bg-red-500/10 border-red-500/20 text-red-400',
+    blue: 'bg-blue-500/10 border-blue-500/20 text-blue-400',
+  }
+  return (
+    <div className={`rounded-xl border p-4 ${colors[color]}`}>
+      <p className="text-xs text-gray-400 mb-1">{label}</p>
+      <p className="text-xl font-bold">{value}</p>
+    </div>
+  )
+}
+
+// ─── LEDGER TAB ───────────────────────────────────────────────────────────────
+function LedgerTab() {
+  const [activePreset, setActivePreset] = useState('This Month')
+  const [start, setStart] = useState(thisMonthStart)
+  const [end, setEnd] = useState(todayStr)
+
+  const handlePreset = (p) => {
+    if (p) { setActivePreset(p.label); setStart(p.start); setEnd(p.end) }
+    else setActivePreset(null)
+  }
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['finance-ledger', start, end],
+    queryFn: async () => { const { data } = await api.get('/dashboard/finance/ledger/', { params: { start, end } }); return data },
+    enabled: !!start && !!end,
+  })
+
+  return (
+    <div className="space-y-4">
+      <DateRangeFilter start={start} end={end} onStartChange={setStart} onEndChange={setEnd} activePreset={activePreset} onPreset={handlePreset} />
+
+      {data && (
+        <div className="grid grid-cols-3 gap-4">
+          <SummaryCard label="Total In" value={fmt(data.total_in)} color="green" />
+          <SummaryCard label="Total Out" value={fmt(data.total_out)} color="red" />
+          <SummaryCard label="Net" value={fmt(data.net)} color={data.net >= 0 ? 'blue' : 'red'} />
+        </div>
+      )}
+
+      <div className="card overflow-hidden">
+        {isLoading ? (
+          <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full" /></div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-700 text-left">
+                <th className="px-4 py-3 text-xs text-gray-400 font-medium uppercase tracking-wide">Date</th>
+                <th className="px-4 py-3 text-xs text-gray-400 font-medium uppercase tracking-wide">Description</th>
+                <th className="px-4 py-3 text-xs text-gray-400 font-medium uppercase tracking-wide">Category</th>
+                <th className="px-4 py-3 text-xs text-gray-400 font-medium uppercase tracking-wide text-right">In</th>
+                <th className="px-4 py-3 text-xs text-gray-400 font-medium uppercase tracking-wide text-right">Out</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data?.entries.length ? data.entries.map((e, i) => (
+                <tr key={i} className="border-b border-gray-700/50 hover:bg-gray-700/20 transition">
+                  <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
+                    {new Date(e.date).toLocaleDateString('en-PK')}
+                  </td>
+                  <td className="px-4 py-3 text-gray-100">{e.description}</td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      e.type === 'IN'
+                        ? e.category === 'Inventory Sale' ? 'bg-cyan-500/20 text-cyan-400'
+                        : e.category === 'Admission Fee' ? 'bg-indigo-500/20 text-indigo-400'
+                        : 'bg-green-500/20 text-green-400'
+                        : CAT_COLORS[e.category] || CAT_COLORS['Other']
+                    }`}>
+                      {e.category}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right font-medium text-green-400">
+                    {e.type === 'IN' ? fmt(e.amount) : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-right font-medium text-red-400">
+                    {e.type === 'OUT' ? fmt(e.amount) : '—'}
+                  </td>
+                </tr>
+              )) : (
+                <tr><td colSpan={5} className="px-4 py-16 text-center text-gray-500">No transactions in this period</td></tr>
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── INCOME STATEMENT TAB ─────────────────────────────────────────────────────
+function IncomeStatementTab() {
+  const [filterType, setFilterType] = useState('month')
+  const [month, setMonth] = useState(today.getMonth() + 1)
+  const [year, setYear] = useState(today.getFullYear())
+
+  const params = filterType === 'month' ? { month, year } : { year }
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['finance-income', filterType, month, year],
+    queryFn: async () => { const { data } = await api.get('/dashboard/finance/income-statement/', { params }); return data },
+  })
+
+  return (
+    <div className="space-y-4">
+      {/* Filter */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex rounded-lg overflow-hidden border border-gray-700">
+          <button
+            onClick={() => setFilterType('month')}
+            className={`px-4 py-1.5 text-xs font-medium transition ${filterType === 'month' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-gray-200'}`}
+          >
+            By Month
+          </button>
+          <button
+            onClick={() => setFilterType('year')}
+            className={`px-4 py-1.5 text-xs font-medium transition ${filterType === 'year' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-gray-200'}`}
+          >
+            By Year
+          </button>
+        </div>
+        {filterType === 'month' && (
+          <select value={month} onChange={e => setMonth(Number(e.target.value))} className="input py-1.5 text-xs w-36">
+            {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+          </select>
+        )}
+        <select value={year} onChange={e => setYear(Number(e.target.value))} className="input py-1.5 text-xs w-28">
+          {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full" /></div>
+      ) : data && (
+        <div className="space-y-4">
+          {/* Summary */}
+          <div className="grid grid-cols-3 gap-4">
+            <SummaryCard label="Total Revenue" value={fmt(data.revenue.total)} color="green" />
+            <SummaryCard label="Total Expenses" value={fmt(data.expenses.total)} color="red" />
+            <SummaryCard label="Net Profit" value={fmt(data.net_profit)} color={data.net_profit >= 0 ? 'blue' : 'red'} />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Revenue breakdown */}
+            <div className="card p-5">
+              <h3 className="font-semibold text-gray-100 mb-4 flex items-center gap-2">
+                <ArrowDownCircle size={15} className="text-green-400" /> Revenue Breakdown
+              </h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between py-2 border-b border-gray-700">
+                  <span className="text-sm text-gray-300">Member Fees</span>
+                  <span className="font-semibold text-green-400">{fmt(data.revenue.member_fees)}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 border-b border-gray-700">
+                  <span className="text-sm text-gray-300">Inventory Sales</span>
+                  <span className="font-semibold text-green-400">{fmt(data.revenue.inventory_sales)}</span>
+                </div>
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-sm font-semibold text-gray-100">Total Revenue</span>
+                  <span className="font-bold text-green-400 text-base">{fmt(data.revenue.total)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Expense breakdown */}
+            <div className="card p-5">
+              <h3 className="font-semibold text-gray-100 mb-4 flex items-center gap-2">
+                <ArrowUpCircle size={15} className="text-red-400" /> Expense Breakdown
+              </h3>
+              {data.expenses.by_category.length ? (
+                <div className="space-y-2">
+                  {data.expenses.by_category.map(cat => (
+                    <div key={cat.name} className="flex items-center justify-between py-2 border-b border-gray-700/50 last:border-0">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${CAT_COLORS[cat.name] || CAT_COLORS['Other']}`}>{cat.name}</span>
+                      <span className="font-medium text-red-400 text-sm">{fmt(cat.amount)}</span>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between pt-2">
+                    <span className="text-sm font-semibold text-gray-100">Total Expenses</span>
+                    <span className="font-bold text-red-400 text-base">{fmt(data.expenses.total)}</span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-500 text-sm text-center py-6">No expenses in this period</p>
+              )}
+            </div>
+          </div>
+
+          {/* Net Profit row */}
+          <div className={`card p-5 border ${data.net_profit >= 0 ? 'border-green-500/20 bg-green-500/5' : 'border-red-500/20 bg-red-500/5'}`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400">Net Profit / Loss</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {data.period.start} — {data.period.end}
+                </p>
+              </div>
+              <p className={`text-2xl font-bold ${data.net_profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {data.net_profit >= 0 ? '+' : ''}{fmt(data.net_profit)}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── EXPENSE CATEGORIES TAB ───────────────────────────────────────────────────
+function ExpenseCategoriesTab() {
+  const [activePreset, setActivePreset] = useState('This Month')
+  const [start, setStart] = useState(thisMonthStart)
+  const [end, setEnd] = useState(todayStr)
+  const [expanded, setExpanded] = useState({})
+
+  const handlePreset = (p) => {
+    if (p) { setActivePreset(p.label); setStart(p.start); setEnd(p.end) }
+    else setActivePreset(null)
+  }
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['finance-expense-cats', start, end],
+    queryFn: async () => { const { data } = await api.get('/dashboard/finance/expense-categories/', { params: { start, end } }); return data },
+    enabled: !!start && !!end,
+  })
+
+  const toggle = (cat) => setExpanded(prev => ({ ...prev, [cat]: !prev[cat] }))
+
+  return (
+    <div className="space-y-4">
+      <DateRangeFilter start={start} end={end} onStartChange={setStart} onEndChange={setEnd} activePreset={activePreset} onPreset={handlePreset} />
+
+      {data && (
+        <div className="grid grid-cols-3 gap-4">
+          <SummaryCard label="Total Expenses" value={fmt(data.total)} color="red" />
+          <SummaryCard label="Categories" value={data.categories.length} color="blue" />
+          <SummaryCard label="Period" value={`${new Date(start).toLocaleDateString('en-PK')} – ${new Date(end).toLocaleDateString('en-PK')}`} color="blue" />
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full" /></div>
+      ) : data?.categories.length ? (
+        <div className="space-y-3">
+          {data.categories.map(cat => (
+            <div key={cat.category} className="card overflow-hidden">
+              <button
+                onClick={() => toggle(cat.category)}
+                className="w-full flex items-center gap-4 p-4 hover:bg-gray-700/20 transition text-left"
+              >
+                <span className={`text-xs px-2.5 py-1 rounded-full font-medium flex-shrink-0 ${CAT_COLORS[cat.category] || CAT_COLORS['Other']}`}>
+                  {cat.category}
+                </span>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-sm text-gray-300">{cat.count} expense{cat.count !== 1 ? 's' : ''}</span>
+                    <span className="font-semibold text-red-400">{fmt(cat.total)}</span>
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-1.5">
+                    <div className="bg-red-500/60 h-1.5 rounded-full" style={{ width: `${cat.pct}%` }} />
+                  </div>
+                </div>
+                <span className="text-xs text-gray-500 w-10 text-right">{cat.pct}%</span>
+                {expanded[cat.category] ? <ChevronDown size={14} className="text-gray-400 flex-shrink-0" /> : <ChevronRight size={14} className="text-gray-400 flex-shrink-0" />}
+              </button>
+
+              {expanded[cat.category] && (
+                <div className="border-t border-gray-700">
+                  {cat.entries.map((e, i) => (
+                    <div key={i} className="flex items-center justify-between px-4 py-2.5 border-b border-gray-700/40 last:border-0 hover:bg-gray-700/10">
+                      <div>
+                        <p className="text-sm text-gray-200">{e.title}</p>
+                        <p className="text-xs text-gray-500">{new Date(e.date).toLocaleDateString('en-PK')}</p>
+                      </div>
+                      <span className="text-sm font-medium text-red-400">{fmt(e.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="card p-16 text-center text-gray-500">No expenses in this period</div>
+      )}
+    </div>
+  )
+}
+
+// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
+const TABS = [
+  { id: 'ledger', label: 'Ledger', icon: BookOpen },
+  { id: 'income', label: 'Income Statement', icon: TrendingUp },
+  { id: 'expenses', label: 'Expense Categories', icon: PieChart },
+]
+
+export default function Finance() {
+  const [activeTab, setActiveTab] = useState('ledger')
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold text-blue-400">Finance</h1>
+        <p className="text-gray-500 text-sm mt-1">Complete financial overview of your gym</p>
+      </div>
+
+      {/* Tab toggles */}
+      <div className="flex gap-2 border-b border-gray-700 pb-0">
+        {TABS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setActiveTab(id)}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition -mb-px ${
+              activeTab === id
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            <Icon size={15} />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="pt-1">
+        {activeTab === 'ledger' && <LedgerTab />}
+        {activeTab === 'income' && <IncomeStatementTab />}
+        {activeTab === 'expenses' && <ExpenseCategoriesTab />}
+      </div>
+    </div>
+  )
+}
