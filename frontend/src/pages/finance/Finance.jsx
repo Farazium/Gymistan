@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { BookOpen, TrendingUp, PieChart, ArrowDownCircle, ArrowUpCircle, ChevronDown, ChevronRight, ChevronLeft, CalendarDays } from 'lucide-react'
+import { BookOpen, TrendingUp, PieChart, ArrowDownCircle, ArrowUpCircle, ChevronDown, ChevronRight, ChevronLeft, CalendarDays, FileDown, Loader2 } from 'lucide-react'
 import api from '../../api/axios'
+import { exportLedgerPDF, exportIncomeStatementPDF, exportExpenseCategoriesPDF } from '../../utils/financePDF'
 
 const fmt = (n) => `PKR ${Number(n).toLocaleString('en-PK')}`
 
@@ -231,6 +232,25 @@ function DateRangeFilter({ start, end, onStartChange, onEndChange, activePreset,
   )
 }
 
+function PdfExportButton({ onExport }) {
+  const [loading, setLoading] = useState(false)
+  const handleExport = async () => {
+    setLoading(true)
+    try { await onExport() }
+    finally { setLoading(false) }
+  }
+  return (
+    <button
+      onClick={handleExport}
+      disabled={loading}
+      className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded-lg text-xs font-medium text-gray-300 hover:text-white transition disabled:opacity-50"
+    >
+      {loading ? <Loader2 size={13} className="animate-spin" /> : <FileDown size={13} />}
+      {loading ? 'Exporting...' : 'Export PDF'}
+    </button>
+  )
+}
+
 function SummaryCard({ label, value, color }) {
   const colors = {
     green: 'bg-green-500/10 border-green-500/20 text-green-400',
@@ -264,7 +284,10 @@ function LedgerTab() {
 
   return (
     <div className="space-y-4">
-      <DateRangeFilter start={start} end={end} onStartChange={setStart} onEndChange={setEnd} activePreset={activePreset} onPreset={handlePreset} />
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <DateRangeFilter start={start} end={end} onStartChange={setStart} onEndChange={setEnd} activePreset={activePreset} onPreset={handlePreset} />
+        {data && <PdfExportButton onExport={() => exportLedgerPDF(data, start, end)} />}
+      </div>
 
       {data && (
         <div className="grid grid-cols-3 gap-4">
@@ -340,6 +363,7 @@ function IncomeStatementTab() {
   return (
     <div className="space-y-4">
       {/* Filter */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex rounded-lg overflow-hidden border border-gray-700">
           <button
@@ -363,6 +387,8 @@ function IncomeStatementTab() {
         <select value={year} onChange={e => setYear(Number(e.target.value))} className="input py-1.5 text-xs w-28">
           {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
+      </div>
+      {data && <PdfExportButton onExport={() => exportIncomeStatementPDF(data)} />}
       </div>
 
       {isLoading ? (
@@ -464,8 +490,12 @@ function ExpenseCategoriesTab() {
 
   return (
     <div className="space-y-4">
-      <DateRangeFilter start={start} end={end} onStartChange={setStart} onEndChange={setEnd} activePreset={activePreset} onPreset={handlePreset} />
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <DateRangeFilter start={start} end={end} onStartChange={setStart} onEndChange={setEnd} activePreset={activePreset} onPreset={handlePreset} />
+        {data && <PdfExportButton onExport={() => exportExpenseCategoriesPDF(data, start, end)} />}
+      </div>
 
+      <div className="space-y-4">
       {data && (
         <div className="grid grid-cols-3 gap-4">
           <SummaryCard label="Total Expenses" value={fmt(data.total)} color="red" />
@@ -519,9 +549,11 @@ function ExpenseCategoriesTab() {
       ) : (
         <div className="card p-16 text-center text-gray-500">No expenses in this period</div>
       )}
+      </div>
     </div>
   )
 }
+
 
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 const TABS = [
