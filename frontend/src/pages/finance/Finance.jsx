@@ -6,13 +6,16 @@ import { exportLedgerPDF, exportIncomeStatementPDF, exportExpenseCategoriesPDF }
 
 const fmt = (n) => `PKR ${Number(n).toLocaleString('en-PK')}`
 
+const localStr = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
 const today = new Date()
-const todayStr = today.toISOString().slice(0, 10)
-const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10)
+const todayStr = localStr(today)
+const thisMonthStart = localStr(new Date(today.getFullYear(), today.getMonth(), 1))
 const thisWeekStart = (() => {
   const d = new Date(today)
   d.setDate(d.getDate() - d.getDay())
-  return d.toISOString().slice(0, 10)
+  return localStr(d)
 })()
 const thisYearStart = `${today.getFullYear()}-01-01`
 const fiveYearsAgo = `${today.getFullYear() - 5}-01-01`

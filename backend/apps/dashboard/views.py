@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
+from django.utils.timezone import localdate
 from datetime import timedelta
 from apps.members.models import Member
 from apps.payments.models import Payment
@@ -18,7 +19,7 @@ class DashboardView(APIView):
 
     def get(self, request):
         gym = request.user.gym
-        today = timezone.now().date()
+        today = localdate()
         month_start = today.replace(day=1)
         last_month_start = (month_start - timedelta(days=1)).replace(day=1)
 
@@ -121,7 +122,7 @@ class SuperAdminDashboardView(APIView):
     permission_classes = [IsAuthenticated, IsSuperAdmin]
 
     def get(self, request):
-        today = timezone.now().date()
+        today = localdate()
         month_start = today.replace(day=1)
 
         gyms = Gym.objects.all()
