@@ -14,6 +14,7 @@ class Member(models.Model):
 
     gym = models.ForeignKey(Gym, on_delete=models.CASCADE, related_name='members')
     package = models.ForeignKey(Package, on_delete=models.SET_NULL, null=True, blank=True, related_name='members')
+    member_id = models.CharField(max_length=4, blank=True, null=True)
     name = models.CharField(max_length=200)
     phone = models.CharField(max_length=20)
     gender = models.CharField(max_length=10, choices=Gender.choices, default=Gender.MALE)
@@ -29,6 +30,7 @@ class Member(models.Model):
 
     class Meta:
         db_table = 'members'
+        unique_together = [('gym', 'member_id')]
 
     def __str__(self):
         return f'{self.name} - {self.gym.name}'

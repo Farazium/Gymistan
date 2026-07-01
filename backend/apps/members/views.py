@@ -1,4 +1,6 @@
 from rest_framework import generics, filters
+from rest_framework.views import APIView
+from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Member
@@ -8,11 +10,23 @@ from apps.payments.models import Payment
 import datetime
 
 
+class MemberNextIdView(APIView):
+    permission_classes = [IsAuthenticated, IsGymMember]
+
+    def get(self, request):
+        existing = Member.objects.filter(
+            gym=request.user.gym,
+            member_id__isnull=False,
+        ).exclude(member_id='').values_list('member_id', flat=True)
+        ids = sorted([int(x) for x in existing if x.isdigit()])
+        next_num = (max(ids) + 1) if ids else 1
+        return Response({'next_id': str(next_num).zfill(4)})
+
+
 class MemberListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated, IsGymMember]
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['package', 'gender']
-    search_fields = ['name', 'phone']
     ordering_fields = ['name', 'join_date', 'expiry_date']
     ordering = ['-created_at']
 
@@ -23,12 +37,26 @@ class MemberListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         qs = Member.objects.filter(gym=self.request.user.gym).select_related('package')
+
         status = self.request.query_params.get('status')
         today = datetime.date.today()
         if status == 'ACTIVE':
-            qs = qs.filter(expiry_date__gte=today) | qs.filter(expiry_date__isnull=True)
+            qs = qs.filter(expiry_date__gt=today) | qs.filter(expiry_date__isnull=True)
         elif status == 'EXPIRED':
-            qs = qs.filter(expiry_date__lt=today)
+            qs = qs.filter(expiry_date__lte=today)
+
+        search = self.request.query_params.get('search', '').strip()
+        search_by = self.request.query_params.get('search_by', 'name')
+        if search:
+            field_map = {
+                'name': 'name__icontains',
+                'father_name': 'father_name__icontains',
+                'phone': 'phone__icontains',
+                'member_id': 'member_id__icontains',
+            }
+            lookup = field_map.get(search_by, 'name__icontains')
+            qs = qs.filter(**{lookup: search})
+
         return qs
 
     def perform_create(self, serializer):

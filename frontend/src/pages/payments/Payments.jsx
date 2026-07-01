@@ -4,12 +4,20 @@ import { Plus, Download, MessageCircle, Search, Trash2, FileDown } from 'lucide-
 import { exportToExcel } from '../../utils/exportExcel'
 import api from '../../api/axios'
 import useAuthStore from '../../store/authStore'
-import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
 import Modal from '../../components/ui/Modal'
 import PaymentForm from './PaymentForm'
 import toast from 'react-hot-toast'
 
 const fmt = (n) => `PKR ${Number(n).toLocaleString('en-PK')}`
+
+function monthKey(dateStr) {
+  return dateStr ? dateStr.slice(0, 7) : ''
+}
+
+function monthLabel(yyyymm) {
+  const [y, m] = yyyymm.split('-')
+  return new Date(Number(y), Number(m) - 1, 1).toLocaleString('en-PK', { month: 'long', year: 'numeric' })
+}
 
 export default function Payments() {
   const { user } = useAuthStore()
@@ -56,16 +64,34 @@ export default function Payments() {
     onError: (err) => toast.error(err.response?.data?.message || 'Failed to send'),
   })
 
+  // Sort newest first, group by month
+  const sorted = [...payments].sort((a, b) => (a.payment_date < b.payment_date ? 1 : -1))
+
+  const groups = []
+  let lastKey = null
+  sorted.forEach((p) => {
+    const key = monthKey(p.payment_date)
+    if (key !== lastKey) {
+      groups.push({ key, label: monthLabel(key), items: [] })
+      lastKey = key
+    }
+    groups[groups.length - 1].items.push(p)
+  })
+
+  const total = payments.reduce((sum, p) => sum + Number(p.amount_paid), 0)
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-blue-400">Payments</h1>
-          <p className="text-gray-500 text-sm mt-1">{payments.length} records</p>
+          <p className="text-gray-500 text-sm mt-1">
+            {payments.length} records — Total: <span className="font-semibold text-green-500">{fmt(total)}</span>
+          </p>
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => exportToExcel(payments.map((p) => ({
+            onClick={() => exportToExcel(sorted.map((p) => ({
               Member: p.member_name,
               Phone: p.member_phone || '',
               Package: p.package_name || (p.notes === 'Admission fee' ? 'Admission Fee' : ''),
@@ -97,63 +123,74 @@ export default function Payments() {
         </select>
       </div>
 
-      <div className="card">
-        {isLoading ? (
-          <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-primary-500 border-t-transparent rounded-full" /></div>
-        ) : (
-          <Table>
-            <Thead>
-              <Th>Member</Th>
-              <Th>Package</Th>
-              <Th>Amount</Th>
-              <Th>Paid</Th>
-              <Th>Method</Th>
-              <Th>Date</Th>
-              <Th>Actions</Th>
-            </Thead>
-            <Tbody>
-              {payments.map((p) => (
-                <Tr key={p.id}>
-                  <Td>
-                    <div>
-                      <p className="font-medium">{p.member_name}</p>
-                      <p className="text-xs text-gray-400">{p.member_phone}</p>
-                    </div>
-                  </Td>
-                  <Td>{p.package_name ? <span className="text-blue-400 text-xs">{p.package_name}</span> : (p.notes === 'Admission fee' ? <span className="text-blue-400 text-xs">Admission Fee</span> : <span className="text-gray-400">—</span>)}</Td>
-                  <Td>{fmt(p.amount)}</Td>
-                  <Td className="font-semibold text-gray-900">{fmt(p.amount_paid)}</Td>
-                  <Td>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.payment_method === 'ONLINE' ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-700 text-gray-300'}`}>
-                      {p.payment_method === 'ONLINE' ? 'Online' : 'Cash'}
-                    </span>
-                  </Td>
-                  <Td className="text-gray-400">{new Date(p.payment_date).toLocaleDateString('en-PK')}</Td>
-                  <Td>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => downloadSlip(p.id)} title="Download Slip" className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition">
-                        <Download size={14} />
-                      </button>
-                      {hasWhatsApp && (
-                        <button onClick={() => sendWhatsApp.mutate(p.id)} title="Send via WhatsApp" className="p-1.5 text-gray-400 hover:text-green-400 hover:bg-green-500/10 rounded-lg transition">
-                          <MessageCircle size={14} />
+      {isLoading ? (
+        <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-primary-500 border-t-transparent rounded-full" /></div>
+      ) : !payments.length ? (
+        <div className="card flex flex-col items-center py-16 text-gray-400">
+          No payments recorded yet.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {groups.map((group) => {
+            const groupTotal = group.items.reduce((s, p) => s + Number(p.amount_paid), 0)
+            return (
+              <div key={group.key}>
+                {/* Month separator */}
+                <div className="flex items-center justify-between px-1 pt-4 pb-2">
+                  <h2 className="text-lg font-bold text-gray-200">{group.label}</h2>
+                  <span className="text-sm font-semibold text-green-500">{fmt(groupTotal)}</span>
+                </div>
+
+                <div className="card divide-y divide-gray-700/60">
+                  {/* Column headers */}
+                  <div className="flex items-center gap-4 px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <span className="flex-1">Member</span>
+                    <span className="shrink-0 w-28">Package</span>
+                    <span className="shrink-0 w-24 text-right">Paid</span>
+                    <span className="shrink-0 w-16 text-center">Method</span>
+                    <span className="shrink-0 w-24 text-right">Date</span>
+                    <span className="shrink-0 w-20 text-right">Actions</span>
+                  </div>
+
+                  {group.items.map((p) => (
+                    <div key={p.id} className="flex items-center gap-4 px-4 py-3 hover:bg-gray-700/30 transition">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-100 truncate">{p.member_name}</p>
+                        <p className="text-xs text-gray-400">{p.member_phone}</p>
+                      </div>
+                      <span className="shrink-0 w-28 text-blue-400 text-xs truncate">
+                        {p.package_name || (p.notes === 'Admission fee' ? 'Admission Fee' : <span className="text-gray-500">—</span>)}
+                      </span>
+                      <span className="shrink-0 w-24 text-right font-semibold text-green-400">{fmt(p.amount_paid)}</span>
+                      <span className="shrink-0 w-16 text-center">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.payment_method === 'ONLINE' ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-700 text-gray-300'}`}>
+                          {p.payment_method === 'ONLINE' ? 'Online' : 'Cash'}
+                        </span>
+                      </span>
+                      <span className="shrink-0 w-24 text-right text-gray-400 text-sm">
+                        {new Date(p.payment_date).toLocaleDateString('en-PK')}
+                      </span>
+                      <div className="shrink-0 w-20 flex items-center justify-end gap-1">
+                        <button onClick={() => downloadSlip(p.id)} title="Download Slip" className="p-1.5 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition">
+                          <Download size={14} />
                         </button>
-                      )}
-                      {p.slip_sent && <span className="text-xs text-green-500 ml-1">✓ Sent</span>}
-                      <button onClick={() => { if (confirm('Delete this payment record?')) deleteMutation.mutate(p.id) }} title="Delete" className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition">
-                        <Trash2 size={14} />
-                      </button>
+                        {hasWhatsApp && (
+                          <button onClick={() => sendWhatsApp.mutate(p.id)} title="Send via WhatsApp" className="p-1.5 text-gray-400 hover:text-green-400 hover:bg-green-500/10 rounded-lg transition">
+                            <MessageCircle size={14} />
+                          </button>
+                        )}
+                        <button onClick={() => { if (confirm('Delete this payment record?')) deleteMutation.mutate(p.id) }} title="Delete" className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </div>
-                  </Td>
-                </Tr>
-              ))}
-              {!payments.length && (
-                <Tr><Td colSpan={7} className="text-center py-16 text-gray-400">No payments recorded yet.</Td></Tr>
-              )}
-            </Tbody>
-          </Table>
-        )}
-      </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Record Payment">
         <PaymentForm onSuccess={() => { setShowModal(false); queryClient.invalidateQueries(['payments']) }} />

@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import DashboardView, SuperAdminDashboardView, FinanceLedgerView, FinanceIncomeStatementView, FinanceExpenseCategoriesView
+from .views import DashboardView, SuperAdminDashboardView, FinanceLedgerView, FinanceIncomeStatementView, FinanceExpenseCategoriesView, DailyCollectionView
 
 urlpatterns = [
     path('', DashboardView.as_view(), name='dashboard'),
@@ -7,4 +7,5 @@ urlpatterns = [
     path('finance/ledger/', FinanceLedgerView.as_view()),
     path('finance/income-statement/', FinanceIncomeStatementView.as_view()),
     path('finance/expense-categories/', FinanceExpenseCategoriesView.as_view()),
+    path('finance/daily-collection/', DailyCollectionView.as_view()),
 ]

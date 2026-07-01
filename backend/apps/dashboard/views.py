@@ -332,3 +332,73 @@ class FinanceExpenseCategoriesView(APIView):
         )
 
         return Response({'categories': result, 'total': round(total, 2)})
+
+
+class DailyCollectionView(APIView):
+    permission_classes = [IsAuthenticated, IsGymMember]
+
+    def get(self, request):
+        gym = request.user.gym
+        today = datetime.date.today()
+        five_years_ago = today.replace(year=today.year - 5)
+
+        date_str = request.query_params.get('date')
+        try:
+            date = datetime.date.fromisoformat(date_str) if date_str else today
+        except ValueError:
+            date = today
+        date = max(min(date, today), five_years_ago)
+
+        member_fees = []
+        admission_fees = []
+        for p in Payment.objects.filter(gym=gym, payment_date=date).select_related('member', 'package'):
+            is_admission = p.notes and p.notes.lower() == 'admission fee'
+            entry = {
+                'member': p.member.name if p.member else 'Unknown',
+                'package': p.package.name if p.package else '—',
+                'amount': float(p.amount_paid),
+            }
+            if is_admission:
+                admission_fees.append(entry)
+            else:
+                member_fees.append(entry)
+
+        inventory_sales = []
+        for s in StockLog.objects.filter(
+            product__gym=gym, action='SELL', created_at__date=date
+        ).select_related('product'):
+            inventory_sales.append({
+                'product': s.product.name,
+                'quantity': s.quantity,
+                'amount': round(float(s.quantity * s.product.sell_price), 2),
+            })
+
+        expenses = []
+        for e in Expense.objects.filter(gym=gym, date=date):
+            expenses.append({
+                'title': e.title,
+                'category': e.get_category_display(),
+                'amount': float(e.amount),
+            })
+
+        total_member = sum(x['amount'] for x in member_fees)
+        total_admission = sum(x['amount'] for x in admission_fees)
+        total_inventory = sum(x['amount'] for x in inventory_sales)
+        total_in = total_member + total_admission + total_inventory
+        total_expenses = sum(x['amount'] for x in expenses)
+
+        return Response({
+            'date': date.isoformat(),
+            'member_fees': member_fees,
+            'admission_fees': admission_fees,
+            'inventory_sales': inventory_sales,
+            'expenses': expenses,
+            'totals': {
+                'member_fees': round(total_member, 2),
+                'admission_fees': round(total_admission, 2),
+                'inventory_sales': round(total_inventory, 2),
+                'total_in': round(total_in, 2),
+                'total_expenses': round(total_expenses, 2),
+                'net': round(total_in - total_expenses, 2),
+            },
+        })

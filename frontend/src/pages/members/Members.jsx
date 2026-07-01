@@ -9,9 +9,9 @@ import MemberForm from './MemberForm'
 import toast from 'react-hot-toast'
 import { exportToExcel } from '../../utils/exportExcel'
 
-const fetchMembers = async (search, status, gender) => {
+const fetchMembers = async (search, searchBy, status, gender) => {
   const params = {}
-  if (search) params.search = search
+  if (search) { params.search = search; params.search_by = searchBy }
   if (status) params.status = status
   if (gender) params.gender = gender
   const { data } = await api.get('/members/', { params })
@@ -20,6 +20,7 @@ const fetchMembers = async (search, status, gender) => {
 
 export default function Members() {
   const [search, setSearch] = useState('')
+  const [searchBy, setSearchBy] = useState('name')
   const [statusFilter, setStatusFilter] = useState('')
   const [genderFilter, setGenderFilter] = useState('')
   const [showModal, setShowModal] = useState(false)
@@ -36,8 +37,14 @@ export default function Members() {
   const navigate = useNavigate()
 
   const { data, isLoading } = useQuery({
-    queryKey: ['members', search, statusFilter, genderFilter],
-    queryFn: () => fetchMembers(search, statusFilter, genderFilter),
+    queryKey: ['members', search, searchBy, statusFilter, genderFilter],
+    queryFn: () => fetchMembers(search, searchBy, statusFilter, genderFilter),
+  })
+
+  const { data: nextIdData } = useQuery({
+    queryKey: ['member-next-id'],
+    queryFn: async () => { const { data } = await api.get('/members/next-id/'); return data },
+    staleTime: 0,
   })
 
   const deleteMutation = useMutation({
@@ -90,14 +97,26 @@ export default function Members() {
       </div>
 
       <div className="card p-4 flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            className="input pl-9"
-            placeholder="Search by name or phone..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="relative flex-1 flex">
+          <div className="relative flex-1">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              className="input pl-9 pr-3 rounded-r-none border-r-0"
+              placeholder={`Search by ${searchBy === 'father_name' ? "father's name" : searchBy === 'member_id' ? 'ID' : searchBy}...`}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <select
+            value={searchBy}
+            onChange={e => { setSearchBy(e.target.value); setSearch('') }}
+            className="input rounded-l-none border-l border-gray-600 w-auto text-xs text-gray-300 bg-gray-700 pr-7"
+          >
+            <option value="name">Name</option>
+            <option value="father_name">Father's Name</option>
+            <option value="phone">Phone</option>
+            <option value="member_id">ID</option>
+          </select>
         </div>
         <select className="input w-auto" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="">All Status</option>
@@ -119,6 +138,7 @@ export default function Members() {
         ) : (
           <Table>
             <Thead>
+              <Th>ID</Th>
               <Th>
                 <button onClick={() => toggleSort('name')} className="flex items-center gap-1 hover:text-blue-400 transition">
                   Name <SortIcon col="name" />
@@ -138,6 +158,11 @@ export default function Members() {
             <Tbody>
               {members.map((m) => (
                 <Tr key={m.id}>
+                  <Td>
+                    <span className="font-mono text-xs text-gray-400 bg-gray-700/50 px-1.5 py-0.5 rounded">
+                      {m.member_id || '—'}
+                    </span>
+                  </Td>
                   <Td className="font-medium">
                     <button onClick={() => navigate(`/members/${m.id}`)} className="hover:text-primary-400 transition text-left">
                       {m.name}
@@ -180,7 +205,7 @@ export default function Members() {
               ))}
               {!members.length && (
                 <Tr>
-                  <Td colSpan={7} className="text-center py-16 text-gray-400">
+                  <Td colSpan={8} className="text-center py-16 text-gray-400">
                     <UserPlus size={32} className="mx-auto mb-2 opacity-30" />
                     No members found. Add your first member.
                   </Td>
@@ -197,10 +222,13 @@ export default function Members() {
         title={editMember ? 'Edit Member' : 'Add New Member'}
       >
         <MemberForm
+          key={editMember ? `edit-${editMember.id}` : `add-${nextIdData?.next_id}`}
           member={editMember}
+          defaultMemberId={!editMember ? nextIdData?.next_id : undefined}
           onSuccess={() => {
             setShowModal(false)
             queryClient.invalidateQueries(['members'])
+            queryClient.invalidateQueries(['member-next-id'])
           }}
         />
       </Modal>

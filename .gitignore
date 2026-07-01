@@ -31,3 +31,6 @@ dist/
 # OS
 Thumbs.db
 Desktop.ini
+
+# Postman
+*.postman_collection.json

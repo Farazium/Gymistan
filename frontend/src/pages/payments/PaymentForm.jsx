@@ -8,6 +8,7 @@ import useAuthStore from '../../store/authStore'
 
 function MemberSearch({ members, value, onChange, onSelect }) {
   const [query, setQuery] = useState('')
+  const [searchBy, setSearchBy] = useState('name')
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
@@ -17,10 +18,15 @@ function MemberSearch({ members, value, onChange, onSelect }) {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const filtered = members.filter(m =>
-    m.name.toLowerCase().includes(query.toLowerCase()) ||
-    m.phone.includes(query)
-  )
+  const filtered = members.filter(m => {
+    const q = query.toLowerCase()
+    if (!q) return true
+    if (searchBy === 'name') return m.name.toLowerCase().includes(q)
+    if (searchBy === 'father_name') return (m.father_name || '').toLowerCase().includes(q)
+    if (searchBy === 'phone') return m.phone.includes(q)
+    if (searchBy === 'member_id') return (m.member_id || '').includes(q)
+    return m.name.toLowerCase().includes(q)
+  })
 
   const select = (m) => {
     setQuery(m.name)
@@ -29,17 +35,31 @@ function MemberSearch({ members, value, onChange, onSelect }) {
     setOpen(false)
   }
 
+  const placeholders = { name: 'Search by name...', father_name: "Search by father's name...", phone: 'Search by phone...', member_id: 'Search by ID...' }
+
   return (
     <div className="relative" ref={ref}>
-      <div className="relative">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          className="input pl-8"
-          placeholder="Search by name or phone..."
-          value={query}
-          onChange={(e) => { setQuery(e.target.value); setOpen(true); if (!e.target.value) { onChange(''); onSelect(null) } }}
-          onFocus={() => setOpen(true)}
-        />
+      <div className="flex">
+        <div className="relative flex-1">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            className="input pl-8 rounded-r-none border-r-0"
+            placeholder={placeholders[searchBy]}
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setOpen(true); if (!e.target.value) { onChange(''); onSelect(null) } }}
+            onFocus={() => setOpen(true)}
+          />
+        </div>
+        <select
+          value={searchBy}
+          onChange={e => { setSearchBy(e.target.value); setQuery('') }}
+          className="input rounded-l-none border-l border-gray-600 w-auto text-xs text-gray-300 bg-gray-700 pr-7"
+        >
+          <option value="name">Name</option>
+          <option value="father_name">Father's Name</option>
+          <option value="phone">Phone</option>
+          <option value="member_id">ID</option>
+        </select>
       </div>
       {open && (
         <div className="absolute z-50 w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
@@ -47,8 +67,9 @@ function MemberSearch({ members, value, onChange, onSelect }) {
             <div
               key={m.id}
               onClick={() => select(m)}
-              className="px-3 py-2 text-sm text-gray-100 hover:bg-gray-600 cursor-pointer"
+              className="px-3 py-2 text-sm text-gray-100 hover:bg-gray-600 cursor-pointer flex items-center gap-2"
             >
+              {m.member_id && <span className="font-mono text-xs text-gray-400 bg-gray-600 px-1.5 py-0.5 rounded">{m.member_id}</span>}
               {m.name} <span className="text-gray-400 text-xs">— {m.phone}</span>
             </div>
           )) : (

@@ -393,3 +393,132 @@ export async function exportExpenseCategoriesPDF(data, start, end) {
 
   pdf.save(`expense-categories-${start}-to-${end}.pdf`)
 }
+
+// ─── DAILY COLLECTION SHEET ──────────────────────────────────────────────────
+export async function exportDailyCollectionPDF(data) {
+  const [{ default: jsPDF }, logo] = await Promise.all([import('jspdf'), getLogo()])
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+
+  const dateLabel = fmtDate(data.date)
+  drawHeader(pdf, logo, 'Daily Collection Sheet', dateLabel)
+
+  let y = 36
+
+  // ── Section helper ──────────────────────────────────────────────────────────
+  function section(title, accentColor, rows, columns, total, emptyMsg) {
+    if (y + 12 > PAGE_H - 20) { drawFooter(pdf, 1, 1); pdf.addPage(); drawHeader(pdf, logo, 'Daily Collection Sheet (cont.)', dateLabel); y = 36 }
+
+    pdf.setFillColor(...TABLE_HEAD_BG)
+    pdf.rect(MARGIN, y, CONTENT_W, 9, 'F')
+    pdf.setFillColor(...accentColor)
+    pdf.rect(MARGIN, y, 3, 9, 'F')
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8); pdf.setTextColor(...TEXT_DARK)
+    pdf.text(title, MARGIN + 6, y + 6)
+    if (total > 0) {
+      pdf.setTextColor(...accentColor)
+      pdf.text(fmtNum(total), PAGE_W - MARGIN - 2, y + 6, { align: 'right' })
+    }
+    y += 9
+
+    if (!rows.length) {
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5); pdf.setTextColor(...TEXT_LIGHT)
+      pdf.text(emptyMsg, MARGIN + 6, y + 5.5)
+      y += 8
+      return
+    }
+
+    // Column headers
+    pdf.setFillColor(250, 252, 255)
+    pdf.rect(MARGIN, y, CONTENT_W, 6.5, 'F')
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(6.5); pdf.setTextColor(...TEXT_MID)
+    columns.forEach(c => {
+      const tx = c.align === 'right' ? c.x + c.w - 1 : c.x + 2
+      pdf.text(c.label, tx, y + 4.5, { align: c.align })
+    })
+    y += 6.5
+
+    rows.forEach((row, i) => {
+      if (y + 7.5 > PAGE_H - 20) { drawFooter(pdf, 1, 1); pdf.addPage(); drawHeader(pdf, logo, 'Daily Collection Sheet (cont.)', dateLabel); y = 36 }
+      if (i % 2 === 1) { pdf.setFillColor(...ALT_ROW); pdf.rect(MARGIN, y, CONTENT_W, 7.5, 'F') }
+      pdf.setDrawColor(...BORDER); pdf.setLineWidth(0.15); pdf.line(MARGIN, y + 7.5, MARGIN + CONTENT_W, y + 7.5)
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5)
+      columns.forEach(c => {
+        const val = row[c.key] ?? '—'
+        const tx = c.align === 'right' ? c.x + c.w - 1 : c.x + 2
+        pdf.setTextColor(...(c.color ? c.color : TEXT_DARK))
+        if (c.bold) pdf.setFont('helvetica', 'bold')
+        pdf.text(String(val), tx, y + 5, { align: c.align })
+        if (c.bold) pdf.setFont('helvetica', 'normal')
+      })
+      y += 7.5
+    })
+    y += 5
+  }
+
+  const memberCols = [
+    { label: 'MEMBER', key: 'member', x: MARGIN, w: 80, align: 'left' },
+    { label: 'PACKAGE', key: 'package', x: MARGIN + 80, w: 80, align: 'left' },
+    { label: 'AMOUNT', key: 'amount_fmt', x: MARGIN + 160, w: CONTENT_W - 160, align: 'right', color: GREEN_DARK, bold: true },
+  ]
+  const inventoryCols = [
+    { label: 'PRODUCT', key: 'product', x: MARGIN, w: 100, align: 'left' },
+    { label: 'QTY', key: 'quantity', x: MARGIN + 100, w: 30, align: 'left' },
+    { label: 'AMOUNT', key: 'amount_fmt', x: MARGIN + 130, w: CONTENT_W - 130, align: 'right', color: GREEN_DARK, bold: true },
+  ]
+  const expenseCols = [
+    { label: 'DESCRIPTION', key: 'title', x: MARGIN, w: 100, align: 'left' },
+    { label: 'CATEGORY', key: 'category', x: MARGIN + 100, w: 60, align: 'left' },
+    { label: 'AMOUNT', key: 'amount_fmt', x: MARGIN + 160, w: CONTENT_W - 160, align: 'right', color: RED_DARK, bold: true },
+  ]
+
+  const admissionCols = [
+    { label: 'MEMBER', key: 'member', x: MARGIN, w: 140, align: 'left' },
+    { label: 'AMOUNT', key: 'amount_fmt', x: MARGIN + 140, w: CONTENT_W - 140, align: 'right', color: [99, 102, 241], bold: true },
+  ]
+
+  const fmtRows = (rows) => rows.map(r => ({ ...r, amount_fmt: fmtNum(r.amount) }))
+
+  section('MEMBER FEES', GREEN_DARK, fmtRows(data.member_fees), memberCols, data.totals.member_fees, 'No member fees collected')
+  section('ADMISSION FEES', [99, 102, 241], fmtRows(data.admission_fees), admissionCols, data.totals.admission_fees, 'No admission fees collected')
+  section('INVENTORY SALES', [8, 145, 178], fmtRows(data.inventory_sales), inventoryCols, data.totals.inventory_sales, 'No inventory sales')
+  section('EXPENSES', RED_DARK, fmtRows(data.expenses), expenseCols, data.totals.total_expenses, 'No expenses recorded')
+
+  // ── Totals box ──────────────────────────────────────────────────────────────
+  if (y + 40 > PAGE_H - 20) { drawFooter(pdf, 1, 1); pdf.addPage(); drawHeader(pdf, logo, 'Daily Collection Sheet (cont.)', dateLabel); y = 36 }
+  y += 2
+
+  const boxH = 38
+  pdf.setFillColor(...TABLE_HEAD_BG)
+  pdf.roundedRect(MARGIN, y, CONTENT_W, boxH, 2, 2, 'F')
+
+  const col1 = MARGIN + CONTENT_W / 2 - 4
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5); pdf.setTextColor(...TEXT_MID)
+  pdf.text('Total Collected (IN)', MARGIN + 6, y + 8)
+  pdf.text('Total Expenses (OUT)', MARGIN + 6, y + 17)
+  pdf.setDrawColor(...BORDER); pdf.setLineWidth(0.3); pdf.line(MARGIN + 4, y + 21, MARGIN + CONTENT_W - 4, y + 21)
+
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9); pdf.setTextColor(...GREEN_DARK)
+  pdf.text(fmtNum(data.totals.total_in), col1, y + 8, { align: 'right' })
+  pdf.setTextColor(...RED_DARK)
+  pdf.text(fmtNum(data.totals.total_expenses), col1, y + 17, { align: 'right' })
+
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8); pdf.setTextColor(...TEXT_MID)
+  pdf.text('NET CASH IN HAND', MARGIN + 6, y + 30)
+  pdf.setFontSize(13); pdf.setTextColor(...(data.totals.net >= 0 ? GREEN_DARK : RED_DARK))
+  pdf.text(fmtNum(data.totals.net), PAGE_W - MARGIN - 6, y + 30, { align: 'right' })
+
+  y += boxH + 10
+
+  // ── Signature line ──────────────────────────────────────────────────────────
+  pdf.setDrawColor(...BORDER); pdf.setLineWidth(0.4)
+  pdf.line(MARGIN, y, MARGIN + 80, y)
+  pdf.line(PAGE_W - MARGIN - 80, y, PAGE_W - MARGIN, y)
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7); pdf.setTextColor(...TEXT_MID)
+  pdf.text('Collected by', MARGIN, y + 4)
+  pdf.text('Verified by', PAGE_W - MARGIN - 80, y + 4)
+
+  const totalPages = pdf.internal.getNumberOfPages()
+  for (let p = 1; p <= totalPages; p++) { pdf.setPage(p); drawFooter(pdf, p, totalPages) }
+
+  pdf.save(`daily-collection-${data.date}.pdf`)
+}

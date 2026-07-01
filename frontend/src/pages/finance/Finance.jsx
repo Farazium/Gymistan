@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { BookOpen, TrendingUp, PieChart, ArrowDownCircle, ArrowUpCircle, ChevronDown, ChevronRight, ChevronLeft, CalendarDays, FileDown, Loader2 } from 'lucide-react'
+import { BookOpen, TrendingUp, PieChart, ArrowDownCircle, ArrowUpCircle, ChevronDown, ChevronRight, ChevronLeft, CalendarDays, FileDown, Loader2, ClipboardList, ChevronLeft as ChevLeft, ChevronRight as ChevRight } from 'lucide-react'
 import api from '../../api/axios'
-import { exportLedgerPDF, exportIncomeStatementPDF, exportExpenseCategoriesPDF } from '../../utils/financePDF'
+import { exportLedgerPDF, exportIncomeStatementPDF, exportExpenseCategoriesPDF, exportDailyCollectionPDF } from '../../utils/financePDF'
 
 const fmt = (n) => `PKR ${Number(n).toLocaleString('en-PK')}`
 
@@ -14,7 +14,9 @@ const todayStr = localStr(today)
 const thisMonthStart = localStr(new Date(today.getFullYear(), today.getMonth(), 1))
 const thisWeekStart = (() => {
   const d = new Date(today)
-  d.setDate(d.getDate() - d.getDay())
+  const day = d.getDay() // 0=Sun..6=Sat
+  const diff = day === 0 ? 6 : day - 1 // Monday=0 offset
+  d.setDate(d.getDate() - diff)
   return localStr(d)
 })()
 const thisYearStart = `${today.getFullYear()}-01-01`
@@ -558,11 +560,116 @@ function ExpenseCategoriesTab() {
 }
 
 
+// ─── DAILY COLLECTION TAB ─────────────────────────────────────────────────────
+function DailyCollectionTab() {
+  const [date, setDate] = useState(todayStr)
+
+  const prevDay = () => {
+    const d = new Date(date + 'T00:00:00')
+    d.setDate(d.getDate() - 1)
+    if (localStr(d) >= fiveYearsAgo) setDate(localStr(d))
+  }
+  const nextDay = () => {
+    const d = new Date(date + 'T00:00:00')
+    d.setDate(d.getDate() + 1)
+    if (localStr(d) <= todayStr) setDate(localStr(d))
+  }
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['finance-daily', date],
+    queryFn: async () => { const { data } = await api.get('/dashboard/finance/daily-collection/', { params: { date } }); return data },
+  })
+
+  const Section = ({ title, color, items, cols, totalKey, emptyMsg }) => (
+    <div className="card overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 bg-gray-800/40">
+        <h3 className="text-sm font-semibold text-gray-100">{title}</h3>
+        {data && <span className={`text-sm font-bold ${color}`}>{fmt(data.totals[totalKey])}</span>}
+      </div>
+      {items?.length ? (
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-700/50">
+              {cols.map(c => <th key={c.key} className={`px-4 py-2 text-xs text-gray-500 font-medium uppercase tracking-wide ${c.right ? 'text-right' : 'text-left'}`}>{c.label}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((row, i) => (
+              <tr key={i} className="border-b border-gray-700/30 last:border-0 hover:bg-gray-700/10">
+                {cols.map(c => (
+                  <td key={c.key} className={`px-4 py-2.5 ${c.right ? 'text-right' : ''} ${c.bold ? 'font-semibold ' + color : 'text-gray-300'}`}>
+                    {c.fmt ? fmt(row[c.key]) : row[c.key]}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p className="px-4 py-4 text-sm text-gray-500">{emptyMsg}</p>
+      )}
+    </div>
+  )
+
+  return (
+    <div className="space-y-4">
+      {/* Date picker + export */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-1">
+          <button onClick={prevDay} className="p-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 transition"><ChevLeft size={15} /></button>
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 rounded-lg min-w-[140px] justify-center">
+            <CalendarDays size={13} className="text-gray-400" />
+            <span className="text-sm font-medium text-gray-100">{formatDateDisplay(date)}</span>
+          </div>
+          <button onClick={nextDay} disabled={date >= todayStr} className="p-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 transition disabled:opacity-30 disabled:cursor-not-allowed"><ChevRight size={15} /></button>
+          {date !== todayStr && (
+            <button onClick={() => setDate(todayStr)} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 transition">Today</button>
+          )}
+        </div>
+        {data && <PdfExportButton onExport={() => exportDailyCollectionPDF(data)} />}
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full" /></div>
+      ) : data && (
+        <div className="space-y-4">
+          <Section title="Member Fees" color="text-green-400" items={data.member_fees} totalKey="member_fees" emptyMsg="No member fees collected"
+            cols={[{ key: 'member', label: 'Member' }, { key: 'package', label: 'Package' }, { key: 'amount', label: 'Amount', right: true, bold: true, fmt: true }]} />
+          <Section title="Admission Fees" color="text-indigo-400" items={data.admission_fees} totalKey="admission_fees" emptyMsg="No admission fees collected"
+            cols={[{ key: 'member', label: 'Member' }, { key: 'amount', label: 'Amount', right: true, bold: true, fmt: true }]} />
+          <Section title="Inventory Sales" color="text-cyan-400" items={data.inventory_sales} totalKey="inventory_sales" emptyMsg="No inventory sales"
+            cols={[{ key: 'product', label: 'Product' }, { key: 'quantity', label: 'Qty' }, { key: 'amount', label: 'Amount', right: true, bold: true, fmt: true }]} />
+          <Section title="Expenses" color="text-red-400" items={data.expenses} totalKey="total_expenses" emptyMsg="No expenses recorded"
+            cols={[{ key: 'title', label: 'Description' }, { key: 'category', label: 'Category' }, { key: 'amount', label: 'Amount', right: true, bold: true, fmt: true }]} />
+
+          {/* Net summary */}
+          <div className="card p-5">
+            <div className="flex items-center justify-between py-2 border-b border-gray-700">
+              <span className="text-sm text-gray-400">Total Collected (IN)</span>
+              <span className="font-semibold text-green-400">{fmt(data.totals.total_in)}</span>
+            </div>
+            <div className="flex items-center justify-between py-2 border-b border-gray-700">
+              <span className="text-sm text-gray-400">Total Expenses (OUT)</span>
+              <span className="font-semibold text-red-400">{fmt(data.totals.total_expenses)}</span>
+            </div>
+            <div className="flex items-center justify-between pt-3">
+              <span className="text-base font-bold text-gray-100">Net Cash in Hand</span>
+              <span className={`text-xl font-bold ${data.totals.net >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmt(data.totals.net)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 const TABS = [
   { id: 'ledger', label: 'Ledger', icon: BookOpen },
   { id: 'income', label: 'Income Statement', icon: TrendingUp },
   { id: 'expenses', label: 'Expense Categories', icon: PieChart },
+  { id: 'daily', label: 'Daily Collection', icon: ClipboardList },
 ]
 
 export default function Finance() {
@@ -597,6 +704,7 @@ export default function Finance() {
         {activeTab === 'ledger' && <LedgerTab />}
         {activeTab === 'income' && <IncomeStatementTab />}
         {activeTab === 'expenses' && <ExpenseCategoriesTab />}
+        {activeTab === 'daily' && <DailyCollectionTab />}
       </div>
     </div>
   )

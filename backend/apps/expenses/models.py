@@ -6,6 +6,7 @@ class Expense(models.Model):
     class Category(models.TextChoices):
         RENT = 'RENT', 'Rent'
         UTILITIES = 'UTILITIES', 'Utilities'
+        BILLS = 'BILLS', 'Bills'
         SALARIES = 'SALARIES', 'Salaries'
         EQUIPMENT = 'EQUIPMENT', 'Equipment'
         MAINTENANCE = 'MAINTENANCE', 'Maintenance'

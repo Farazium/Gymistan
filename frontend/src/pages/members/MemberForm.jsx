@@ -3,59 +3,33 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import api from '../../api/axios'
 import toast from 'react-hot-toast'
 
-function calcExpiry(isoDate, status, pkgMonths) {
-  if (!isoDate || isoDate.length < 10) return null
-  const [jy, jm, jd] = isoDate.split('-').map(Number)
-  if (!jd || !jm || !jy) return null
-
+function calcExpiryISO(isoDate, status, pkgMonths) {
+  if (!isoDate || isoDate.length < 10) return ''
+  const [y, m, d] = isoDate.split('-').map(Number)
+  if (!y || !m || !d) return ''
+  const months = pkgMonths || 1
+  // EXPIRED: set expiry in the past (join month of current year)
   const now = new Date()
-  const currentDD = now.getDate()
-  const currentMM = now.getMonth() + 1
-  const currentYY = now.getFullYear()
-  const pkg = pkgMonths || 1
-
   let mm, yy
-  const dd = jd
-
-  if (jd < currentDD) {
-    // joining day already passed this month
-    mm = status === 'EXPIRED' ? currentMM : currentMM + pkg
-    yy = currentYY
+  if (status === 'EXPIRED') {
+    mm = m; yy = now.getFullYear()
   } else {
-    // joining day hasn't come yet this month
-    // EXPIRED: rewind to joining month of current year (currentMM - difference = jm)
-    mm = status === 'EXPIRED' ? jm : jm + pkg
-    yy = currentYY
+    mm = m + months; yy = y
+    if (mm > 12) { yy += Math.floor((mm - 1) / 12); mm = ((mm - 1) % 12) + 1 }
   }
-
-  // normalize month overflow / underflow
-  if (mm > 12) {
-    yy += Math.floor((mm - 1) / 12)
-    mm = ((mm - 1) % 12) + 1
-  } else if (mm < 1) {
-    const years = Math.ceil((1 - mm) / 12)
-    yy -= years
-    mm += years * 12
-  }
-
-  return { dd, mm, yy }
+  return `${yy}-${String(mm).padStart(2, '0')}-${String(d).padStart(2, '0')}`
 }
 
 function calcExpiryDisplay(isoDate, status, pkgMonths) {
-  const r = calcExpiry(isoDate, status, pkgMonths)
-  if (!r) return ''
-  return `${String(r.mm).padStart(2, '0')}/${String(r.dd).padStart(2, '0')}/${r.yy}`
+  const iso = calcExpiryISO(isoDate, status, pkgMonths)
+  if (!iso) return ''
+  const [y, m, d] = iso.split('-')
+  return `${d}/${m}/${y}`
 }
 
-function calcExpiryISO(isoDate, status, pkgMonths) {
-  const r = calcExpiry(isoDate, status, pkgMonths)
-  if (!r) return ''
-  return `${r.yy}-${String(r.mm).padStart(2, '0')}-${String(r.dd).padStart(2, '0')}`
-}
-
-export default function MemberForm({ member, onSuccess }) {
-  const { register, handleSubmit, watch, formState: { errors } } = useForm({
-    defaultValues: member ? { ...member } : {},
+export default function MemberForm({ member, onSuccess, defaultMemberId }) {
+  const { register, handleSubmit, watch, setError, formState: { errors } } = useForm({
+    defaultValues: member ? { ...member } : { member_id: defaultMemberId || '' },
   })
 
   const joinDate = watch('join_date')
@@ -77,10 +51,11 @@ export default function MemberForm({ member, onSuccess }) {
     mutationFn: (payload) => {
       const pkg = packages?.find((p) => String(p.id) === String(payload.package))
       const months = pkg ? Math.round(pkg.duration_days / 30) : null
-      const body = {
-        ...payload,
-        expiry_date: calcExpiryISO(payload.join_date, payload.status, months),
-      }
+      const mid = payload.member_id ? String(payload.member_id).padStart(4, '0') : ''
+      const base = { ...payload, member_id: mid || null }
+      const body = member
+        ? base
+        : { ...base, expiry_date: calcExpiryISO(payload.join_date, payload.status, months) }
       return member
         ? api.patch(`/members/${member.id}/`, body)
         : api.post('/members/', body)
@@ -89,16 +64,51 @@ export default function MemberForm({ member, onSuccess }) {
       toast.success(member ? 'Member updated' : 'Member added')
       onSuccess()
     },
-    onError: (err) => toast.error(err.response?.data?.detail || 'Something went wrong'),
+    onError: (err) => {
+      const data = err.response?.data
+      if (!data) { toast.error('Network error — please try again'); return }
+
+      // Map DRF field errors → react-hook-form field errors
+      const fieldMap = { member_id: 'member_id', name: 'name', phone: 'phone', package: 'package', join_date: 'join_date' }
+      let handled = false
+      Object.entries(fieldMap).forEach(([field, rhfField]) => {
+        if (data[field]) {
+          setError(rhfField, { message: Array.isArray(data[field]) ? data[field][0] : data[field] })
+          handled = true
+        }
+      })
+
+      // unique_together on (gym, member_id) comes back as non_field_errors
+      const nonField = data.non_field_errors || []
+      if (nonField.some(e => e.toLowerCase().includes('member_id') || e.toLowerCase().includes('unique'))) {
+        setError('member_id', { message: 'This Member ID is already taken' })
+        handled = true
+      }
+
+      if (!handled) toast.error(data.detail || Object.values(data).flat()[0] || 'Something went wrong')
+    },
   })
 
   return (
     <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
-        <div className="col-span-2">
+        <div>
           <label className="label">Full Name *</label>
           <input className="input" {...register('name', { required: 'Required' })} />
           {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
+        </div>
+
+        <div>
+          <label className="label">Member ID <span className="text-gray-400 text-xs">(4 digits)</span></label>
+          <input
+            className="input font-mono tracking-widest"
+            maxLength={4}
+            placeholder="0001"
+            {...register('member_id', {
+              pattern: { value: /^\d{1,4}$/, message: 'Must be up to 4 digits' },
+            })}
+          />
+          {errors.member_id && <p className="text-red-500 text-xs mt-1">{errors.member_id.message}</p>}
         </div>
 
         <div>
@@ -147,13 +157,15 @@ export default function MemberForm({ member, onSuccess }) {
           )}
         </div>
 
-        <div>
-          <label className="label">Status</label>
-          <select className="input" {...register('status')}>
-            <option value="ACTIVE">Active</option>
-            <option value="EXPIRED">Expired</option>
-          </select>
-        </div>
+        {!member && (
+          <div>
+            <label className="label">Status</label>
+            <select className="input" {...register('status')}>
+              <option value="ACTIVE">Active</option>
+              <option value="EXPIRED">Expired</option>
+            </select>
+          </div>
+        )}
 
         {!member && (
           <div>
