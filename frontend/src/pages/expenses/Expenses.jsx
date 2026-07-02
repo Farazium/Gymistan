@@ -40,7 +40,7 @@ function ExpenseForm({ onSuccess }) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="label">Amount (PKR) *</label>
-          <input className="input" type="number" {...register('amount', { required: true })} />
+          <input className="input" type="number" onWheel={e => e.target.blur()} {...register('amount', { required: true })} />
         </div>
         <div>
           <label className="label">Category</label>

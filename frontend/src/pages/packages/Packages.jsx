@@ -13,7 +13,7 @@ const fetchPackages = async () => {
 }
 
 function PackageForm({ pkg, onSuccess }) {
-  const { register, handleSubmit, formState: { isSubmitting } } = useForm({
+  const { register, handleSubmit, formState: { isSubmitting, errors } } = useForm({
     defaultValues: pkg
       ? { ...pkg, duration_months: Math.round(pkg.duration_days / 30) || 1, features: pkg.features?.join(', ') }
       : { duration_months: 1 },
@@ -37,12 +37,25 @@ function PackageForm({ pkg, onSuccess }) {
     <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
       <div>
         <label className="label">Package Name *</label>
-        <input className="input" placeholder="e.g. Basic, Premium, VIP" {...register('name', { required: true })} />
+        <input
+          className="input"
+          placeholder="e.g. Basic, Premium, VIP"
+          {...register('name', { required: 'Package name is required' })}
+        />
+        {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="label">Price (PKR) *</label>
-          <input className="input" type="number" placeholder="2500" {...register('price', { required: true })} />
+          <input
+            className="input [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            type="number"
+            placeholder="2500"
+            onWheel={e => e.target.blur()}
+            onKeyDown={e => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault() }}
+            {...register('price', { required: 'Price is required', min: { value: 1, message: 'Price must be greater than 0' } })}
+          />
+          {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price.message}</p>}
         </div>
         <div>
           <label className="label">Duration (Months) *</label>
@@ -113,36 +126,51 @@ export default function Packages() {
         <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-primary-500 border-t-transparent rounded-full" /></div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {packages.map((pkg) => (
-            <div key={pkg.id} className={`card p-5 ${!pkg.is_active ? 'opacity-50' : ''}`}>
-              <div className="flex items-start justify-between mb-3">
-                <div className="p-2 bg-gray-700 rounded-lg">
-                  <PackageIcon size={20} className="text-primary-400" />
+          {packages.map((pkg, idx) => {
+            const palettes = [
+              { border: 'border-blue-500/40', bar: 'bg-blue-500', icon: 'bg-blue-500/20 text-blue-400', price: 'text-blue-400', tag: 'bg-blue-500/15 text-blue-300 border border-blue-500/25' },
+              { border: 'border-violet-500/40', bar: 'bg-violet-500', icon: 'bg-violet-500/20 text-violet-400', price: 'text-violet-400', tag: 'bg-violet-500/15 text-violet-300 border border-violet-500/25' },
+              { border: 'border-emerald-500/40', bar: 'bg-emerald-500', icon: 'bg-emerald-500/20 text-emerald-400', price: 'text-emerald-400', tag: 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/25' },
+              { border: 'border-orange-500/40', bar: 'bg-orange-500', icon: 'bg-orange-500/20 text-orange-400', price: 'text-orange-400', tag: 'bg-orange-500/15 text-orange-300 border border-orange-500/25' },
+              { border: 'border-pink-500/40', bar: 'bg-pink-500', icon: 'bg-pink-500/20 text-pink-400', price: 'text-pink-400', tag: 'bg-pink-500/15 text-pink-300 border border-pink-500/25' },
+              { border: 'border-cyan-500/40', bar: 'bg-cyan-500', icon: 'bg-cyan-500/20 text-cyan-400', price: 'text-cyan-400', tag: 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/25' },
+            ]
+            const p = palettes[idx % palettes.length]
+            const months = Math.round(pkg.duration_days / 30)
+            return (
+            <div key={pkg.id} className={`card p-0 overflow-hidden border ${p.border} ${!pkg.is_active ? 'opacity-50' : ''}`}>
+              <div className={`h-1 w-full ${p.bar}`} />
+              <div className="p-5">
+                <div className="flex items-start justify-between mb-4">
+                  <div className={`p-2.5 rounded-xl ${p.icon}`}>
+                    <PackageIcon size={20} />
+                  </div>
+                  <div className="flex gap-1">
+                    <button onClick={() => { setEditPkg(pkg); setShowModal(true) }} className="p-1.5 text-gray-500 hover:text-gray-200 hover:bg-gray-700 rounded-lg transition">
+                      <Pencil size={14} />
+                    </button>
+                    <button onClick={() => { if (confirm('Delete package?')) deleteMutation.mutate(pkg.id) }} className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <button onClick={() => { setEditPkg(pkg); setShowModal(true) }} className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition">
-                    <Pencil size={14} />
-                  </button>
-                  <button onClick={() => { if (confirm('Delete package?')) deleteMutation.mutate(pkg.id) }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
-                    <Trash2 size={14} />
-                  </button>
-                </div>
+                <h3 className="font-semibold text-gray-100 text-base">{pkg.name}</h3>
+                <p className={`text-2xl font-bold mt-1 ${p.price}`}>PKR {Number(pkg.price).toLocaleString()}</p>
+                <p className="text-sm text-gray-400 mt-0.5">{months} {months === 1 ? 'Month' : 'Months'}</p>
+                {pkg.features?.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {pkg.features.map((f, i) => (
+                      <span key={i} className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.tag}`}>{f}</span>
+                    ))}
+                  </div>
+                )}
+                {pkg.member_count > 0 && (
+                  <p className="text-xs text-gray-500 mt-3 pt-3 border-t border-gray-700/60">{pkg.member_count} members enrolled</p>
+                )}
               </div>
-              <h3 className="font-semibold text-gray-900">{pkg.name}</h3>
-              <p className="text-2xl font-bold text-primary-600 mt-1">PKR {Number(pkg.price).toLocaleString()}</p>
-              <p className="text-sm text-gray-500 mt-0.5">{Math.round(pkg.duration_days / 30)} {Math.round(pkg.duration_days / 30) === 1 ? 'Month' : 'Months'}</p>
-              {pkg.features?.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-1">
-                  {pkg.features.map((f, i) => (
-                    <span key={i} className="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full">{f}</span>
-                  ))}
-                </div>
-              )}
-              {pkg.member_count > 0 && (
-                <p className="text-xs text-gray-400 mt-3">{pkg.member_count} members enrolled</p>
-              )}
             </div>
-          ))}
+          )})}
+
           {!packages.length && (
             <div className="col-span-3 text-center py-16 text-gray-400">
               <PackageIcon size={32} className="mx-auto mb-2 opacity-30" />

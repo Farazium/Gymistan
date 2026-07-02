@@ -127,6 +127,22 @@ class RestoreMemberView(APIView):
         if request.data.get('expiry_date'):
             member.expiry_date = request.data['expiry_date']
         member.save()
+        admission_fee = request.data.get('admission_fee')
+        if admission_fee:
+            try:
+                fee = float(admission_fee)
+                if fee > 0:
+                    Payment.objects.create(
+                        gym=request.user.gym,
+                        member=member,
+                        collected_by=request.user,
+                        amount=fee,
+                        amount_paid=fee,
+                        status='PAID',
+                        notes='Admission fee',
+                    )
+            except (ValueError, TypeError):
+                pass
         return Response({'detail': 'Member restored'})
 
 

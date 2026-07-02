@@ -173,7 +173,7 @@ export default function PaymentForm({ onSuccess }) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="label">Discount (PKR)</label>
-          <input className="input" type="number" defaultValue={0} {...register('discount')} />
+          <input className="input" type="number" defaultValue={0} onWheel={e => e.target.blur()} {...register('discount')} />
         </div>
         <div>
           <label className="label">Payment Method</label>

@@ -66,6 +66,7 @@ function RestoreForm({ member, onSubmit, isPending }) {
       join_date: data.join_date,
       package: data.package,
       expiry_date: calcExpiryISO(data.join_date, data.status, months),
+      admission_fee: data.admission_fee || null,
     })
   }
 
@@ -100,6 +101,16 @@ function RestoreForm({ member, onSubmit, isPending }) {
             ))}
           </select>
           {errors.package && <p className="text-red-500 text-xs mt-1">{errors.package.message}</p>}
+        </div>
+        <div className="col-span-2">
+          <label className="label">Admission Fee (PKR) <span className="text-gray-400 text-xs">(optional)</span></label>
+          <input
+            className="input [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            type="number"
+            placeholder="0"
+            onWheel={e => e.target.blur()}
+            {...register('admission_fee')}
+          />
         </div>
       </div>
       <button type="submit" disabled={isPending} className="btn-primary w-full justify-center">

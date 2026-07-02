@@ -37,22 +37,22 @@ function ProductForm({ product, onSuccess }) {
         </div>
         <div>
           <label className="label">Initial Quantity</label>
-          <input className="input" type="number" min="0" {...register('quantity')} />
+          <input className="input" type="number" min="0" onWheel={e => e.target.blur()} {...register('quantity')} />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="label">Sell Price (PKR) *</label>
-          <input className="input" type="number" placeholder="0" {...register('sell_price', { required: true })} />
+          <input className="input" type="number" placeholder="0" onWheel={e => e.target.blur()} {...register('sell_price', { required: true })} />
         </div>
         <div>
           <label className="label">Cost Price (PKR)</label>
-          <input className="input" type="number" placeholder="0" {...register('cost_price')} />
+          <input className="input" type="number" placeholder="0" onWheel={e => e.target.blur()} {...register('cost_price')} />
         </div>
       </div>
       <div>
         <label className="label">Low Stock Alert <span className="text-gray-400 text-xs">(warn when quantity falls below)</span></label>
-        <input className="input" type="number" min="0" {...register('low_stock_alert')} />
+        <input className="input" type="number" min="0" onWheel={e => e.target.blur()} {...register('low_stock_alert')} />
       </div>
       <div>
         <label className="label">Description <span className="text-gray-400 text-xs">(optional)</span></label>
