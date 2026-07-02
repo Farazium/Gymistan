@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, UserPlus, FileDown, ChevronUp, ChevronDown } from 'lucide-react'
+import { useForm } from 'react-hook-form'
+import { Plus, Search, UserPlus, FileDown, ChevronUp, ChevronDown, Trash2, RotateCcw } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../api/axios'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
@@ -8,6 +9,105 @@ import Modal from '../../components/ui/Modal'
 import MemberForm from './MemberForm'
 import toast from 'react-hot-toast'
 import { exportToExcel } from '../../utils/exportExcel'
+
+function calcExpiryISO(isoDate, status, pkgMonths) {
+  if (!isoDate || isoDate.length < 10) return ''
+  const [y, m, d] = isoDate.split('-').map(Number)
+  if (!y || !m || !d) return ''
+  const months = pkgMonths || 1
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  let yy = y, mm = m
+  for (let i = 0; i < 120; i++) {
+    mm += months
+    while (mm > 12) { yy += 1; mm -= 12 }
+    const candidate = new Date(yy, mm - 1, d)
+    if (candidate > today) {
+      if (status === 'EXPIRED') {
+        mm -= months
+        while (mm < 1) { yy -= 1; mm += 12 }
+        const exp = new Date(yy, mm - 1, d)
+        return `${exp.getFullYear()}-${String(exp.getMonth()+1).padStart(2,'0')}-${String(exp.getDate()).padStart(2,'0')}`
+      }
+      return `${candidate.getFullYear()}-${String(candidate.getMonth()+1).padStart(2,'0')}-${String(candidate.getDate()).padStart(2,'0')}`
+    }
+  }
+  return ''
+}
+
+function RestoreForm({ member, onSubmit, isPending }) {
+  const today = new Date()
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
+
+  const { register, handleSubmit, watch, formState: { errors } } = useForm({
+    defaultValues: {
+      join_date: member.join_date || todayStr,
+      status: 'EXPIRED',
+      package: member.package || '',
+    }
+  })
+
+  const { data: packages = [] } = useQuery({
+    queryKey: ['packages'],
+    queryFn: async () => { const { data } = await api.get('/packages/'); return data?.results || data || [] },
+  })
+
+  const joinDate = watch('join_date')
+  const status = watch('status')
+  const selectedPkgId = watch('package')
+  const selectedPkg = packages.find(p => String(p.id) === String(selectedPkgId))
+  const pkgMonths = selectedPkg ? Math.round(selectedPkg.duration_days / 30) : null
+  const expiryISO = calcExpiryISO(joinDate, status, pkgMonths)
+  const expiryDisplay = expiryISO ? new Date(expiryISO + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''
+
+  const onFormSubmit = (data) => {
+    const pkg = packages.find(p => String(p.id) === String(data.package))
+    const months = pkg ? Math.round(pkg.duration_days / 30) : null
+    onSubmit({
+      join_date: data.join_date,
+      package: data.package,
+      expiry_date: calcExpiryISO(data.join_date, data.status, months),
+    })
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
+      <p className="text-sm text-gray-400">Restoring <span className="text-gray-100 font-medium">{member.name}</span> — update their membership details:</p>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="label">Joining Date *</label>
+          <input
+            type="date"
+            className="input [color-scheme:dark]"
+            max={todayStr}
+            {...register('join_date', { required: 'Required' })}
+          />
+          {errors.join_date && <p className="text-red-500 text-xs mt-1">{errors.join_date.message}</p>}
+          {expiryDisplay && <p className="text-xs text-gray-400 mt-1">Expires: {expiryDisplay}</p>}
+        </div>
+        <div>
+          <label className="label">Status</label>
+          <select className="input" {...register('status')}>
+            <option value="ACTIVE">Active</option>
+            <option value="EXPIRED">Expired</option>
+          </select>
+        </div>
+        <div className="col-span-2">
+          <label className="label">Package *</label>
+          <select className="input" {...register('package', { required: 'Package is required' })}>
+            <option value="">Select a package</option>
+            {packages.map(p => (
+              <option key={p.id} value={p.id}>{p.name} — PKR {Number(p.price).toLocaleString()}</option>
+            ))}
+          </select>
+          {errors.package && <p className="text-red-500 text-xs mt-1">{errors.package.message}</p>}
+        </div>
+      </div>
+      <button type="submit" disabled={isPending} className="btn-primary w-full justify-center">
+        {isPending ? 'Restoring...' : 'Restore Member'}
+      </button>
+    </form>
+  )
+}
 
 const fetchMembers = async (search, searchBy, status, gender) => {
   const params = {}
@@ -24,6 +124,7 @@ export default function Members() {
   const [statusFilter, setStatusFilter] = useState('')
   const [genderFilter, setGenderFilter] = useState('')
   const [showModal, setShowModal] = useState(false)
+  const [showDeleted, setShowDeleted] = useState(false)
   const [editMember, setEditMember] = useState(null)
   const [sort, setSort] = useState({ key: null, dir: 'asc' })
 
@@ -47,11 +148,42 @@ export default function Members() {
     staleTime: 0,
   })
 
+  const { data: deletedData } = useQuery({
+    queryKey: ['members-deleted'],
+    queryFn: async () => { const { data } = await api.get('/members/deleted/'); return data },
+    enabled: showDeleted,
+  })
+  const deletedMembers = deletedData || []
+
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/members/${id}/`),
     onSuccess: () => {
       queryClient.invalidateQueries(['members'])
+      queryClient.invalidateQueries(['members-deleted'])
       toast.success('Member removed')
+    },
+  })
+
+  const [deletedSearch, setDeletedSearch] = useState('')
+  const [deletedSearchBy, setDeletedSearchBy] = useState('name')
+  const [restoreMember, setRestoreMember] = useState(null)
+
+  const restoreMutation = useMutation({
+    mutationFn: ({ id, ...body }) => api.post(`/members/${id}/restore/`, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['members'])
+      queryClient.invalidateQueries(['members-deleted'])
+      queryClient.invalidateQueries(['member-next-id'])
+      setRestoreMember(null)
+      toast.success('Member restored')
+    },
+  })
+
+  const hardDeleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/members/${id}/hard-delete/`),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['members-deleted'])
+      toast.success('Member permanently deleted')
     },
   })
 
@@ -61,6 +193,7 @@ export default function Members() {
     let av = a[sort.key] ?? ''
     let bv = b[sort.key] ?? ''
     if (sort.key === 'expiry_date') { av = av ? new Date(av) : 0; bv = bv ? new Date(bv) : 0 }
+    else if (sort.key === 'member_id') { av = av ? parseInt(av, 10) : 0; bv = bv ? parseInt(bv, 10) : 0 }
     else { av = av.toString().toLowerCase(); bv = bv.toString().toLowerCase() }
     return sort.dir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1)
   })
@@ -86,9 +219,10 @@ export default function Members() {
               Address: m.address || '',
               Notes: m.notes || '',
             })), 'Members')}
-            className="btn-secondary flex items-center gap-2"
+            className="p-2 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-400/30 hover:bg-blue-500/30 hover:border-blue-400/50 transition"
+            title="Export"
           >
-            <FileDown size={16} /> Export
+            <FileDown size={18} />
           </button>
           <button onClick={() => { setEditMember(null); setShowModal(true) }} className="btn-primary">
             <UserPlus size={16} /> Add Member
@@ -128,6 +262,9 @@ export default function Members() {
           <option value="MALE">Male</option>
           <option value="FEMALE">Female</option>
         </select>
+        <button onClick={() => setShowDeleted(true)} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/40 transition text-sm font-medium">
+          <Trash2 size={15} /> Deleted
+        </button>
       </div>
 
       <div className="card">
@@ -138,7 +275,11 @@ export default function Members() {
         ) : (
           <Table>
             <Thead>
-              <Th>ID</Th>
+              <Th>
+                <button onClick={() => toggleSort('member_id')} className="flex items-center gap-1 hover:text-blue-400 transition">
+                  ID <SortIcon col="member_id" />
+                </button>
+              </Th>
               <Th>
                 <button onClick={() => toggleSort('name')} className="flex items-center gap-1 hover:text-blue-400 transition">
                   Name <SortIcon col="name" />
@@ -215,6 +356,83 @@ export default function Members() {
           </Table>
         )}
       </div>
+
+      <Modal isOpen={showDeleted} onClose={() => { setShowDeleted(false); setDeletedSearch('') }} title="Deleted Members">
+        <div className="space-y-3">
+          {/* Search */}
+          <div className="flex">
+            <div className="relative flex-1">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                className="input pl-8 rounded-r-none border-r-0 text-sm"
+                placeholder={`Search by ${deletedSearchBy === 'father_name' ? "father's name" : deletedSearchBy === 'member_id' ? 'ID' : deletedSearchBy}...`}
+                value={deletedSearch}
+                onChange={(e) => setDeletedSearch(e.target.value)}
+              />
+            </div>
+            <select
+              value={deletedSearchBy}
+              onChange={e => { setDeletedSearchBy(e.target.value); setDeletedSearch('') }}
+              className="input rounded-l-none border-l border-gray-600 w-auto text-xs text-gray-300 bg-gray-700 pr-7"
+            >
+              <option value="name">Name</option>
+              <option value="father_name">Father's Name</option>
+              <option value="phone">Phone</option>
+              <option value="member_id">ID</option>
+            </select>
+          </div>
+
+          {/* List */}
+          <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+            {(() => {
+              const q = deletedSearch.toLowerCase()
+              const filtered = deletedMembers.filter(m => {
+                if (!q) return true
+                if (deletedSearchBy === 'name') return m.name.toLowerCase().includes(q)
+                if (deletedSearchBy === 'father_name') return (m.father_name || '').toLowerCase().includes(q)
+                if (deletedSearchBy === 'phone') return m.phone.includes(q)
+                if (deletedSearchBy === 'member_id') return (m.member_id || '').includes(q)
+                return true
+              })
+              if (!filtered.length) return <p className="text-center text-gray-400 py-8">No deleted members found.</p>
+              return filtered.map((m) => (
+                <div key={m.id} className="flex items-center gap-3 px-4 py-3 bg-gray-700/40 rounded-lg">
+                  {m.member_id && (
+                    <span className="font-mono text-xs text-gray-400 bg-gray-700 px-1.5 py-0.5 rounded shrink-0">{m.member_id}</span>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-100 truncate">{m.name}</p>
+                    <p className="text-xs text-gray-400">{m.phone} · {m.package_name || 'No package'}</p>
+                  </div>
+                  <button
+                    onClick={() => setRestoreMember(m)}
+                    className="flex items-center gap-1.5 text-xs text-green-400 hover:text-green-300 border border-green-500/30 hover:border-green-400 px-3 py-1.5 rounded-lg transition shrink-0"
+                  >
+                    <RotateCcw size={13} /> Restore
+                  </button>
+                  <button
+                    onClick={() => { if (confirm(`Permanently delete ${m.name}? This cannot be undone.`)) hardDeleteMutation.mutate(m.id) }}
+                    disabled={hardDeleteMutation.isPending}
+                    className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 border border-red-500/30 hover:border-red-400 px-3 py-1.5 rounded-lg transition shrink-0"
+                  >
+                    <Trash2 size={13} /> Delete
+                  </button>
+                </div>
+              ))
+            })()}
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={!!restoreMember} onClose={() => setRestoreMember(null)} title="Restore Member">
+        {restoreMember && (
+          <RestoreForm
+            member={restoreMember}
+            isPending={restoreMutation.isPending}
+            onSubmit={(body) => restoreMutation.mutate({ id: restoreMember.id, ...body })}
+          />
+        )}
+      </Modal>
 
       <Modal
         isOpen={showModal}

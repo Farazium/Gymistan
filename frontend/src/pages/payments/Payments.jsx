@@ -102,9 +102,10 @@ export default function Payments() {
               Date: new Date(p.payment_date).toLocaleDateString('en-PK'),
               Notes: p.notes || '',
             })), 'Payments')}
-            className="btn-secondary flex items-center gap-2"
+            className="p-2 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-400/30 hover:bg-blue-500/30 hover:border-blue-400/50 transition"
+            title="Export"
           >
-            <FileDown size={16} /> Export
+            <FileDown size={18} />
           </button>
           <button onClick={() => setShowModal(true)} className="btn-primary">
             <Plus size={16} /> Record Payment

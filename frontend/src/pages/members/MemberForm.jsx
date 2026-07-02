@@ -8,28 +8,38 @@ function calcExpiryISO(isoDate, status, pkgMonths) {
   const [y, m, d] = isoDate.split('-').map(Number)
   if (!y || !m || !d) return ''
   const months = pkgMonths || 1
-  // EXPIRED: set expiry in the past (join month of current year)
-  const now = new Date()
-  let mm, yy
-  if (status === 'EXPIRED') {
-    mm = m; yy = now.getFullYear()
-  } else {
-    mm = m + months; yy = y
-    if (mm > 12) { yy += Math.floor((mm - 1) / 12); mm = ((mm - 1) % 12) + 1 }
+
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+
+  // Roll forward from join date in pkg-month cycles until we pass today
+  let yy = y, mm = m
+  for (let i = 0; i < 120; i++) {
+    mm += months
+    while (mm > 12) { yy += 1; mm -= 12 }
+    const candidate = new Date(yy, mm - 1, d) // JS handles day overflow (e.g. Jan 31 + 1mo)
+    if (candidate > today) {
+      if (status === 'EXPIRED') {
+        // Step back one cycle — that's the most recent past expiry
+        mm -= months
+        while (mm < 1) { yy -= 1; mm += 12 }
+        const exp = new Date(yy, mm - 1, d)
+        return `${exp.getFullYear()}-${String(exp.getMonth()+1).padStart(2,'0')}-${String(exp.getDate()).padStart(2,'0')}`
+      }
+      return `${candidate.getFullYear()}-${String(candidate.getMonth()+1).padStart(2,'0')}-${String(candidate.getDate()).padStart(2,'0')}`
+    }
   }
-  return `${yy}-${String(mm).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+  return ''
 }
 
 function calcExpiryDisplay(isoDate, status, pkgMonths) {
   const iso = calcExpiryISO(isoDate, status, pkgMonths)
   if (!iso) return ''
-  const [y, m, d] = iso.split('-')
-  return `${d}/${m}/${y}`
+  return new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 export default function MemberForm({ member, onSuccess, defaultMemberId }) {
   const { register, handleSubmit, watch, setError, formState: { errors } } = useForm({
-    defaultValues: member ? { ...member } : { member_id: defaultMemberId || '' },
+    defaultValues: member ? { ...member } : { member_id: defaultMemberId || '', status: 'EXPIRED' },
   })
 
   const joinDate = watch('join_date')
@@ -78,14 +88,18 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
         }
       })
 
-      // unique_together on (gym, member_id) comes back as non_field_errors
+      // unique_together on (gym, member_id) — can come as non_field_errors or field error
       const nonField = data.non_field_errors || []
-      if (nonField.some(e => e.toLowerCase().includes('member_id') || e.toLowerCase().includes('unique'))) {
-        setError('member_id', { message: 'This Member ID is already taken' })
+      const nonFieldStr = nonField.join(' ').toLowerCase()
+      if (nonFieldStr.includes('member') || nonFieldStr.includes('unique') || nonFieldStr.includes('id')) {
+        setError('member_id', { message: 'This Member ID is already occupied' })
         handled = true
       }
 
-      if (!handled) toast.error(data.detail || Object.values(data).flat()[0] || 'Something went wrong')
+      if (!handled) {
+        const msg = data.detail || nonField[0] || Object.values(data).flat()[0] || 'Something went wrong'
+        toast.error(String(msg))
+      }
     },
   })
 
@@ -94,32 +108,49 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="label">Full Name *</label>
-          <input className="input" {...register('name', { required: 'Required' })} />
+          <input
+            className="input"
+            {...register('name', {
+              required: 'Full Name is required',
+              pattern: { value: /^[^\d]+$/, message: 'Name cannot contain numbers' },
+            })}
+            onKeyDown={(e) => { if (/\d/.test(e.key)) e.preventDefault() }}
+          />
           {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
         </div>
 
         <div>
-          <label className="label">Member ID <span className="text-gray-400 text-xs">(4 digits)</span></label>
+          <label className="label">Member ID * <span className="text-gray-400 text-xs">(4 digits)</span></label>
           <input
             className="input font-mono tracking-widest"
             maxLength={4}
             placeholder="0001"
             {...register('member_id', {
+              required: 'Member ID is required',
               pattern: { value: /^\d{1,4}$/, message: 'Must be up to 4 digits' },
             })}
+            onKeyDown={(e) => { if (!/[\d]/.test(e.key) && !['Backspace','Delete','Tab','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault() }}
           />
           {errors.member_id && <p className="text-red-500 text-xs mt-1">{errors.member_id.message}</p>}
         </div>
 
         <div>
           <label className="label">Phone *</label>
-          <input className="input" placeholder="03XX-XXXXXXX" {...register('phone', { required: 'Required' })} />
+          <input
+            className="input"
+            placeholder="03XX-XXXXXXX"
+            {...register('phone', {
+              required: 'Phone is required',
+              pattern: { value: /^[\d\s\-+()]+$/, message: 'Phone can only contain numbers' },
+            })}
+            onKeyDown={(e) => { if (!/[\d\s\-+()]/.test(e.key) && !['Backspace','Delete','Tab','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault() }}
+          />
           {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
         </div>
 
         <div>
           <label className="label">Gender *</label>
-          <select className="input" {...register('gender', { required: 'Required' })}>
+          <select className="input" {...register('gender', { required: 'Gender is required' })}>
             <option value="MALE">Male</option>
             <option value="FEMALE">Female</option>
           </select>
@@ -128,7 +159,14 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
 
         <div>
           <label className="label">Father's Name <span className="text-gray-400 text-xs">(optional)</span></label>
-          <input className="input" {...register('father_name')} />
+          <input
+            className="input"
+            {...register('father_name', {
+              pattern: { value: /^[^\d]*$/, message: 'Name cannot contain numbers' },
+            })}
+            onKeyDown={(e) => { if (/\d/.test(e.key)) e.preventDefault() }}
+          />
+          {errors.father_name && <p className="text-red-500 text-xs mt-1">{errors.father_name.message}</p>}
         </div>
 
         <div>
@@ -147,7 +185,11 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
           <input
             type="date"
             className="input [color-scheme:dark]"
-            {...register('join_date', { required: 'Required' })}
+            max={(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()}
+            {...register('join_date', {
+              required: 'Joining Date is required',
+              validate: v => !v || v <= (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })() || 'Future date not allowed',
+            })}
           />
           {errors.join_date && <p className="text-red-500 text-xs mt-1">{errors.join_date.message}</p>}
           {calcExpiryDisplay(joinDate, status, pkgMonths) && (
@@ -170,7 +212,7 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
         {!member && (
           <div>
             <label className="label">Admission Fee (PKR) <span className="text-gray-400 text-xs">(optional)</span></label>
-            <input className="input" type="number" placeholder="0" {...register('admission_fee')} />
+            <input className="input [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" type="number" placeholder="0" {...register('admission_fee')} />
           </div>
         )}
 

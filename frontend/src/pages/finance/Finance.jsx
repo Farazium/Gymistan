@@ -248,10 +248,10 @@ function PdfExportButton({ onExport }) {
     <button
       onClick={handleExport}
       disabled={loading}
-      className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded-lg text-xs font-medium text-gray-300 hover:text-white transition disabled:opacity-50"
+      className="p-2 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-400/30 hover:bg-blue-500/30 hover:border-blue-400/50 transition disabled:opacity-50"
+      title="Export PDF"
     >
-      {loading ? <Loader2 size={13} className="animate-spin" /> : <FileDown size={13} />}
-      {loading ? 'Exporting...' : 'Export PDF'}
+      {loading ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />}
     </button>
   )
 }

@@ -25,12 +25,13 @@ class Member(models.Model):
     expiry_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
     notes = models.TextField(blank=True)
+    is_deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'members'
-        unique_together = [('gym', 'member_id')]
+        unique_together = [('gym', 'member_id'), ('gym', 'phone')]
 
     def __str__(self):
         return f'{self.name} - {self.gym.name}'

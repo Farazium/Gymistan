@@ -1,8 +1,9 @@
-from rest_framework import generics, filters
+from rest_framework import generics, filters, serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db import IntegrityError
 from .models import Member
 from .serializers import MemberSerializer, MemberListSerializer
 from apps.accounts.permissions import IsGymMember
@@ -36,7 +37,7 @@ class MemberListCreateView(generics.ListCreateAPIView):
         return MemberSerializer
 
     def get_queryset(self):
-        qs = Member.objects.filter(gym=self.request.user.gym).select_related('package')
+        qs = Member.objects.filter(gym=self.request.user.gym, is_deleted=False).select_related('package')
 
         status = self.request.query_params.get('status')
         today = datetime.date.today()
@@ -60,7 +61,13 @@ class MemberListCreateView(generics.ListCreateAPIView):
         return qs
 
     def perform_create(self, serializer):
-        member = serializer.save(gym=self.request.user.gym)
+        try:
+            member = serializer.save(gym=self.request.user.gym)
+        except IntegrityError as e:
+            err = str(e).lower()
+            if 'phone' in err:
+                raise serializers.ValidationError({'phone': 'A member with this phone number already exists'})
+            raise serializers.ValidationError({'member_id': 'This Member ID is already occupied'})
         admission_fee = self.request.data.get('admission_fee')
         if admission_fee:
             try:
@@ -84,9 +91,52 @@ class MemberDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated, IsGymMember]
 
     def get_queryset(self):
-        return Member.objects.filter(gym=self.request.user.gym)
+        return Member.objects.filter(gym=self.request.user.gym, is_deleted=False)
 
     def perform_destroy(self, instance):
-        cutoff = datetime.date.today() - datetime.timedelta(days=180)
-        instance.payments.filter(payment_date__lt=cutoff).delete()
-        instance.delete()
+        instance.is_deleted = True
+        instance.save()
+
+
+class DeletedMembersView(APIView):
+    permission_classes = [IsAuthenticated, IsGymMember]
+
+    def get(self, request):
+        members = Member.objects.filter(gym=request.user.gym, is_deleted=True).select_related('package')
+        data = MemberListSerializer(members, many=True).data
+        return Response(data)
+
+
+class RestoreMemberView(APIView):
+    permission_classes = [IsAuthenticated, IsGymMember]
+
+    def post(self, request, pk):
+        try:
+            member = Member.objects.get(pk=pk, gym=request.user.gym, is_deleted=True)
+        except Member.DoesNotExist:
+            return Response({'detail': 'Not found'}, status=404)
+        member.is_deleted = False
+        if request.data.get('join_date'):
+            member.join_date = request.data['join_date']
+        if request.data.get('package'):
+            from apps.packages.models import Package
+            try:
+                member.package = Package.objects.get(pk=request.data['package'], gym=request.user.gym)
+            except Package.DoesNotExist:
+                pass
+        if request.data.get('expiry_date'):
+            member.expiry_date = request.data['expiry_date']
+        member.save()
+        return Response({'detail': 'Member restored'})
+
+
+class HardDeleteMemberView(APIView):
+    permission_classes = [IsAuthenticated, IsGymMember]
+
+    def delete(self, request, pk):
+        try:
+            member = Member.objects.get(pk=pk, gym=request.user.gym, is_deleted=True)
+        except Member.DoesNotExist:
+            return Response({'detail': 'Not found'}, status=404)
+        member.delete()
+        return Response(status=204)

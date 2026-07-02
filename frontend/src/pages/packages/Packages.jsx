@@ -98,9 +98,10 @@ export default function Packages() {
               'Members Enrolled': p.member_count || 0,
               Active: p.is_active ? 'Yes' : 'No',
             })), 'Packages')}
-            className="btn-secondary flex items-center gap-2"
+            className="p-2 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-400/30 hover:bg-blue-500/30 hover:border-blue-400/50 transition"
+            title="Export"
           >
-            <FileDown size={16} /> Export
+            <FileDown size={18} />
           </button>
           <button onClick={() => { setEditPkg(null); setShowModal(true) }} className="btn-primary">
             <Plus size={16} /> New Package
