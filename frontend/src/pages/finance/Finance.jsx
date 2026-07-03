@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { BookOpen, TrendingUp, PieChart, ArrowDownCircle, ArrowUpCircle, ChevronDown, ChevronRight, ChevronLeft, CalendarDays, FileDown, Loader2, ClipboardList, ChevronLeft as ChevLeft, ChevronRight as ChevRight } from 'lucide-react'
 import api from '../../api/axios'
+import useAuthStore from '../../store/authStore'
 import { exportLedgerPDF, exportIncomeStatementPDF, exportExpenseCategoriesPDF, exportDailyCollectionPDF } from '../../utils/financePDF'
 
 const fmt = (n) => `PKR ${Number(n).toLocaleString('en-PK')}`
@@ -272,6 +273,7 @@ function SummaryCard({ label, value, color }) {
 
 // ─── LEDGER TAB ───────────────────────────────────────────────────────────────
 function LedgerTab() {
+  const gymName = useAuthStore((s) => s.user?.gym_name)
   const [activePreset, setActivePreset] = useState('This Month')
   const [start, setStart] = useState(thisMonthStart)
   const [end, setEnd] = useState(todayStr)
@@ -291,7 +293,7 @@ function LedgerTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <DateRangeFilter start={start} end={end} onStartChange={setStart} onEndChange={setEnd} activePreset={activePreset} onPreset={handlePreset} />
-        {data && <PdfExportButton onExport={() => exportLedgerPDF(data, start, end)} />}
+        {data && <PdfExportButton onExport={() => exportLedgerPDF(data, start, end, gymName)} />}
       </div>
 
       {data && (
@@ -354,6 +356,7 @@ function LedgerTab() {
 
 // ─── INCOME STATEMENT TAB ─────────────────────────────────────────────────────
 function IncomeStatementTab() {
+  const gymName = useAuthStore((s) => s.user?.gym_name)
   const [filterType, setFilterType] = useState('month')
   const [month, setMonth] = useState(today.getMonth() + 1)
   const [year, setYear] = useState(today.getFullYear())
@@ -393,7 +396,7 @@ function IncomeStatementTab() {
           {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
       </div>
-      {data && <PdfExportButton onExport={() => exportIncomeStatementPDF(data)} />}
+      {data && <PdfExportButton onExport={() => exportIncomeStatementPDF(data, gymName)} />}
       </div>
 
       {isLoading ? (
@@ -475,6 +478,7 @@ function IncomeStatementTab() {
 
 // ─── EXPENSE CATEGORIES TAB ───────────────────────────────────────────────────
 function ExpenseCategoriesTab() {
+  const gymName = useAuthStore((s) => s.user?.gym_name)
   const [activePreset, setActivePreset] = useState('This Month')
   const [start, setStart] = useState(thisMonthStart)
   const [end, setEnd] = useState(todayStr)
@@ -497,7 +501,7 @@ function ExpenseCategoriesTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <DateRangeFilter start={start} end={end} onStartChange={setStart} onEndChange={setEnd} activePreset={activePreset} onPreset={handlePreset} />
-        {data && <PdfExportButton onExport={() => exportExpenseCategoriesPDF(data, start, end)} />}
+        {data && <PdfExportButton onExport={() => exportExpenseCategoriesPDF(data, start, end, gymName)} />}
       </div>
 
       <div className="space-y-4">
@@ -562,6 +566,7 @@ function ExpenseCategoriesTab() {
 
 // ─── DAILY COLLECTION TAB ─────────────────────────────────────────────────────
 function DailyCollectionTab() {
+  const gymName = useAuthStore((s) => s.user?.gym_name)
   const [date, setDate] = useState(todayStr)
 
   const prevDay = () => {
@@ -626,7 +631,7 @@ function DailyCollectionTab() {
             <button onClick={() => setDate(todayStr)} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 transition">Today</button>
           )}
         </div>
-        {data && <PdfExportButton onExport={() => exportDailyCollectionPDF(data)} />}
+        {data && <PdfExportButton onExport={() => exportDailyCollectionPDF(data, gymName)} />}
       </div>
 
       {isLoading ? (
