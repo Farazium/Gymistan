@@ -64,8 +64,11 @@ export default function Payments() {
     onError: (err) => toast.error(err.response?.data?.message || 'Failed to send'),
   })
 
-  // Sort newest first, group by month
-  const sorted = [...payments].sort((a, b) => (a.payment_date < b.payment_date ? 1 : -1))
+  // Sort newest first (by date, then by id so same-day payments keep insertion order), group by month
+  const sorted = [...payments].sort((a, b) => {
+    if (a.payment_date !== b.payment_date) return a.payment_date < b.payment_date ? 1 : -1
+    return b.id - a.id
+  })
 
   const groups = []
   let lastKey = null
@@ -148,6 +151,7 @@ export default function Payments() {
                     <span className="flex-1">Member</span>
                     <span className="shrink-0 w-28">Package</span>
                     <span className="shrink-0 w-24 text-right">Paid</span>
+                    <span className="shrink-0 w-20 text-right">Discount</span>
                     <span className="shrink-0 w-16 text-center">Method</span>
                     <span className="shrink-0 w-24 text-right">Date</span>
                     <span className="shrink-0 w-20 text-right">Actions</span>
@@ -163,6 +167,9 @@ export default function Payments() {
                         {p.package_name || (p.notes === 'Admission fee' ? 'Admission Fee' : <span className="text-gray-500">—</span>)}
                       </span>
                       <span className="shrink-0 w-24 text-right font-semibold text-green-400">{fmt(p.amount_paid)}</span>
+                      <span className="shrink-0 w-20 text-right text-sm">
+                        {Number(p.discount) > 0 ? <span className="text-orange-400">{fmt(p.discount)}</span> : <span className="text-gray-600">—</span>}
+                      </span>
                       <span className="shrink-0 w-16 text-center">
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.payment_method === 'ONLINE' ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-700 text-gray-300'}`}>
                           {p.payment_method === 'ONLINE' ? 'Online' : 'Cash'}
