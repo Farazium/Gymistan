@@ -312,7 +312,7 @@ export default function Members() {
                 <Tr key={m.id}>
                   <Td>
                     <span className="font-mono text-xs text-gray-400 bg-gray-700/50 px-1.5 py-0.5 rounded">
-                      {m.member_id || '—'}
+                      {m.member_id ? String(m.member_id).padStart(5, '0') : '—'}
                     </span>
                   </Td>
                   <Td className="font-medium">
@@ -409,7 +409,7 @@ export default function Members() {
               return filtered.map((m) => (
                 <div key={m.id} className="flex items-center gap-3 px-4 py-3 bg-gray-700/40 rounded-lg">
                   {m.member_id && (
-                    <span className="font-mono text-xs text-gray-400 bg-gray-700 px-1.5 py-0.5 rounded shrink-0">{m.member_id}</span>
+                    <span className="font-mono text-xs text-gray-400 bg-gray-700 px-1.5 py-0.5 rounded shrink-0">{String(m.member_id).padStart(5, '0')}</span>
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-100 truncate">{m.name}</p>

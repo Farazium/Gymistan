@@ -19,9 +19,13 @@ class MemberNextIdView(APIView):
             gym=request.user.gym,
             member_id__isnull=False,
         ).exclude(member_id='').values_list('member_id', flat=True)
-        ids = sorted([int(x) for x in existing if x.isdigit()])
-        next_num = (max(ids) + 1) if ids else 1
-        return Response({'next_id': str(next_num).zfill(4)})
+        used = {int(x) for x in existing if x.isdigit()}
+        # Smallest free ID — fills gaps left by removed members instead of always
+        # going max+1, so the number never runs away toward the digit ceiling.
+        next_num = 1
+        while next_num in used:
+            next_num += 1
+        return Response({'next_id': str(next_num).zfill(5)})
 
 
 class MemberListCreateView(generics.ListCreateAPIView):

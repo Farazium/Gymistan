@@ -38,7 +38,7 @@ function calcExpiryDisplay(isoDate, status, pkgMonths) {
 }
 
 export default function MemberForm({ member, onSuccess, defaultMemberId }) {
-  const { register, handleSubmit, watch, setError, formState: { errors } } = useForm({
+  const { register, handleSubmit, watch, setError, setValue, formState: { errors } } = useForm({
     defaultValues: member ? { ...member } : { member_id: defaultMemberId || '', status: 'EXPIRED' },
   })
 
@@ -61,7 +61,7 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
     mutationFn: (payload) => {
       const pkg = packages?.find((p) => String(p.id) === String(payload.package))
       const months = pkg ? Math.round(pkg.duration_days / 30) : null
-      const mid = payload.member_id ? String(payload.member_id).padStart(4, '0') : ''
+      const mid = payload.member_id ? String(payload.member_id).padStart(5, '0') : ''
       const base = { ...payload, member_id: mid || null }
       const body = member
         ? base
@@ -120,17 +120,33 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
         </div>
 
         <div>
-          <label className="label">Member ID * <span className="text-gray-400 text-xs">(4 digits)</span></label>
-          <input
-            className="input font-mono tracking-widest"
-            maxLength={4}
-            placeholder="0001"
-            {...register('member_id', {
+          <label className="label">Member ID *</label>
+          {(() => {
+            const midReg = register('member_id', {
               required: 'Member ID is required',
-              pattern: { value: /^\d{1,4}$/, message: 'Must be up to 4 digits' },
-            })}
-            onKeyDown={(e) => { if (!/[\d]/.test(e.key) && !['Backspace','Delete','Tab','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault() }}
-          />
+              pattern: { value: /^\d{1,5}$/, message: 'Must be up to 5 digits' },
+            })
+            return (
+              <input
+                className={`input font-mono tracking-widest ${member ? 'opacity-60 cursor-not-allowed' : ''}`}
+                maxLength={5}
+                placeholder="00001"
+                readOnly={!!member}
+                {...midReg}
+                onBlur={(e) => {
+                  midReg.onBlur(e)
+                  if (member) return
+                  // Pad to 5 digits so the accountant never has to count zeroes: 45 -> 00045
+                  const v = e.target.value.trim()
+                  if (v) setValue('member_id', v.padStart(5, '0'), { shouldValidate: true })
+                }}
+                onKeyDown={(e) => {
+                  if (member) { e.preventDefault(); return }
+                  if (!/[\d]/.test(e.key) && !['Backspace','Delete','Tab','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault()
+                }}
+              />
+            )
+          })()}
           {errors.member_id && <p className="text-red-500 text-xs mt-1">{errors.member_id.message}</p>}
         </div>
 
