@@ -27,6 +27,8 @@ class Payment(models.Model):
     payment_method = models.CharField(max_length=20, choices=PaymentMethod.choices, default=PaymentMethod.CASH)
     payment_date = models.DateField(auto_now_add=True)
     due_date = models.DateField(null=True, blank=True)
+    prev_expiry = models.DateField(null=True, blank=True)
+    new_expiry = models.DateField(null=True, blank=True)
     month = models.CharField(max_length=20, blank=True)
     notes = models.TextField(blank=True)
     slip_sent = models.BooleanField(default=False)

@@ -32,7 +32,11 @@ class PaymentListCreateView(generics.ListCreateAPIView):
             base = member.expiry_date if member.expiry_date else datetime.date.today()
             months = round(payment.package.duration_days / 30)
             m = base.month - 1 + months
-            member.expiry_date = base.replace(year=base.year + m // 12, month=m % 12 + 1)
+            new_expiry = base.replace(year=base.year + m // 12, month=m % 12 + 1)
+            payment.prev_expiry = member.expiry_date
+            payment.new_expiry = new_expiry
+            payment.save(update_fields=['prev_expiry', 'new_expiry'])
+            member.expiry_date = new_expiry
             member.status = 'ACTIVE'
             member.save(update_fields=['expiry_date', 'status'])
 
