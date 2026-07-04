@@ -17,6 +17,9 @@ class Expense(models.Model):
     added_by = models.ForeignKey(
         'accounts.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='expenses'
     )
+    trainer = models.ForeignKey(
+        'trainers.Trainer', on_delete=models.SET_NULL, null=True, blank=True, related_name='salary_expenses'
+    )
     title = models.CharField(max_length=200)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     category = models.CharField(max_length=20, choices=Category.choices, default=Category.OTHER)

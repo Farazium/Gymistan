@@ -14,6 +14,7 @@ class Member(models.Model):
 
     gym = models.ForeignKey(Gym, on_delete=models.CASCADE, related_name='members')
     package = models.ForeignKey(Package, on_delete=models.SET_NULL, null=True, blank=True, related_name='members')
+    trainer = models.ForeignKey('trainers.Trainer', on_delete=models.SET_NULL, null=True, blank=True, related_name='members')
     member_id = models.CharField(max_length=5, blank=True, null=True)
     name = models.CharField(max_length=200)
     phone = models.CharField(max_length=20)

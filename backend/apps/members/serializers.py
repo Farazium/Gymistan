@@ -12,6 +12,7 @@ def compute_status(member):
 
 class MemberSerializer(serializers.ModelSerializer):
     package_detail = PackageSerializer(source='package', read_only=True)
+    trainer_name = serializers.CharField(source='trainer.name', read_only=True)
     status = serializers.SerializerMethodField()
 
     def get_status(self, obj):
@@ -25,6 +26,7 @@ class MemberSerializer(serializers.ModelSerializer):
 
 class MemberListSerializer(serializers.ModelSerializer):
     package_name = serializers.CharField(source='package.name', read_only=True)
+    trainer_name = serializers.CharField(source='trainer.name', read_only=True)
     status = serializers.SerializerMethodField()
 
     def get_status(self, obj):
@@ -32,4 +34,4 @@ class MemberListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Member
-        fields = ['id', 'member_id', 'name', 'phone', 'gender', 'father_name', 'package', 'package_name', 'status', 'expiry_date', 'join_date', 'address', 'notes']
+        fields = ['id', 'member_id', 'name', 'phone', 'gender', 'father_name', 'package', 'package_name', 'trainer', 'trainer_name', 'status', 'expiry_date', 'join_date', 'address', 'notes']

@@ -13,4 +13,5 @@ urlpatterns = [
     path('api/expenses/', include('apps.expenses.urls')),
     path('api/dashboard/', include('apps.dashboard.urls')),
     path('api/inventory/', include('apps.inventory.urls')),
+    path('api/trainers/', include('apps.trainers.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
-import { Plus, Search, UserPlus, FileDown, ChevronUp, ChevronDown, Trash2, RotateCcw } from 'lucide-react'
+import { Plus, Search, UserPlus, FileDown, ChevronUp, ChevronDown, Trash2, RotateCcw, Pencil } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../api/axios'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
@@ -299,6 +299,7 @@ export default function Members() {
               <Th>Phone</Th>
               <Th>Gender</Th>
               <Th>Package</Th>
+              <Th>Trainer</Th>
               <Th>Status</Th>
               <Th>
                 <button onClick={() => toggleSort('expiry_date')} className="flex items-center gap-1 hover:text-blue-400 transition">
@@ -327,6 +328,7 @@ export default function Members() {
                     </span>
                   </Td>
                   <Td>{m.package_name || <span className="text-gray-400">—</span>}</Td>
+                  <Td>{m.trainer_name || <span className="text-gray-400">—</span>}</Td>
                   <Td>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${m.status === 'ACTIVE' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
                       {m.status === 'ACTIVE' ? 'Active' : 'Expired'}
@@ -336,20 +338,22 @@ export default function Members() {
                     {m.expiry_date ? new Date(m.expiry_date).toLocaleDateString('en-PK') : '—'}
                   </Td>
                   <Td>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-1">
                       <button
                         onClick={() => { setEditMember(m); setShowModal(true) }}
-                        className="text-primary-600 hover:underline text-xs font-medium"
+                        title="Edit"
+                        className="p-1.5 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition"
                       >
-                        Edit
+                        <Pencil size={14} />
                       </button>
                       <button
                         onClick={() => {
                           if (confirm('Remove this member?')) deleteMutation.mutate(m.id)
                         }}
-                        className="text-red-500 hover:underline text-xs font-medium"
+                        title="Remove"
+                        className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"
                       >
-                        Remove
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </Td>
@@ -357,7 +361,7 @@ export default function Members() {
               ))}
               {!members.length && (
                 <Tr>
-                  <Td colSpan={8} className="text-center py-16 text-gray-400">
+                  <Td colSpan={9} className="text-center py-16 text-gray-400">
                     <UserPlus size={32} className="mx-auto mb-2 opacity-30" />
                     No members found. Add your first member.
                   </Td>

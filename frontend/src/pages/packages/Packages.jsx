@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Package as PackageIcon, Pencil, Trash2, FileDown } from 'lucide-react'
+import { Plus, Package as PackageIcon, Pencil, Trash2, FileDown, UserCog } from 'lucide-react'
 import { exportToExcel } from '../../utils/exportExcel'
 import { useForm } from 'react-hook-form'
 import api from '../../api/axios'
@@ -70,6 +70,11 @@ function PackageForm({ pkg, onSuccess }) {
         <label className="label">Features (comma separated)</label>
         <input className="input" placeholder="Gym access, Locker, WiFi" {...register('features')} />
       </div>
+      <label className="flex items-center gap-2.5 cursor-pointer select-none">
+        <input type="checkbox" className="w-4 h-4 accent-blue-500 rounded" {...register('has_trainer')} />
+        <span className="text-sm text-gray-200">Includes a personal trainer</span>
+        <span className="text-xs text-gray-500">— lets you assign a trainer to members on this package</span>
+      </label>
       <div>
         <label className="label">Description</label>
         <textarea className="input h-20 resize-none" {...register('description')} />
@@ -157,6 +162,11 @@ export default function Packages() {
                 <h3 className="font-semibold text-gray-100 text-base">{pkg.name}</h3>
                 <p className={`text-2xl font-bold mt-1 ${p.price}`}>PKR {Number(pkg.price).toLocaleString()}</p>
                 <p className="text-sm text-gray-400 mt-0.5">{months} {months === 1 ? 'Month' : 'Months'}</p>
+                {pkg.has_trainer && (
+                  <span className="inline-flex items-center gap-1 mt-2 text-xs px-2 py-0.5 rounded-full font-medium bg-blue-500/15 text-blue-300 border border-blue-500/25">
+                    <UserCog size={11} /> Includes Trainer
+                  </span>
+                )}
                 {pkg.features?.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {pkg.features.map((f, i) => (

@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import api from '../../api/axios'
@@ -54,15 +55,29 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
     },
   })
 
+  const { data: trainers = [] } = useQuery({
+    queryKey: ['trainers-active'],
+    queryFn: async () => {
+      const { data } = await api.get('/trainers/', { params: { is_active: 'true' } })
+      return data?.results || data || []
+    },
+  })
+
   const selectedPkg = packages?.find((p) => String(p.id) === String(selectedPkgId))
   const pkgMonths = selectedPkg ? Math.round(selectedPkg.duration_days / 30) : null
+  const trainerAllowed = !!selectedPkg?.has_trainer
+
+  // Trainer can only be set on packages that include a trainer; clear it otherwise
+  useEffect(() => {
+    if (!trainerAllowed) setValue('trainer', '')
+  }, [trainerAllowed, setValue])
 
   const mutation = useMutation({
     mutationFn: (payload) => {
       const pkg = packages?.find((p) => String(p.id) === String(payload.package))
       const months = pkg ? Math.round(pkg.duration_days / 30) : null
       const mid = payload.member_id ? String(payload.member_id).padStart(5, '0') : ''
-      const base = { ...payload, member_id: mid || null }
+      const base = { ...payload, member_id: mid || null, trainer: payload.trainer || null }
       const body = member
         ? base
         : { ...base, expiry_date: calcExpiryISO(payload.join_date, payload.status, months) }
@@ -194,6 +209,22 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
             ))}
           </select>
           {errors.package && <p className="text-red-500 text-xs mt-1">{errors.package.message}</p>}
+        </div>
+
+        <div>
+          <label className="label">
+            Trainer <span className="text-gray-400 text-xs">{trainerAllowed ? '(optional)' : '(select a trainer package)'}</span>
+          </label>
+          <select
+            className={`input ${!trainerAllowed ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={!trainerAllowed}
+            {...register('trainer')}
+          >
+            <option value="">{trainerAllowed ? 'Select trainer' : 'No trainer'}</option>
+            {trainers.map((t) => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
         </div>
 
         <div>

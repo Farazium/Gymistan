@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Package, CreditCard, Receipt,
-  Building2, LogOut, Dumbbell, Boxes, Settings, Fingerprint, Wallet, BarChart2
+  Building2, LogOut, Dumbbell, Boxes, Settings, Fingerprint, Wallet, BarChart2, UserCog
 } from 'lucide-react'
 import useAuthStore from '../../store/authStore'
 import ProfileModal from '../ui/ProfileModal'
@@ -11,6 +11,7 @@ import toast from 'react-hot-toast'
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/members', icon: Users, label: 'Members' },
+  { to: '/trainers', icon: UserCog, label: 'Trainers' },
   { to: '/packages', icon: Package, label: 'Packages' },
   { to: '/payments', icon: CreditCard, label: 'Payments' },
   { to: '/expenses', icon: Receipt, label: 'Expenses' },
