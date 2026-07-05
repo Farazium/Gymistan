@@ -120,11 +120,12 @@ function RestoreForm({ member, onSubmit, isPending }) {
   )
 }
 
-const fetchMembers = async (search, searchBy, status, gender) => {
+const fetchMembers = async (search, searchBy, status, gender, hasTrainer) => {
   const params = {}
   if (search) { params.search = search; params.search_by = searchBy }
   if (status) params.status = status
   if (gender) params.gender = gender
+  if (hasTrainer) params.has_trainer = hasTrainer
   const { data } = await api.get('/members/', { params })
   return data
 }
@@ -134,6 +135,7 @@ export default function Members() {
   const [searchBy, setSearchBy] = useState('name')
   const [statusFilter, setStatusFilter] = useState('')
   const [genderFilter, setGenderFilter] = useState('')
+  const [trainerFilter, setTrainerFilter] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [showDeleted, setShowDeleted] = useState(false)
   const [editMember, setEditMember] = useState(null)
@@ -149,8 +151,8 @@ export default function Members() {
   const navigate = useNavigate()
 
   const { data, isLoading } = useQuery({
-    queryKey: ['members', search, searchBy, statusFilter, genderFilter],
-    queryFn: () => fetchMembers(search, searchBy, statusFilter, genderFilter),
+    queryKey: ['members', search, searchBy, statusFilter, genderFilter, trainerFilter],
+    queryFn: () => fetchMembers(search, searchBy, statusFilter, genderFilter, trainerFilter),
   })
 
   const { data: nextIdData } = useQuery({
@@ -238,6 +240,13 @@ export default function Members() {
           <button onClick={() => { setEditMember(null); setShowModal(true) }} className="btn-primary">
             <UserPlus size={16} /> Add Member
           </button>
+          <button
+            onClick={() => setShowDeleted(true)}
+            title="Deleted Members"
+            className="p-2 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/40 transition"
+          >
+            <Trash2 size={18} />
+          </button>
         </div>
       </div>
 
@@ -273,9 +282,11 @@ export default function Members() {
           <option value="MALE">Male</option>
           <option value="FEMALE">Female</option>
         </select>
-        <button onClick={() => setShowDeleted(true)} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/40 transition text-sm font-medium">
-          <Trash2 size={15} /> Deleted
-        </button>
+        <select className="input w-auto" value={trainerFilter} onChange={(e) => setTrainerFilter(e.target.value)}>
+          <option value="">All Members</option>
+          <option value="true">With Trainer</option>
+          <option value="false">Without Trainer</option>
+        </select>
       </div>
 
       <div className="card">

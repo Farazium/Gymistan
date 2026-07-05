@@ -50,6 +50,12 @@ class MemberListCreateView(generics.ListCreateAPIView):
         elif status == 'EXPIRED':
             qs = qs.filter(expiry_date__lte=today)
 
+        has_trainer = self.request.query_params.get('has_trainer')
+        if has_trainer == 'true':
+            qs = qs.filter(trainer__isnull=False)
+        elif has_trainer == 'false':
+            qs = qs.filter(trainer__isnull=True)
+
         search = self.request.query_params.get('search', '').strip()
         search_by = self.request.query_params.get('search_by', 'name')
         if search:
