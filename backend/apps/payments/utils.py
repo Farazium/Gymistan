@@ -302,39 +302,83 @@ def _generate_welcome_slip(payment):
     return buffer
 
 
-def send_whatsapp_slip(phone, member_name, gym_name, amount, status, pdf_url=None):
-    token = settings.WHATSAPP_TOKEN
-    phone_number_id = settings.WHATSAPP_PHONE_NUMBER_ID
-
-    if not token or not phone_number_id:
-        return False
-
-    # Normalize Pakistani number to international format
-    phone = phone.replace(' ', '').replace('-', '')
+def _normalize_pk_phone(phone):
+    """Turn a locally-typed Pakistani number into WhatsApp's international format."""
+    phone = (phone or '').replace(' ', '').replace('-', '').replace('+', '')
     if phone.startswith('0'):
         phone = '92' + phone[1:]
     elif not phone.startswith('92'):
         phone = '92' + phone
+    return phone
 
-    message = (
-        f"*{gym_name}*\n\n"
-        f"Dear *{member_name}*,\n\n"
-        f"Your payment of *PKR {amount:,.0f}* has been recorded.\n"
-        f"Status: *{status}*\n\n"
-        f"Thank you for being with us! 💪"
-    )
 
-    url = f"https://graph.facebook.com/v18.0/{phone_number_id}/messages"
-    headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+def _wa_url(path):
+    return f"https://graph.facebook.com/{settings.WHATSAPP_API_VERSION}/{path}"
+
+
+def _upload_pdf_media(pdf_buffer, filename, token, phone_number_id):
+    """Upload the generated PDF to WhatsApp and return its media id (or None)."""
+    files = {'file': (filename, pdf_buffer, 'application/pdf')}
+    data = {'messaging_product': 'whatsapp', 'type': 'application/pdf'}
+    headers = {'Authorization': f'Bearer {token}'}
+    try:
+        r = requests.post(_wa_url(f'{phone_number_id}/media'),
+                          headers=headers, data=data, files=files, timeout=30)
+    except Exception as e:
+        return None, str(e)
+    if r.status_code == 200:
+        return r.json().get('id'), None
+    return None, r.text
+
+
+def send_whatsapp_slip(payment):
+    """Send the branded payment PDF to the member as a WhatsApp document, wrapped in
+    the approved `payment_receipt` template. Returns (success: bool, detail: str)."""
+    token = settings.WHATSAPP_TOKEN
+    phone_number_id = settings.WHATSAPP_PHONE_NUMBER_ID
+    if not token or not phone_number_id:
+        return False, 'WhatsApp is not configured'
+
+    member = payment.member
+    if not member or not member.phone:
+        return False, 'Member has no phone number'
+
+    phone = _normalize_pk_phone(member.phone)
+    filename = f'receipt_{payment.id:05d}.pdf'
+
+    # 1. Build the same PDF the download button produces
+    pdf_buffer = generate_payment_slip(payment)
+
+    # 2. Upload it to WhatsApp -> media id
+    media_id, err = _upload_pdf_media(pdf_buffer, filename, token, phone_number_id)
+    if not media_id:
+        return False, f'PDF upload failed: {err}'
+
+    # 3. Send the template with the PDF as the document header
     payload = {
         "messaging_product": "whatsapp",
         "to": phone,
-        "type": "text",
-        "text": {"body": message}
+        "type": "template",
+        "template": {
+            "name": settings.WHATSAPP_TEMPLATE_NAME,
+            "language": {"code": settings.WHATSAPP_TEMPLATE_LANG},
+            "components": [
+                {"type": "header", "parameters": [
+                    {"type": "document",
+                     "document": {"id": media_id, "filename": filename}}
+                ]},
+                {"type": "body", "parameters": [
+                    {"type": "text", "text": payment.gym.name}
+                ]},
+            ],
+        },
     }
-
+    headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
     try:
-        response = requests.post(url, json=payload, headers=headers, timeout=10)
-        return response.status_code == 200
-    except Exception:
-        return False
+        r = requests.post(_wa_url(f'{phone_number_id}/messages'),
+                          json=payload, headers=headers, timeout=30)
+    except Exception as e:
+        return False, str(e)
+    if r.status_code == 200:
+        return True, 'sent'
+    return False, r.text

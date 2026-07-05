@@ -71,22 +71,17 @@ class SendWhatsAppSlipView(APIView):
 
     def post(self, request, pk):
         try:
-            payment = Payment.objects.select_related('member', 'gym').get(
+            payment = Payment.objects.select_related('member', 'package', 'gym').get(
                 pk=pk, gym=request.user.gym
             )
         except Payment.DoesNotExist:
             return Response({'message': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        sent = send_whatsapp_slip(
-            phone=payment.member.phone,
-            member_name=payment.member.name,
-            gym_name=payment.gym.name,
-            amount=payment.amount_paid,
-            status=payment.status,
-        )
+        sent, detail = send_whatsapp_slip(payment)
 
         if sent:
             payment.slip_sent = True
             payment.save(update_fields=['slip_sent'])
             return Response({'message': 'Slip sent via WhatsApp'})
-        return Response({'message': 'Failed to send WhatsApp message'}, status=status.HTTP_502_BAD_GATEWAY)
+        return Response({'message': f'Failed to send WhatsApp message: {detail}'},
+                        status=status.HTTP_502_BAD_GATEWAY)
