@@ -96,6 +96,7 @@ export default function Packages() {
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/packages/${id}/`),
     onSuccess: () => { queryClient.invalidateQueries(['packages']); toast.success('Package deleted') },
+    onError: (err) => toast.error(err.response?.data?.detail || 'Failed to delete package'),
   })
 
   return (
