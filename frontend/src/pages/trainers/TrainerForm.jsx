@@ -3,11 +3,16 @@ import { useMutation } from '@tanstack/react-query'
 import api from '../../api/axios'
 import toast from 'react-hot-toast'
 
+const todayISO = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 export default function TrainerForm({ trainer, onSuccess }) {
   const { register, handleSubmit, setError, formState: { errors } } = useForm({
     defaultValues: trainer
       ? { ...trainer }
-      : { name: '', phone: '', cnic: '', join_date: '', monthly_salary: '', notes: '' },
+      : { name: '', phone: '', cnic: '', join_date: todayISO(), monthly_salary: '', notes: '' },
   })
 
   const mutation = useMutation({
@@ -45,20 +50,23 @@ export default function TrainerForm({ trainer, onSuccess }) {
             className="input"
             {...register('name', {
               required: 'Name is required',
-              pattern: { value: /^[^\d]+$/, message: 'Name cannot contain numbers' },
+              pattern: { value: /^[A-Za-z\s]+$/, message: 'Name can only contain letters' },
             })}
-            onKeyDown={(e) => { if (/\d/.test(e.key)) e.preventDefault() }}
+            onKeyDown={(e) => { if (!/[A-Za-z\s]/.test(e.key) && !['Backspace','Delete','Tab','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault() }}
           />
           {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
         </div>
 
         <div>
-          <label className="label">Phone</label>
+          <label className="label">Phone *</label>
           <input
             className="input"
             placeholder="03XX-XXXXXXX"
-            {...register('phone', { pattern: { value: /^[\d\s\-+()]*$/, message: 'Numbers only' } })}
-            onKeyDown={(e) => { if (!/[\d\s\-+()]/.test(e.key) && !['Backspace','Delete','Tab','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault() }}
+            {...register('phone', {
+              required: 'Phone is required',
+              pattern: { value: /^\d+$/, message: 'Digits only' },
+            })}
+            onKeyDown={(e) => { if (!/\d/.test(e.key) && !['Backspace','Delete','Tab','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault() }}
           />
           {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
         </div>
@@ -69,8 +77,8 @@ export default function TrainerForm({ trainer, onSuccess }) {
         </div>
 
         <div>
-          <label className="label">Joining Date <span className="text-gray-400 text-xs">(optional)</span></label>
-          <input type="date" className="input [color-scheme:dark]" {...register('join_date')} />
+          <label className="label">Joining Date</label>
+          <input type="date" max={todayISO()} className="input [color-scheme:dark]" {...register('join_date', { required: true })} />
         </div>
 
         <div>
