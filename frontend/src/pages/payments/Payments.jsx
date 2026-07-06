@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Download, MessageCircle, Search, Trash2, FileDown } from 'lucide-react'
+import { Plus, Download, MessageCircle, CheckCircle2, Search, Trash2, FileDown } from 'lucide-react'
 import { exportToExcel } from '../../utils/exportExcel'
 import api from '../../api/axios'
 import useAuthStore from '../../store/authStore'
@@ -183,9 +183,15 @@ export default function Payments() {
                           <Download size={14} />
                         </button>
                         {hasWhatsApp && (
-                          <button onClick={() => sendWhatsApp.mutate(p.id)} title="Send via WhatsApp" className="p-1.5 text-gray-400 hover:text-green-400 hover:bg-green-500/10 rounded-lg transition">
-                            <MessageCircle size={14} />
-                          </button>
+                          p.slip_sent ? (
+                            <span title="Receipt already sent" className="p-1.5 text-green-400 cursor-default">
+                              <CheckCircle2 size={14} />
+                            </span>
+                          ) : (
+                            <button onClick={() => sendWhatsApp.mutate(p.id)} title="Send via WhatsApp" className="p-1.5 text-gray-400 hover:text-green-400 hover:bg-green-500/10 rounded-lg transition">
+                              <MessageCircle size={14} />
+                            </button>
+                          )
                         )}
                         <button onClick={() => { if (confirm('Delete this payment record?')) deleteMutation.mutate(p.id) }} title="Delete" className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition">
                           <Trash2 size={14} />

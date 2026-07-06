@@ -77,6 +77,13 @@ class SendWhatsAppSlipView(APIView):
         except Payment.DoesNotExist:
             return Response({'message': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
 
+        # A receipt for a payment is sent exactly once — no resends.
+        if payment.slip_sent:
+            return Response(
+                {'message': 'Receipt already sent for this payment', 'already_sent': True},
+                status=status.HTTP_409_CONFLICT,
+            )
+
         sent, detail = send_whatsapp_slip(payment)
 
         if sent:

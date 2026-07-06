@@ -302,6 +302,69 @@ def _generate_welcome_slip(payment):
     return buffer
 
 
+def generate_member_welcome_slip(member, welcome_back=False):
+    """Welcome PDF built straight from a Member (no payment needed) — used when a
+    member is added or restored. `welcome_back=True` tweaks the wording for restores."""
+    buffer = io.BytesIO()
+    doc = _new_doc(buffer, f'Welcome {member.name}')
+    gym = member.gym
+    pkg = member.package
+
+    greet = ParagraphStyle('greet', fontSize=15, alignment=TA_CENTER, fontName='Helvetica-Bold',
+                           textColor=INK, leading=19, spaceBefore=2)
+    msg = ParagraphStyle('msg', fontSize=9.5, alignment=TA_CENTER, textColor=MUTED,
+                         leading=14, spaceBefore=2)
+
+    e = _header_elements(gym)
+    e.append(_band('', center_text='WELCOME BACK' if welcome_back else 'WELCOME TO THE FAMILY'))
+    e.append(Spacer(1, 5 * mm))
+
+    if welcome_back:
+        line1 = f'Great to have you back, {member.name}!'
+        line2 = (f"Your membership at {gym.name} is active again. "
+                 "Let's pick up right where you left off.")
+    else:
+        line1 = f'Welcome aboard, {member.name}!'
+        line2 = (f"We're thrilled to have you join {gym.name}. Your membership is now active — "
+                 "let's make every session count. Here are your details:")
+    e.append(Paragraph(line1, greet))
+    e.append(Spacer(1, 2 * mm))
+    e.append(Paragraph(line2, msg))
+    e.append(Spacer(1, 5 * mm))
+
+    e.append(_details_table([
+        ('Member ID', member.member_id or '—', 'Name', member.name),
+        ('Phone', member.phone or '—', 'Join Date', _fmt_date(member.join_date)),
+        ('Package', pkg.name if pkg else '—', 'Valid Till', _fmt_date(member.expiry_date)),
+    ]))
+    e.append(Spacer(1, 4 * mm))
+
+    # Membership-active highlight box (in place of the admission-fee box)
+    box_lbl = ParagraphStyle('bxl', fontSize=11, textColor=colors.white, fontName='Helvetica-Bold')
+    box_val = ParagraphStyle('bxv', fontSize=12, textColor=colors.white, alignment=TA_RIGHT, fontName='Helvetica-Bold')
+    box = Table([[Paragraph('MEMBERSHIP ACTIVE', box_lbl),
+                  Paragraph(f'Valid Till {_fmt_date(member.expiry_date)}', box_val)]],
+                colWidths=[CONTENT_W * 0.5, CONTENT_W * 0.5])
+    box.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), BRAND),
+        ('LEFTPADDING', (0, 0), (-1, -1), 10),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+        ('TOPPADDING', (0, 0), (-1, -1), 9),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 9),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    e.append(box)
+    e.append(Spacer(1, 6 * mm))
+
+    e += _footer_elements([
+        'Your fitness journey starts now. See you at the gym!',
+    ])
+
+    doc.build(e)
+    buffer.seek(0)
+    return buffer
+
+
 def _normalize_pk_phone(phone):
     """Turn a locally-typed Pakistani number into WhatsApp's international format."""
     phone = (phone or '').replace(' ', '').replace('-', '').replace('+', '')
@@ -382,3 +445,79 @@ def send_whatsapp_slip(payment):
     if r.status_code == 200:
         return True, 'sent'
     return False, r.text
+
+
+def _send_wa_message(payload):
+    """POST a ready-built message payload to WhatsApp. Returns (success, detail)."""
+    token = settings.WHATSAPP_TOKEN
+    phone_number_id = settings.WHATSAPP_PHONE_NUMBER_ID
+    if not token or not phone_number_id:
+        return False, 'WhatsApp is not configured'
+    headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+    try:
+        r = requests.post(_wa_url(f'{phone_number_id}/messages'),
+                          json=payload, headers=headers, timeout=30)
+    except Exception as e:
+        return False, str(e)
+    return (True, 'sent') if r.status_code == 200 else (False, r.text)
+
+
+def send_whatsapp_welcome(member, welcome_back=False):
+    """Send the branded welcome PDF to a member via the `member_welcome` template."""
+    token = settings.WHATSAPP_TOKEN
+    phone_number_id = settings.WHATSAPP_PHONE_NUMBER_ID
+    if not token or not phone_number_id:
+        return False, 'WhatsApp is not configured'
+    if not member or not member.phone:
+        return False, 'Member has no phone number'
+
+    phone = _normalize_pk_phone(member.phone)
+    filename = f'welcome_{member.member_id or member.id}.pdf'
+
+    pdf_buffer = generate_member_welcome_slip(member, welcome_back=welcome_back)
+    media_id, err = _upload_pdf_media(pdf_buffer, filename, token, phone_number_id)
+    if not media_id:
+        return False, f'PDF upload failed: {err}'
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": phone,
+        "type": "template",
+        "template": {
+            "name": settings.WHATSAPP_WELCOME_TEMPLATE_NAME,
+            "language": {"code": settings.WHATSAPP_TEMPLATE_LANG},
+            "components": [
+                {"type": "header", "parameters": [
+                    {"type": "document",
+                     "document": {"id": media_id, "filename": filename}}
+                ]},
+                {"type": "body", "parameters": [
+                    {"type": "text", "text": member.gym.name}
+                ]},
+            ],
+        },
+    }
+    return _send_wa_message(payload)
+
+
+def send_whatsapp_expiry_reminder(member):
+    """Send a text-only renewal reminder via the `expiry_reminder` template."""
+    if not member or not member.phone:
+        return False, 'Member has no phone number'
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": _normalize_pk_phone(member.phone),
+        "type": "template",
+        "template": {
+            "name": settings.WHATSAPP_REMINDER_TEMPLATE_NAME,
+            "language": {"code": settings.WHATSAPP_TEMPLATE_LANG},
+            "components": [
+                {"type": "body", "parameters": [
+                    {"type": "text", "text": member.name},
+                    {"type": "text", "text": member.gym.name},
+                    {"type": "text", "text": _fmt_date(member.expiry_date)},
+                ]},
+            ],
+        },
+    }
+    return _send_wa_message(payload)

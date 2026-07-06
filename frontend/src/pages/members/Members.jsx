@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { Plus, Search, UserPlus, FileDown, ChevronUp, ChevronDown, Trash2, RotateCcw, Pencil } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../api/axios'
+import useAuthStore from '../../store/authStore'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
 import Modal from '../../components/ui/Modal'
 import MemberForm from './MemberForm'
@@ -35,6 +36,8 @@ function calcExpiryISO(isoDate, status, pkgMonths) {
 }
 
 function RestoreForm({ member, onSubmit, isPending }) {
+  const { user } = useAuthStore()
+  const hasWhatsApp = ['TIER2_WA', 'TIER3'].includes(user?.gym_tier)
   const today = new Date()
   const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
 
@@ -67,6 +70,7 @@ function RestoreForm({ member, onSubmit, isPending }) {
       package: data.package,
       expiry_date: calcExpiryISO(data.join_date, data.status, months),
       admission_fee: data.admission_fee || null,
+      send_welcome: !!data.send_welcome,
     })
   }
 
@@ -112,6 +116,14 @@ function RestoreForm({ member, onSubmit, isPending }) {
             {...register('admission_fee')}
           />
         </div>
+        {hasWhatsApp && (
+          <div className="col-span-2">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" className="w-4 h-4 accent-green-500" {...register('send_welcome')} />
+              <span className="text-sm text-gray-300">Send welcome-back message on WhatsApp</span>
+            </label>
+          </div>
+        )}
       </div>
       <button type="submit" disabled={isPending} className="btn-primary w-full justify-center">
         {isPending ? 'Restoring...' : 'Restore Member'}

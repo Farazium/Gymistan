@@ -8,7 +8,28 @@ from .models import Member
 from .serializers import MemberSerializer, MemberListSerializer
 from apps.accounts.permissions import IsGymMember
 from apps.payments.models import Payment
+from apps.payments.utils import send_whatsapp_welcome
 import datetime
+
+# Tiers that include WhatsApp messaging.
+WA_TIERS = ('TIER2_WA', 'TIER3')
+
+
+def _truthy(v):
+    return str(v).lower() in ('1', 'true', 'yes', 'on')
+
+
+def _maybe_send_welcome(request, member, welcome_back=False):
+    """Fire a WhatsApp welcome if the caller asked for it and the gym tier allows it.
+    Best-effort: never blocks the add/restore response on a messaging failure."""
+    if not _truthy(request.data.get('send_welcome')):
+        return
+    if member.gym.tier not in WA_TIERS:
+        return
+    try:
+        send_whatsapp_welcome(member, welcome_back=welcome_back)
+    except Exception:
+        pass
 
 
 class MemberNextIdView(APIView):
@@ -94,6 +115,7 @@ class MemberListCreateView(generics.ListCreateAPIView):
                     )
             except (ValueError, TypeError):
                 pass
+        _maybe_send_welcome(self.request, member, welcome_back=False)
 
 
 class MemberDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -153,6 +175,7 @@ class RestoreMemberView(APIView):
                     )
             except (ValueError, TypeError):
                 pass
+        _maybe_send_welcome(request, member, welcome_back=True)
         return Response({'detail': 'Member restored'})
 
 

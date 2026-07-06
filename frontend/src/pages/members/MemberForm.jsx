@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import api from '../../api/axios'
+import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
 
 function calcExpiryISO(isoDate, status, pkgMonths) {
@@ -39,6 +40,8 @@ function calcExpiryDisplay(isoDate, status, pkgMonths) {
 }
 
 export default function MemberForm({ member, onSuccess, defaultMemberId }) {
+  const { user } = useAuthStore()
+  const hasWhatsApp = ['TIER2_WA', 'TIER3'].includes(user?.gym_tier)
   const { register, handleSubmit, watch, setError, setValue, formState: { errors } } = useForm({
     defaultValues: member ? { ...member } : { member_id: defaultMemberId || '', status: 'EXPIRED' },
   })
@@ -260,6 +263,15 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
           <div>
             <label className="label">Admission Fee (PKR) <span className="text-gray-400 text-xs">(optional)</span></label>
             <input className="input [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" type="number" placeholder="0" onWheel={e => e.target.blur()} {...register('admission_fee')} />
+          </div>
+        )}
+
+        {!member && hasWhatsApp && (
+          <div className="col-span-2">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" className="w-4 h-4 accent-green-500" {...register('send_welcome')} />
+              <span className="text-sm text-gray-300">Send welcome message on WhatsApp</span>
+            </label>
           </div>
         )}
 

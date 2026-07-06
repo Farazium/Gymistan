@@ -27,6 +27,9 @@ class Member(models.Model):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
     notes = models.TextField(blank=True)
     is_deleted = models.BooleanField(default=False)
+    # Expiry-date value we last sent a WhatsApp renewal reminder for, so a member is
+    # reminded only once per membership cycle (reset naturally when expiry changes).
+    reminder_sent_for = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
