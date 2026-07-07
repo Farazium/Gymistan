@@ -10,7 +10,7 @@ import { apiErrorMessage } from '../../utils/apiError'
 
 const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 
-const CATEGORIES = ['RENT', 'UTILITIES', 'BILLS', 'SALARIES', 'EQUIPMENT', 'MAINTENANCE', 'MARKETING', 'OTHER']
+const CATEGORIES = ['RENT', 'UTILITIES', 'BILLS', 'SALARIES', 'EQUIPMENT', 'MAINTENANCE', 'MARKETING', 'INVENTORY', 'OTHER']
 
 const categoryColors = {
   RENT: 'bg-gray-700 text-blue-400',
@@ -20,6 +20,7 @@ const categoryColors = {
   EQUIPMENT: 'bg-gray-700 text-purple-400',
   MAINTENANCE: 'bg-gray-700 text-orange-400',
   MARKETING: 'bg-gray-700 text-pink-400',
+  INVENTORY: 'bg-gray-700 text-emerald-400',
   OTHER: 'bg-gray-700 text-gray-300',
 }
 

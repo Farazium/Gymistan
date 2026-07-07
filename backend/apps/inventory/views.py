@@ -3,9 +3,30 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
+from decimal import Decimal, InvalidOperation
+import datetime
 from .models import Product, StockLog
 from .serializers import ProductSerializer, StockLogSerializer
 from apps.accounts.permissions import IsGymMember
+from apps.expenses.models import Expense
+
+
+def _record_stock_expense(product, qty, user, kind):
+    """Record the purchase cost of incoming stock as an INVENTORY expense.
+    No-op when there's nothing to cost (cost price or quantity is zero)."""
+    cost = product.cost_price or Decimal('0')
+    if cost <= 0 or qty <= 0:
+        return
+    total = cost * qty
+    Expense.objects.create(
+        gym=product.gym,
+        added_by=user,
+        title=f'Stock purchase — {product.name}',
+        amount=total,
+        category='INVENTORY',
+        date=datetime.date.today(),
+        description=f'{kind}: {qty} × PKR {cost:,.0f}',
+    )
 
 
 class ProductListCreateView(generics.ListCreateAPIView):
@@ -19,7 +40,9 @@ class ProductListCreateView(generics.ListCreateAPIView):
         return Product.objects.filter(gym=self.request.user.gym)
 
     def perform_create(self, serializer):
-        serializer.save(gym=self.request.user.gym)
+        product = serializer.save(gym=self.request.user.gym)
+        # Initial stock bought in is a purchase cost — book it as an expense.
+        _record_stock_expense(product, product.quantity, self.request.user, 'Initial stock')
 
 
 class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -58,6 +81,7 @@ class StockAdjustView(APIView):
             product.quantity -= qty
         elif action == 'RESTOCK':
             product.quantity += qty
+            _record_stock_expense(product, qty, request.user, 'Restock')
         elif action == 'ADJUSTMENT':
             product.quantity = qty
         else:

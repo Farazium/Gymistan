@@ -74,7 +74,9 @@ function ProductForm({ product, onSuccess }) {
 }
 
 function StockModal({ product, action, onSuccess }) {
-  const { register, handleSubmit, formState: { isSubmitting, errors } } = useForm({ defaultValues: { quantity: 1 } })
+  const { register, handleSubmit, watch, formState: { isSubmitting, errors } } = useForm({ defaultValues: { quantity: 1 } })
+  const cost = Number(product.cost_price) || 0
+  const restockCost = action === 'RESTOCK' && cost > 0 ? cost * (Number(watch('quantity')) || 0) : 0
 
   const mutation = useMutation({
     mutationFn: (data) => api.post(`/inventory/${product.id}/adjust/`, { ...data, action }),
@@ -93,6 +95,8 @@ function StockModal({ product, action, onSuccess }) {
         <input className="input" type="number" min={action === 'ADJUSTMENT' ? '0' : '1'} onKeyDown={noNeg} {...register('quantity', { required: 'Quantity is required', min: { value: action === 'ADJUSTMENT' ? 0 : 1, message: action === 'ADJUSTMENT' ? 'Cannot be negative' : 'Must be at least 1' } })} />
         {errors.quantity && <p className="text-red-500 text-xs mt-1">{errors.quantity.message}</p>}
         {action === 'SELL' && Number(product.quantity) === 0 && <p className="text-yellow-400 text-xs mt-1">This product is out of stock</p>}
+        {restockCost > 0 && <p className="text-emerald-400 text-xs mt-1">An expense of PKR {restockCost.toLocaleString()} will be recorded (cost {cost.toLocaleString()} × qty)</p>}
+        {action === 'RESTOCK' && cost === 0 && <p className="text-gray-500 text-xs mt-1">No cost price set — no expense will be recorded</p>}
       </div>
       <div>
         <label className="label">Note <span className="text-gray-400 text-xs">(optional)</span></label>

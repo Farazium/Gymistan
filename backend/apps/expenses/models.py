@@ -11,6 +11,7 @@ class Expense(models.Model):
         EQUIPMENT = 'EQUIPMENT', 'Equipment'
         MAINTENANCE = 'MAINTENANCE', 'Maintenance'
         MARKETING = 'MARKETING', 'Marketing'
+        INVENTORY = 'INVENTORY', 'Inventory'
         OTHER = 'OTHER', 'Other'
 
     gym = models.ForeignKey(Gym, on_delete=models.CASCADE, related_name='expenses')
