@@ -98,7 +98,7 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
       if (!data) { toast.error('Network error — please try again'); return }
 
       // Map DRF field errors → react-hook-form field errors
-      const fieldMap = { member_id: 'member_id', name: 'name', phone: 'phone', package: 'package', join_date: 'join_date' }
+      const fieldMap = { member_id: 'member_id', name: 'name', phone: 'phone', package: 'package', join_date: 'join_date', trainer: 'trainer', device_user_id: 'device_user_id', gender: 'gender' }
       let handled = false
       Object.entries(fieldMap).forEach(([field, rhfField]) => {
         if (data[field]) {
@@ -263,7 +263,8 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
         {!member && (
           <div>
             <label className="label">Admission Fee (PKR) <span className="text-gray-400 text-xs">(optional)</span></label>
-            <input className="input [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" type="number" placeholder="0" onWheel={e => e.target.blur()} {...register('admission_fee')} />
+            <input className="input [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" type="number" min="0" placeholder="0" onWheel={e => e.target.blur()} onKeyDown={e => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault() }} {...register('admission_fee', { min: { value: 0, message: 'Fee cannot be negative' } })} />
+            {errors.admission_fee && <p className="text-red-500 text-xs mt-1">{errors.admission_fee.message}</p>}
           </div>
         )}
 

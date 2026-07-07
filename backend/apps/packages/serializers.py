@@ -12,3 +12,13 @@ class PackageSerializer(serializers.ModelSerializer):
 
     def get_member_count(self, obj):
         return obj.members.count()
+
+    def validate_price(self, value):
+        if value is None or value <= 0:
+            raise serializers.ValidationError('Price must be greater than 0')
+        return value
+
+    def validate_duration_days(self, value):
+        if value is None or value <= 0:
+            raise serializers.ValidationError('Duration must be at least 1 month')
+        return value

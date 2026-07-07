@@ -10,6 +10,7 @@ import Modal from '../../components/ui/Modal'
 import MemberForm from './MemberForm'
 import toast from 'react-hot-toast'
 import { exportToExcel } from '../../utils/exportExcel'
+import { apiErrorMessage } from '../../utils/apiError'
 
 function calcExpiryISO(isoDate, status, pkgMonths) {
   if (!isoDate || isoDate.length < 10) return ''
@@ -187,6 +188,7 @@ export default function Members() {
       queryClient.invalidateQueries(['members-deleted'])
       toast.success('Member removed')
     },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Failed to remove member')),
   })
 
   const [deletedSearch, setDeletedSearch] = useState('')
@@ -202,6 +204,7 @@ export default function Members() {
       setRestoreMember(null)
       toast.success('Member restored')
     },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Failed to restore member')),
   })
 
   const hardDeleteMutation = useMutation({
@@ -210,6 +213,7 @@ export default function Members() {
       queryClient.invalidateQueries(['members-deleted'])
       toast.success('Member permanently deleted')
     },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Failed to delete member')),
   })
 
   const rawMembers = data?.results || data || []

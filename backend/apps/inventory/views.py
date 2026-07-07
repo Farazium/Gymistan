@@ -40,10 +40,16 @@ class StockAdjustView(APIView):
             return Response({'detail': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
 
         action = request.data.get('action')
-        qty = int(request.data.get('quantity', 0))
+        try:
+            qty = int(request.data.get('quantity', 0))
+        except (ValueError, TypeError):
+            return Response({'detail': 'Quantity must be a whole number'}, status=status.HTTP_400_BAD_REQUEST)
         note = request.data.get('note', '')
 
-        if qty <= 0:
+        # ADJUSTMENT may set stock to 0 (clearing it); SELL/RESTOCK need a positive amount.
+        if qty < 0:
+            return Response({'detail': 'Quantity cannot be negative'}, status=status.HTTP_400_BAD_REQUEST)
+        if qty == 0 and action != 'ADJUSTMENT':
             return Response({'detail': 'Quantity must be greater than 0'}, status=status.HTTP_400_BAD_REQUEST)
 
         if action == 'SELL':

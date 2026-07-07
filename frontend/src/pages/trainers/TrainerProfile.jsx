@@ -222,7 +222,13 @@ export default function TrainerProfile() {
                 }
               </button>
               <input ref={photoRef} type="file" accept="image/*" className="hidden"
-                onChange={(e) => e.target.files[0] && photoMutation.mutate(e.target.files[0])} />
+                onChange={(e) => {
+                  const file = e.target.files[0]
+                  if (!file) return
+                  if (!file.type.startsWith('image/')) { toast.error('Please choose an image file'); e.target.value = ''; return }
+                  if (file.size > 2 * 1024 * 1024) { toast.error('Image must be under 2 MB'); e.target.value = ''; return }
+                  photoMutation.mutate(file)
+                }} />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-blue-400">{t.name}</h1>

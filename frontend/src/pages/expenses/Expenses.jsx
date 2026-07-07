@@ -6,6 +6,9 @@ import { useForm } from 'react-hook-form'
 import api from '../../api/axios'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
+import { apiErrorMessage } from '../../utils/apiError'
+
+const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 
 const CATEGORIES = ['RENT', 'UTILITIES', 'BILLS', 'SALARIES', 'EQUIPMENT', 'MAINTENANCE', 'MARKETING', 'OTHER']
 
@@ -23,24 +26,33 @@ const categoryColors = {
 const fmt = (n) => `PKR ${Number(n).toLocaleString('en-PK')}`
 
 function ExpenseForm({ onSuccess }) {
-  const { register, handleSubmit, formState: { isSubmitting } } = useForm({
-    defaultValues: { date: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })(), category: 'OTHER' }
+  const { register, handleSubmit, formState: { isSubmitting, errors } } = useForm({
+    defaultValues: { date: todayISO(), category: 'OTHER' }
   })
   const mutation = useMutation({
     mutationFn: (data) => api.post('/expenses/', data),
     onSuccess: () => { toast.success('Expense added'); onSuccess() },
-    onError: (err) => toast.error(err.response?.data?.detail || 'Error'),
+    onError: (err) => toast.error(apiErrorMessage(err, 'Failed to add expense')),
   })
   return (
     <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
       <div>
         <label className="label">Title *</label>
-        <input className="input" placeholder="e.g. Monthly Rent" {...register('title', { required: true })} />
+        <input className="input" placeholder="e.g. Monthly Rent" {...register('title', { required: 'Title is required' })} />
+        {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>}
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="label">Amount (PKR) *</label>
-          <input className="input" type="number" onWheel={e => e.target.blur()} {...register('amount', { required: true })} />
+          <input
+            className="input"
+            type="number"
+            min="1"
+            onWheel={e => e.target.blur()}
+            onKeyDown={e => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault() }}
+            {...register('amount', { required: 'Amount is required', min: { value: 1, message: 'Amount must be greater than 0' } })}
+          />
+          {errors.amount && <p className="text-red-500 text-xs mt-1">{errors.amount.message}</p>}
         </div>
         <div>
           <label className="label">Category</label>
@@ -51,7 +63,16 @@ function ExpenseForm({ onSuccess }) {
       </div>
       <div>
         <label className="label">Date *</label>
-        <input className="input [color-scheme:dark]" type="date" {...register('date', { required: true })} />
+        <input
+          className="input [color-scheme:dark]"
+          type="date"
+          max={todayISO()}
+          {...register('date', {
+            required: 'Date is required',
+            validate: v => !v || v <= todayISO() || 'Date cannot be in the future',
+          })}
+        />
+        {errors.date && <p className="text-red-500 text-xs mt-1">{errors.date.message}</p>}
       </div>
       <div>
         <label className="label">Description</label>
@@ -91,6 +112,7 @@ export default function Expenses() {
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/expenses/${id}/`),
     onSuccess: () => { queryClient.invalidateQueries(['expenses']); toast.success('Expense deleted') },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Failed to delete expense')),
   })
 
   // Sort newest first, then group by month

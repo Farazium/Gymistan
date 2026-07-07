@@ -7,6 +7,9 @@ import api from '../../api/axios'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
+import { apiErrorMessage } from '../../utils/apiError'
+
+const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 
 function GymForm({ onSuccess }) {
   const { register, handleSubmit, formState: { errors } } = useForm()
@@ -18,11 +21,7 @@ function GymForm({ onSuccess }) {
       return api.post('/gyms/', data)
     },
     onSuccess: () => { toast.success('Gym created with admin account'); onSuccess() },
-    onError: (err) => {
-      const d = err.response?.data || {}
-      const msg = d.admin_email?.[0] || d.trial_days?.[0] || d.name?.[0] || d.detail || Object.values(d)[0]?.[0] || 'Failed to create gym'
-      toast.error(msg)
-    },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Failed to create gym')),
   })
   return (
     <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
@@ -45,18 +44,21 @@ function GymForm({ onSuccess }) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="label">Trial Days</label>
-          <input className="input" type="number" placeholder="30" {...register('trial_days')} />
+          <input className="input" type="number" min="0" placeholder="30" onKeyDown={e => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault() }} {...register('trial_days', { min: { value: 0, message: 'Cannot be negative' } })} />
           <p className="text-xs text-gray-500 mt-1">Expiry = today + trial days</p>
+          {errors.trial_days && <p className="text-red-500 text-xs mt-1">{errors.trial_days.message}</p>}
         </div>
         <div>
           <label className="label">Or set expiry date directly</label>
-          <input className="input [color-scheme:dark]" type="date" {...register('expiry_date')} />
+          <input className="input [color-scheme:dark]" type="date" min={todayISO()} {...register('expiry_date', { validate: v => !v || v >= todayISO() || 'Expiry cannot be in the past' })} />
+          {errors.expiry_date && <p className="text-red-500 text-xs mt-1">{errors.expiry_date.message}</p>}
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="label">Subscription Amount (PKR)</label>
-          <input className="input" type="text" inputMode="numeric" placeholder="e.g. 5000" {...register('subscription_amount')} />
+          <input className="input" type="text" inputMode="numeric" placeholder="e.g. 5000" {...register('subscription_amount', { pattern: { value: /^\d*\.?\d*$/, message: 'Numbers only' } })} />
+          {errors.subscription_amount && <p className="text-red-500 text-xs mt-1">{errors.subscription_amount.message}</p>}
         </div>
         <div>
           <label className="label">Tier</label>
@@ -73,15 +75,18 @@ function GymForm({ onSuccess }) {
         <div className="space-y-3">
           <div>
             <label className="label">Admin Name *</label>
-            <input className="input" {...register('admin_name', { required: true })} />
+            <input className="input" {...register('admin_name', { required: 'Admin name is required' })} />
+            {errors.admin_name && <p className="text-red-500 text-xs mt-1">{errors.admin_name.message}</p>}
           </div>
           <div>
             <label className="label">Admin Email *</label>
-            <input className="input" type="email" {...register('admin_email', { required: true })} />
+            <input className="input" type="email" {...register('admin_email', { required: 'Admin email is required', pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter a valid email' } })} />
+            {errors.admin_email && <p className="text-red-500 text-xs mt-1">{errors.admin_email.message}</p>}
           </div>
           <div>
             <label className="label">Admin Password *</label>
-            <input className="input" type="password" {...register('admin_password', { required: true, minLength: 6 })} />
+            <input className="input" type="password" {...register('admin_password', { required: 'Password is required', minLength: { value: 6, message: 'Password must be at least 6 characters' } })} />
+            {errors.admin_password && <p className="text-red-500 text-xs mt-1">{errors.admin_password.message}</p>}
           </div>
         </div>
       </div>
@@ -105,6 +110,7 @@ export default function Gyms() {
   const toggleMutation = useMutation({
     mutationFn: (id) => api.post(`/gyms/${id}/toggle/`),
     onSuccess: () => { queryClient.invalidateQueries(['gyms']); toast.success('Status updated') },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Failed to update status')),
   })
 
   return (

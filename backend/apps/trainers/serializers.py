@@ -68,6 +68,11 @@ class TrainerSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at']
 
+    def validate_monthly_salary(self, value):
+        if value is not None and value < 0:
+            raise serializers.ValidationError('Salary cannot be negative')
+        return value
+
     def get_members_count(self, obj):
         return obj.members.filter(is_deleted=False).count()
 

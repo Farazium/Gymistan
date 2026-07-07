@@ -60,7 +60,10 @@ export default function ProfileModal({ onClose }) {
 
   const handleLogoChange = (e) => {
     const file = e.target.files[0]
-    if (file) gymMutation.mutate({ gymName: undefined, logo: file })
+    if (!file) return
+    if (!file.type.startsWith('image/')) { toast.error('Please choose an image file'); e.target.value = ''; return }
+    if (file.size > 2 * 1024 * 1024) { toast.error('Image must be under 2 MB'); e.target.value = ''; return }
+    gymMutation.mutate({ gymName: undefined, logo: file })
   }
 
   return (
