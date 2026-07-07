@@ -17,6 +17,7 @@ import MemberProfile from './pages/members/MemberProfile'
 import Finance from './pages/finance/Finance'
 import Trainers from './pages/trainers/Trainers'
 import TrainerProfile from './pages/trainers/TrainerProfile'
+import Attendance from './pages/attendance/Attendance'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30000 } },
@@ -38,6 +39,7 @@ export default function App() {
             <Route path="/members/:id" element={<MemberProfile />} />
             <Route path="/trainers" element={<Trainers />} />
             <Route path="/trainers/:id" element={<TrainerProfile />} />
+            <Route path="/attendance" element={<Attendance />} />
             <Route path="/finance" element={<Finance />} />
             <Route path="/admin/gyms" element={<Gyms />} />
             <Route path="/admin/gyms/:id" element={<GymProfile />} />

@@ -64,7 +64,7 @@ class TrainerSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'phone', 'cnic', 'join_date', 'monthly_salary',
             'photo', 'is_active', 'notes', 'members_count', 'salary_status',
-            'created_at',
+            'device_user_id', 'created_at',
         ]
         read_only_fields = ['id', 'created_at']
 

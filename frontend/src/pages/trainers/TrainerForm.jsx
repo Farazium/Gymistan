@@ -1,6 +1,7 @@
 import { useForm } from 'react-hook-form'
 import { useMutation } from '@tanstack/react-query'
 import api from '../../api/axios'
+import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
 
 const todayISO = () => {
@@ -9,6 +10,8 @@ const todayISO = () => {
 }
 
 export default function TrainerForm({ trainer, onSuccess }) {
+  const { user } = useAuthStore()
+  const hasAttendance = ['TIER2_AT', 'TIER3'].includes(user?.gym_tier)
   const { register, handleSubmit, setError, formState: { errors } } = useForm({
     defaultValues: trainer
       ? { ...trainer }
@@ -91,6 +94,13 @@ export default function TrainerForm({ trainer, onSuccess }) {
             {...register('monthly_salary')}
           />
         </div>
+
+        {hasAttendance && (
+          <div>
+            <label className="label">Device ID <span className="text-gray-400 text-xs">(biometric)</span></label>
+            <input className="input" placeholder="ZKTeco user id" {...register('device_user_id')} />
+          </div>
+        )}
 
         <div className="col-span-2">
           <label className="label">Notes <span className="text-gray-400 text-xs">(optional)</span></label>

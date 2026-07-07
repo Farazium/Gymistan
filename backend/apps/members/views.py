@@ -98,6 +98,8 @@ class MemberListCreateView(generics.ListCreateAPIView):
             err = str(e).lower()
             if 'phone' in err:
                 raise serializers.ValidationError({'phone': 'A member with this phone number already exists'})
+            if 'device' in err:
+                raise serializers.ValidationError({'device_user_id': 'This Device ID is already mapped to another member'})
             raise serializers.ValidationError({'member_id': 'This Member ID is already occupied'})
         admission_fee = self.request.data.get('admission_fee')
         if admission_fee:

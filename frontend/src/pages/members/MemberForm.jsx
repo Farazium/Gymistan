@@ -42,6 +42,7 @@ function calcExpiryDisplay(isoDate, status, pkgMonths) {
 export default function MemberForm({ member, onSuccess, defaultMemberId }) {
   const { user } = useAuthStore()
   const hasWhatsApp = ['TIER2_WA', 'TIER3'].includes(user?.gym_tier)
+  const hasAttendance = ['TIER2_AT', 'TIER3'].includes(user?.gym_tier)
   const { register, handleSubmit, watch, setError, setValue, formState: { errors } } = useForm({
     defaultValues: member ? { ...member } : { member_id: defaultMemberId || '', status: 'EXPIRED' },
   })
@@ -263,6 +264,13 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
           <div>
             <label className="label">Admission Fee (PKR) <span className="text-gray-400 text-xs">(optional)</span></label>
             <input className="input [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" type="number" placeholder="0" onWheel={e => e.target.blur()} {...register('admission_fee')} />
+          </div>
+        )}
+
+        {hasAttendance && (
+          <div>
+            <label className="label">Device ID <span className="text-gray-400 text-xs">(biometric)</span></label>
+            <input className="input" placeholder="ZKTeco user id" {...register('device_user_id')} />
           </div>
         )}
 

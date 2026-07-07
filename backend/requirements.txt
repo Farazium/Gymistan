@@ -8,3 +8,4 @@ Pillow==11.1.0
 reportlab==4.2.5
 requests==2.32.3
 django-filter==24.3
+pyzk==0.9  # ZKTeco biometric device integration (attendance)

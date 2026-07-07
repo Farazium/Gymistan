@@ -11,6 +11,8 @@ class Trainer(models.Model):
     monthly_salary = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     photo = models.ImageField(upload_to='trainer_photos/', null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    # Maps this trainer to their user id on the ZKTeco biometric device.
+    device_user_id = models.CharField(max_length=32, blank=True)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -18,6 +20,11 @@ class Trainer(models.Model):
     class Meta:
         db_table = 'trainers'
         ordering = ['name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['gym', 'device_user_id'], name='uniq_trainer_device_id',
+                condition=~models.Q(device_user_id='')),
+        ]
 
     def __str__(self):
         return f'{self.name} - {self.gym.name}'

@@ -131,7 +131,7 @@ export default function MemberProfile() {
         </div>
 
         {/* Attendance calendar */}
-        {hasAttendance && <AttendanceCalendar />}
+        {hasAttendance && <AttendanceCalendar type="member" personId={member.id} />}
       </div>
 
       {/* Payment history */}

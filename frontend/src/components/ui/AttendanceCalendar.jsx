@@ -1,27 +1,40 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import api from '../../api/axios'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
-// Placeholder attendance until a real attendance feature exists. Deterministic
-// (seeded by the date) so the pattern stays stable across re-renders — no flicker.
-function isPresent(year, month, day) {
+const iso = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+
+// Fallback placeholder (used only when no person is supplied) — deterministic.
+function placeholderPresent(year, month, day) {
   const seed = Math.sin((year * 12 + month) * 31 + day) * 10000
   return (seed - Math.floor(seed)) > 0.3
 }
 
-export default function AttendanceCalendar({ title = 'Attendance' }) {
+export default function AttendanceCalendar({ title = 'Attendance', type, personId }) {
   const [current, setCurrent] = useState(new Date())
-
   const year = current.getFullYear()
   const month = current.getMonth()
   const firstDay = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
 
+  const live = !!personId
+  const { data } = useQuery({
+    queryKey: ['attendance-cal', type, personId, year, month],
+    enabled: live,
+    queryFn: async () => {
+      const { data } = await api.get('/attendance/', {
+        params: { type: type || 'member', id: personId, scope: 'monthly', date: iso(year, month, 1) },
+      })
+      return data.rows?.[0]?.days || {}
+    },
+  })
+
   const prev = () => setCurrent(new Date(year, month - 1, 1))
   const next = () => setCurrent(new Date(year, month + 1, 1))
-
   const today = new Date()
   const isCurrentMonth = year === today.getFullYear() && month === today.getMonth()
 
@@ -29,9 +42,11 @@ export default function AttendanceCalendar({ title = 'Attendance' }) {
   for (let i = 0; i < firstDay; i++) cells.push(null)
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
 
-  const isPast = (d) => {
+  const statusFor = (d) => {
     const date = new Date(year, month, d)
-    return date < today
+    if (date > today) return 'upcoming'
+    if (live) return (data?.[iso(year, month, d)] || {}).status || 'absent'
+    return placeholderPresent(year, month, d) ? 'present' : 'absent'
   }
 
   return (
@@ -58,14 +73,14 @@ export default function AttendanceCalendar({ title = 'Attendance' }) {
       <div className="grid grid-cols-7 gap-1">
         {cells.map((d, i) => {
           if (!d) return <div key={`e-${i}`} />
-          const past = isPast(d)
+          const st = statusFor(d)
           const isToday = isCurrentMonth && d === today.getDate()
           return (
             <div key={d} className="flex items-center justify-center aspect-square">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium
                 ${isToday ? 'ring-2 ring-primary-400' : ''}
-                ${!past ? 'text-gray-500' :
-                  isPresent(year, month, d)
+                ${st === 'upcoming' ? 'text-gray-500' :
+                  st === 'present'
                     ? 'bg-green-500/20 text-green-400 ring-1 ring-green-500/50'
                     : 'bg-red-500/20 text-red-400 ring-1 ring-red-500/50'
                 }
