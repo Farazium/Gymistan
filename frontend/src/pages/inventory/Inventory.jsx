@@ -6,11 +6,14 @@ import { exportToExcel } from '../../utils/exportExcel'
 import api from '../../api/axios'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
+import { apiErrorMessage } from '../../utils/apiError'
+
+const noNeg = e => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault() }
 
 const CATEGORIES = ['PROTEIN', 'SUPPLEMENTS', 'SNACKS', 'DRINKS', 'EQUIPMENT', 'OTHER']
 
 function ProductForm({ product, onSuccess }) {
-  const { register, handleSubmit, formState: { isSubmitting } } = useForm({
+  const { register, handleSubmit, formState: { isSubmitting, errors } } = useForm({
     defaultValues: product || { low_stock_alert: 5, quantity: 0 },
   })
 
@@ -19,14 +22,15 @@ function ProductForm({ product, onSuccess }) {
       ? api.patch(`/inventory/${product.id}/`, data)
       : api.post('/inventory/', data),
     onSuccess: () => { toast.success(product ? 'Product updated' : 'Product added'); onSuccess() },
-    onError: (err) => toast.error(err.response?.data?.detail || 'Error'),
+    onError: (err) => toast.error(apiErrorMessage(err, 'Failed to save product')),
   })
 
   return (
     <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
       <div>
         <label className="label">Product Name *</label>
-        <input className="input" placeholder="e.g. Whey Protein 1kg" {...register('name', { required: true })} />
+        <input className="input" placeholder="e.g. Whey Protein 1kg" {...register('name', { required: 'Product name is required' })} />
+        {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -37,22 +41,26 @@ function ProductForm({ product, onSuccess }) {
         </div>
         <div>
           <label className="label">Initial Quantity</label>
-          <input className="input" type="number" min="0" onWheel={e => e.target.blur()} {...register('quantity')} />
+          <input className="input" type="number" min="0" onWheel={e => e.target.blur()} onKeyDown={noNeg} {...register('quantity', { min: { value: 0, message: 'Cannot be negative' } })} />
+          {errors.quantity && <p className="text-red-500 text-xs mt-1">{errors.quantity.message}</p>}
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="label">Sell Price (PKR) *</label>
-          <input className="input" type="number" placeholder="0" onWheel={e => e.target.blur()} {...register('sell_price', { required: true })} />
+          <input className="input" type="number" min="0" placeholder="0" onWheel={e => e.target.blur()} onKeyDown={noNeg} {...register('sell_price', { required: 'Sell price is required', min: { value: 0, message: 'Cannot be negative' } })} />
+          {errors.sell_price && <p className="text-red-500 text-xs mt-1">{errors.sell_price.message}</p>}
         </div>
         <div>
           <label className="label">Cost Price (PKR)</label>
-          <input className="input" type="number" placeholder="0" onWheel={e => e.target.blur()} {...register('cost_price')} />
+          <input className="input" type="number" min="0" placeholder="0" onWheel={e => e.target.blur()} onKeyDown={noNeg} {...register('cost_price', { min: { value: 0, message: 'Cannot be negative' } })} />
+          {errors.cost_price && <p className="text-red-500 text-xs mt-1">{errors.cost_price.message}</p>}
         </div>
       </div>
       <div>
         <label className="label">Low Stock Alert <span className="text-gray-400 text-xs">(warn when quantity falls below)</span></label>
-        <input className="input" type="number" min="0" onWheel={e => e.target.blur()} {...register('low_stock_alert')} />
+        <input className="input" type="number" min="0" onWheel={e => e.target.blur()} onKeyDown={noNeg} {...register('low_stock_alert', { min: { value: 0, message: 'Cannot be negative' } })} />
+        {errors.low_stock_alert && <p className="text-red-500 text-xs mt-1">{errors.low_stock_alert.message}</p>}
       </div>
       <div>
         <label className="label">Description <span className="text-gray-400 text-xs">(optional)</span></label>
@@ -66,12 +74,12 @@ function ProductForm({ product, onSuccess }) {
 }
 
 function StockModal({ product, action, onSuccess }) {
-  const { register, handleSubmit, formState: { isSubmitting } } = useForm({ defaultValues: { quantity: 1 } })
+  const { register, handleSubmit, formState: { isSubmitting, errors } } = useForm({ defaultValues: { quantity: 1 } })
 
   const mutation = useMutation({
     mutationFn: (data) => api.post(`/inventory/${product.id}/adjust/`, { ...data, action }),
     onSuccess: () => { toast.success(action === 'SELL' ? 'Sale recorded' : 'Stock updated'); onSuccess() },
-    onError: (err) => toast.error(err.response?.data?.detail || 'Error'),
+    onError: (err) => toast.error(apiErrorMessage(err, 'Failed to update stock')),
   })
 
   const labels = { SELL: 'Sell', RESTOCK: 'Restock', ADJUSTMENT: 'Set Quantity' }
@@ -82,7 +90,9 @@ function StockModal({ product, action, onSuccess }) {
       <p className="text-gray-300 text-sm">Current Stock: <span className="text-white font-medium">{product.quantity}</span></p>
       <div>
         <label className="label">{action === 'ADJUSTMENT' ? 'New Quantity' : 'Quantity'} *</label>
-        <input className="input" type="number" min="1" {...register('quantity', { required: true, min: 1 })} />
+        <input className="input" type="number" min={action === 'ADJUSTMENT' ? '0' : '1'} onKeyDown={noNeg} {...register('quantity', { required: 'Quantity is required', min: { value: action === 'ADJUSTMENT' ? 0 : 1, message: action === 'ADJUSTMENT' ? 'Cannot be negative' : 'Must be at least 1' } })} />
+        {errors.quantity && <p className="text-red-500 text-xs mt-1">{errors.quantity.message}</p>}
+        {action === 'SELL' && Number(product.quantity) === 0 && <p className="text-yellow-400 text-xs mt-1">This product is out of stock</p>}
       </div>
       <div>
         <label className="label">Note <span className="text-gray-400 text-xs">(optional)</span></label>
@@ -114,6 +124,7 @@ export default function Inventory() {
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/inventory/${id}/`),
     onSuccess: () => { queryClient.invalidateQueries(['inventory']); toast.success('Product deleted') },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Failed to delete product')),
   })
 
   const products = data || []

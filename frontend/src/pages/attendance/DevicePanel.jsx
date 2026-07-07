@@ -33,6 +33,20 @@ export default function DevicePanel() {
     onError: () => toast.error('Could not save settings'),
   })
 
+  const handleSave = () => {
+    const ip = (form.ip || '').trim()
+    if (ip) {
+      const valid = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.test(ip) &&
+        ip.split('.').every((n) => Number(n) <= 255)
+      if (!valid) { toast.error('Enter a valid IP address (e.g. 192.168.1.201)'); return }
+    }
+    const port = Number(form.port)
+    if (form.port !== '' && form.port != null && (!Number.isInteger(port) || port < 1 || port > 65535)) {
+      toast.error('Port must be between 1 and 65535'); return
+    }
+    save.mutate(form)
+  }
+
   const sync = useMutation({
     mutationFn: () => api.post('/attendance/device/sync/'),
     onSuccess: (r) => { toast.success(r.data.message || 'Synced'); qc.invalidateQueries({ queryKey: ['device-config'] }); qc.invalidateQueries({ queryKey: ['attendance'] }) },
@@ -66,7 +80,7 @@ export default function DevicePanel() {
             <input className="input" type="number" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
           </div>
         </div>
-        <button onClick={() => save.mutate(form)} disabled={save.isPending} className="btn-primary">
+        <button onClick={handleSave} disabled={save.isPending} className="btn-primary">
           {save.isPending ? 'Saving…' : 'Save Settings'}
         </button>
       </div>

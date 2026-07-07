@@ -13,6 +13,17 @@ class GymPaymentSerializer(serializers.ModelSerializer):
         fields = ['id', 'gym', 'gym_name', 'amount', 'months', 'payment_date', 'payment_method', 'notes', 'created_at']
         read_only_fields = ['id', 'gym_name', 'created_at']
 
+    def validate_amount(self, value):
+        if value is None or value <= 0:
+            raise serializers.ValidationError('Amount must be greater than 0')
+        return value
+
+    def validate_payment_date(self, value):
+        import datetime
+        if value and value > datetime.date.today():
+            raise serializers.ValidationError('Payment date cannot be in the future')
+        return value
+
 
 class GymSerializer(serializers.ModelSerializer):
     member_count = serializers.SerializerMethodField()
@@ -35,7 +46,7 @@ class CreateGymSerializer(serializers.Serializer):
     phone = serializers.CharField(required=False, allow_blank=True)
     trial_days = serializers.IntegerField(required=False, default=30, min_value=0)
     expiry_date = serializers.DateField(required=False, allow_null=True)
-    subscription_amount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
+    subscription_amount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True, min_value=0)
     tier = serializers.ChoiceField(choices=['TIER1', 'TIER2_WA', 'TIER2_AT', 'TIER3'], required=False, default='TIER1')
     admin_name = serializers.CharField(max_length=150)
     admin_email = serializers.EmailField()

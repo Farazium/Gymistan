@@ -5,6 +5,7 @@ import { Search, AlertCircle, CheckCircle, MessageCircle } from 'lucide-react'
 import api from '../../api/axios'
 import toast from 'react-hot-toast'
 import useAuthStore from '../../store/authStore'
+import { apiErrorMessage } from '../../utils/apiError'
 
 function MemberSearch({ members, value, onChange, onSelect }) {
   const [query, setQuery] = useState('')
@@ -124,13 +125,17 @@ export default function PaymentForm({ onSuccess }) {
       if (sendWhatsApp && hasWhatsApp) whatsAppMutation.mutate(res.data.id)
       onSuccess()
     },
-    onError: (err) => toast.error(err.response?.data?.detail || 'Error'),
+    onError: (err) => toast.error(apiErrorMessage(err, 'Failed to record payment')),
   })
 
   const onSubmit = (data) => {
     if (!selectedMemberId) { toast.error('Please select a member'); return }
-    const amount = selectedPkg?.price || 0
-    const amountPaid = Number(amount) - Number(data.discount || 0)
+    if (!selectedPkg) { toast.error('This member has no package — select a package first'); return }
+    const amount = Number(selectedPkg.price) || 0
+    const discount = Number(data.discount || 0)
+    if (discount < 0) { toast.error('Discount cannot be negative'); return }
+    if (discount > amount) { toast.error('Discount cannot exceed the package amount'); return }
+    const amountPaid = amount - discount
     mutation.mutate({ ...data, member: selectedMemberId, amount, amount_paid: amountPaid })
   }
 
@@ -173,7 +178,16 @@ export default function PaymentForm({ onSuccess }) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="label">Discount (PKR)</label>
-          <input className="input" type="number" defaultValue={0} onWheel={e => e.target.blur()} {...register('discount')} />
+          <input
+            className="input"
+            type="number"
+            min="0"
+            max={selectedPkg ? Number(selectedPkg.price) : undefined}
+            defaultValue={0}
+            onWheel={e => e.target.blur()}
+            onKeyDown={e => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault() }}
+            {...register('discount')}
+          />
         </div>
         <div>
           <label className="label">Payment Method</label>

@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query'
 import api from '../../api/axios'
 import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
+import { apiErrorMessage } from '../../utils/apiError'
 
 const todayISO = () => {
   const d = new Date()
@@ -35,12 +36,18 @@ export default function TrainerForm({ trainer, onSuccess }) {
     },
     onError: (err) => {
       const data = err.response?.data
+      const formFields = ['name', 'phone', 'cnic', 'join_date', 'monthly_salary', 'device_user_id', 'notes']
+      let handled = false
       if (data && typeof data === 'object') {
         Object.entries(data).forEach(([field, msg]) => {
-          setError(field, { message: Array.isArray(msg) ? msg[0] : String(msg) })
+          if (formFields.includes(field)) {
+            setError(field, { message: Array.isArray(msg) ? msg[0] : String(msg) })
+            handled = true
+          }
         })
       }
-      toast.error('Failed to save trainer')
+      // Only show a toast when the error wasn't tied to a specific field (else it double-messages)
+      if (!handled) toast.error(apiErrorMessage(err, 'Failed to save trainer'))
     },
   })
 
@@ -67,7 +74,7 @@ export default function TrainerForm({ trainer, onSuccess }) {
             placeholder="03XX-XXXXXXX"
             {...register('phone', {
               required: 'Phone is required',
-              pattern: { value: /^\d+$/, message: 'Digits only' },
+              pattern: { value: /^\d{10,15}$/, message: 'Enter a valid phone (10–15 digits)' },
             })}
             onKeyDown={(e) => { if (!/\d/.test(e.key) && !['Backspace','Delete','Tab','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault() }}
           />
@@ -76,7 +83,14 @@ export default function TrainerForm({ trainer, onSuccess }) {
 
         <div>
           <label className="label">CNIC <span className="text-gray-400 text-xs">(optional)</span></label>
-          <input className="input" placeholder="XXXXX-XXXXXXX-X" {...register('cnic')} />
+          <input
+            className="input"
+            placeholder="XXXXX-XXXXXXX-X"
+            {...register('cnic', {
+              pattern: { value: /^\d{5}-?\d{7}-?\d{1}$/, message: 'CNIC must be 13 digits (e.g. 35201-1234567-1)' },
+            })}
+          />
+          {errors.cnic && <p className="text-red-500 text-xs mt-1">{errors.cnic.message}</p>}
         </div>
 
         <div>
@@ -89,10 +103,13 @@ export default function TrainerForm({ trainer, onSuccess }) {
           <input
             className="input [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             type="number"
+            min="0"
             placeholder="0"
             onWheel={(e) => e.target.blur()}
-            {...register('monthly_salary')}
+            onKeyDown={(e) => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault() }}
+            {...register('monthly_salary', { min: { value: 0, message: 'Salary cannot be negative' } })}
           />
+          {errors.monthly_salary && <p className="text-red-500 text-xs mt-1">{errors.monthly_salary.message}</p>}
         </div>
 
         {hasAttendance && (

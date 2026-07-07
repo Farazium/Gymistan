@@ -7,6 +7,9 @@ import { exportToExcel } from '../../utils/exportExcel'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
+import { apiErrorMessage } from '../../utils/apiError'
+
+const todayISO = () => new Date().toISOString().split('T')[0]
 
 const fmt = (n) => `PKR ${Number(n).toLocaleString('en-PK')}`
 
@@ -38,11 +41,17 @@ function PaymentForm({ gyms, onSuccess }) {
       setSelectedGym(null)
       onSuccess()
     },
-    onError: () => toast.error('Failed to record payment'),
+    onError: (err) => toast.error(apiErrorMessage(err, 'Failed to record payment')),
   })
 
+  const onSubmit = (d) => {
+    if (!selectedGym) { toast.error('Please select a gym'); return }
+    if (!Number(d.amount)) { toast.error("This gym has no subscription amount set — set it in the gym's profile first"); return }
+    mutation.mutate(d)
+  }
+
   return (
-    <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <input type="hidden" {...register('gym', { required: true })} />
       <div>
         <label className="label">Gym *</label>
@@ -94,7 +103,8 @@ function PaymentForm({ gyms, onSuccess }) {
       </div>
       <div>
         <label className="label">Payment Date *</label>
-        <input className="input [color-scheme:dark]" type="date" {...register('payment_date', { required: true })} />
+        <input className="input [color-scheme:dark]" type="date" max={todayISO()} {...register('payment_date', { required: 'Payment date is required', validate: v => !v || v <= todayISO() || 'Date cannot be in the future' })} />
+        {errors.payment_date && <p className="text-red-500 text-xs mt-1">{errors.payment_date.message}</p>}
       </div>
       <div>
         <label className="label">Notes</label>

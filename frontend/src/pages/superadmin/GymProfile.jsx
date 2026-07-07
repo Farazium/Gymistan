@@ -8,6 +8,7 @@ import {
 import api from '../../api/axios'
 import StatCard from '../../components/ui/StatCard'
 import toast from 'react-hot-toast'
+import { apiErrorMessage } from '../../utils/apiError'
 
 const fmt = (n) => `PKR ${Number(n).toLocaleString('en-PK')}`
 
@@ -61,7 +62,7 @@ export default function GymProfile() {
       setEditingGym(false)
       toast.success('Gym updated')
     },
-    onError: () => toast.error('Failed to update gym'),
+    onError: (err) => toast.error(apiErrorMessage(err, 'Failed to update gym')),
   })
 
   const adminMutation = useMutation({
@@ -152,7 +153,7 @@ export default function GymProfile() {
               </div>
               <div>
                 <label className="label">Subscription Amount (PKR)</label>
-                <input className="input" type="text" inputMode="numeric" placeholder="e.g. 5000" value={gymSubscription} onChange={(e) => setGymSubscription(e.target.value)} />
+                <input className="input" type="text" inputMode="numeric" placeholder="e.g. 5000" value={gymSubscription} onChange={(e) => setGymSubscription(e.target.value.replace(/[^\d.]/g, ''))} />
               </div>
               <button onClick={() => editMutation.mutate()} disabled={editMutation.isPending} className="btn-primary w-full justify-center">
                 <Save size={14} /> {editMutation.isPending ? 'Saving...' : 'Save Changes'}
@@ -237,7 +238,9 @@ export default function GymProfile() {
             <select
               className="input w-64"
               value={gym.tier || 'TIER1'}
-              onChange={(e) => api.patch(`/gyms/${id}/`, { tier: e.target.value }).then(() => { queryClient.invalidateQueries(['gym-stats', id]); toast.success('Tier updated') })}
+              onChange={(e) => api.patch(`/gyms/${id}/`, { tier: e.target.value })
+                .then(() => { queryClient.invalidateQueries(['gym-stats', id]); toast.success('Tier updated') })
+                .catch((err) => toast.error(apiErrorMessage(err, 'Failed to update tier')))}
             >
               <option value="TIER1">Tier 1 — Starter</option>
               <option value="TIER2_WA">Tier 2.1 — Connect</option>

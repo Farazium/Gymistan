@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import api from '../../api/axios'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
+import { apiErrorMessage } from '../../utils/apiError'
 
 const fetchPackages = async () => {
   const { data } = await api.get('/packages/')
@@ -30,7 +31,7 @@ function PackageForm({ pkg, onSuccess }) {
       return pkg ? api.patch(`/packages/${pkg.id}/`, body) : api.post('/packages/', body)
     },
     onSuccess: () => { toast.success(pkg ? 'Package updated' : 'Package created'); onSuccess() },
-    onError: (err) => toast.error(err.response?.data?.detail || 'Error'),
+    onError: (err) => toast.error(apiErrorMessage(err, 'Failed to save package')),
   })
 
   return (
