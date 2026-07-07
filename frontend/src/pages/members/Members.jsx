@@ -112,9 +112,11 @@ function RestoreForm({ member, onSubmit, isPending }) {
           <input
             className="input [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             type="number"
+            min="0"
             placeholder="0"
             onWheel={e => e.target.blur()}
-            {...register('admission_fee')}
+            onKeyDown={e => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault() }}
+            {...register('admission_fee', { min: { value: 0, message: 'Fee cannot be negative' } })}
           />
         </div>
         {hasWhatsApp && (

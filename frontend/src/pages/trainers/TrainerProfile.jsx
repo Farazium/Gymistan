@@ -74,7 +74,7 @@ function PaySalaryForm({ trainer, onSuccess }) {
           <label className="label">Commission (PKR) <span className="text-gray-400 text-xs">(optional)</span></label>
           <input
             className="input [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            type="number" placeholder="0" onWheel={(e) => e.target.blur()} {...register('commission')}
+            type="number" min="0" placeholder="0" onWheel={(e) => e.target.blur()} onKeyDown={(e) => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault() }} {...register('commission', { min: { value: 0, message: 'Commission cannot be negative' } })}
           />
         </div>
         <div className="col-span-2">
