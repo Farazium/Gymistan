@@ -285,7 +285,7 @@ export default function TrainerProfile() {
         </div>
 
         {/* Right column: attendance calendar when enabled, otherwise assigned members */}
-        {hasAttendance ? <AttendanceCalendar type="trainer" personId={trainer.id} /> : assignedMembersCard}
+        {hasAttendance ? <AttendanceCalendar type="trainer" personId={t.id} /> : assignedMembersCard}
       </div>
 
       {hasAttendance ? (

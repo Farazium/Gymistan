@@ -2,7 +2,7 @@ import datetime
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Sum, Count
+from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from django.utils.timezone import localdate
 from datetime import timedelta
@@ -23,7 +23,7 @@ class DashboardView(APIView):
         month_start = today.replace(day=1)
         last_month_start = (month_start - timedelta(days=1)).replace(day=1)
 
-        members = Member.objects.filter(gym=gym)
+        members = Member.objects.filter(gym=gym, is_deleted=False)
         active_members = members.filter(status='ACTIVE').count()
         expired_members = members.filter(status='EXPIRED').count()
         expiring_soon = members.filter(
@@ -150,7 +150,7 @@ class SuperAdminDashboardView(APIView):
         ).count()
 
         top_gyms = (
-            gyms.annotate(member_count=Count('members'))
+            gyms.annotate(member_count=Count('members', filter=Q(members__is_deleted=False)))
             .order_by('-member_count')
             .values('id', 'name', 'is_active', 'member_count')[:5]
         )

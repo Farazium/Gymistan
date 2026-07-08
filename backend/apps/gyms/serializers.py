@@ -35,7 +35,7 @@ class GymSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'address', 'phone', 'logo', 'is_active', 'joining_date', 'expiry_date', 'subscription_amount', 'tier', 'created_at', 'updated_at', 'member_count', 'user_count']
 
     def get_member_count(self, obj):
-        return obj.members.count()
+        return obj.members.filter(is_deleted=False).count()
 
     def get_user_count(self, obj):
         return obj.users.count()

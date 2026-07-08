@@ -11,7 +11,7 @@ class PackageSerializer(serializers.ModelSerializer):
         read_only_fields = ['gym']
 
     def get_member_count(self, obj):
-        return obj.members.count()
+        return obj.members.filter(is_deleted=False).count()
 
     def validate_price(self, value):
         if value is None or value <= 0:

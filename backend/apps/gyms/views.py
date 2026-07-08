@@ -67,7 +67,7 @@ class GymStatsView(APIView):
         today = timezone.now().date()
         month_start = today.replace(day=1)
 
-        members = Member.objects.filter(gym=gym)
+        members = Member.objects.filter(gym=gym, is_deleted=False)
         payments = Payment.objects.filter(gym=gym)
         revenue = payments.filter(payment_date__gte=month_start).aggregate(t=Sum('amount_paid'))['t'] or 0
         expenses = Expense.objects.filter(gym=gym, date__gte=month_start).aggregate(t=Sum('amount'))['t'] or 0
