@@ -18,6 +18,17 @@ class MemberSerializer(serializers.ModelSerializer):
     def get_status(self, obj):
         return compute_status(obj)
 
+    def validate(self, attrs):
+        # A package that includes a trainer must have one assigned. Fall back to
+        # the existing values on PATCH so partial updates are validated too.
+        package = attrs.get('package', getattr(self.instance, 'package', None))
+        trainer = attrs.get('trainer', getattr(self.instance, 'trainer', None))
+        if package and package.has_trainer and not trainer:
+            raise serializers.ValidationError(
+                {'trainer': 'This package includes a trainer — please select one.'}
+            )
+        return attrs
+
     class Meta:
         model = Member
         fields = '__all__'

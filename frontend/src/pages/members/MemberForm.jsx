@@ -217,18 +217,21 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
 
         <div>
           <label className="label">
-            Trainer <span className="text-gray-400 text-xs">{trainerAllowed ? '(optional)' : '(select a trainer package)'}</span>
+            Trainer {trainerAllowed ? '*' : <span className="text-gray-400 text-xs">(select a trainer package)</span>}
           </label>
           <select
             className={`input ${!trainerAllowed ? 'opacity-50 cursor-not-allowed' : ''}`}
             disabled={!trainerAllowed}
-            {...register('trainer')}
+            {...register('trainer', {
+              validate: (v) => !trainerAllowed || !!v || 'This package includes a trainer — please select one',
+            })}
           >
             <option value="">{trainerAllowed ? 'Select trainer' : 'No trainer'}</option>
             {trainers.map((t) => (
               <option key={t.id} value={t.id}>{t.name}</option>
             ))}
           </select>
+          {errors.trainer && <p className="text-red-500 text-xs mt-1">{errors.trainer.message}</p>}
         </div>
 
         <div>
