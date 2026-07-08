@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
-import { Plus, Trash2, FileDown } from 'lucide-react'
+import { Plus, Trash2, Download } from 'lucide-react'
 import api from '../../api/axios'
 import { exportToExcel } from '../../utils/exportExcel'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
@@ -66,12 +66,12 @@ function PaymentForm({ gyms, onSuccess }) {
             autoComplete="off"
           />
           {showDropdown && filteredGyms.length > 0 && (
-            <div className="absolute z-50 w-full mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+            <div className="absolute z-50 w-full mt-1 surface border border-gray-600 rounded-lg shadow-xl max-h-48 overflow-y-auto">
               {filteredGyms.map((g) => (
                 <button key={g.id} type="button" onMouseDown={() => selectGym(g)}
                   className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-gray-700 transition flex items-center justify-between">
                   <span>{g.name}</span>
-                  {g.subscription_amount && <span className="text-xs text-blue-400">PKR {Number(g.subscription_amount).toLocaleString()}</span>}
+                  {g.subscription_amount && <span className="text-xs text-primary-400">PKR {Number(g.subscription_amount).toLocaleString()}</span>}
                 </button>
               ))}
             </div>
@@ -148,7 +148,7 @@ export default function GymPayments() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-blue-400">Subscriptions</h1>
+          <h1 className="text-2xl font-bold text-primary-400">Subscriptions</h1>
           <p className="text-gray-500 text-sm mt-1">{payments.length} payments · {fmt(totalAmount)} collected</p>
         </div>
         <div className="flex gap-2">
@@ -160,10 +160,10 @@ export default function GymPayments() {
               Date: new Date(p.payment_date).toLocaleDateString('en-PK'),
               Notes: p.notes || '',
             })), 'GymSubscriptions')}
-            className="p-2 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-400/30 hover:bg-blue-500/30 hover:border-blue-400/50 transition"
+            className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 transition"
             title="Export"
           >
-            <FileDown size={18} />
+            <Download size={18} />
           </button>
           <button onClick={() => setShowModal(true)} className="btn-primary">
             <Plus size={16} /> Record Payment
@@ -180,7 +180,7 @@ export default function GymPayments() {
 
       <div className="card">
         {isLoading ? (
-          <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full" /></div>
+          <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-primary-500 border-t-transparent rounded-full" /></div>
         ) : (
           <Table>
             <Thead>
@@ -199,7 +199,7 @@ export default function GymPayments() {
                   <Td className="font-semibold text-green-400">{fmt(p.amount)}</Td>
                   <Td className="text-gray-300">{p.months} {p.months === 1 ? 'month' : 'months'}</Td>
                   <Td>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.payment_method === 'ONLINE' ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-700 text-gray-300'}`}>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.payment_method === 'ONLINE' ? 'bg-primary-500/20 text-primary-400' : 'bg-gray-700 text-gray-300'}`}>
                       {p.payment_method === 'ONLINE' ? 'Online' : 'Cash'}
                     </span>
                   </Td>

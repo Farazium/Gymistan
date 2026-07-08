@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
-import { Plus, Search, UserPlus, FileDown, ChevronUp, ChevronDown, Trash2, RotateCcw, Pencil } from 'lucide-react'
+import { Plus, Search, UserPlus, Download, ChevronUp, ChevronDown, Trash2, RotateCcw, Pencil } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../api/axios'
 import useAuthStore from '../../store/authStore'
@@ -160,7 +160,7 @@ export default function Members() {
 
   const SortIcon = ({ col }) => {
     if (sort.key !== col) return <ChevronUp size={13} className="text-gray-600" />
-    return sort.dir === 'asc' ? <ChevronUp size={13} className="text-blue-400" /> : <ChevronDown size={13} className="text-blue-400" />
+    return sort.dir === 'asc' ? <ChevronUp size={13} className="text-primary-400" /> : <ChevronDown size={13} className="text-primary-400" />
   }
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -233,7 +233,7 @@ export default function Members() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-blue-400">Members</h1>
+          <h1 className="text-2xl font-bold text-primary-400">Members</h1>
           <p className="text-gray-500 text-sm mt-1">{members.length} total members</p>
         </div>
         <div className="flex gap-2">
@@ -250,10 +250,10 @@ export default function Members() {
               Address: m.address || '',
               Notes: m.notes || '',
             })), 'Members')}
-            className="p-2 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-400/30 hover:bg-blue-500/30 hover:border-blue-400/50 transition"
+            className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 transition"
             title="Export"
           >
-            <FileDown size={18} />
+            <Download size={18} />
           </button>
           <button onClick={() => { setEditMember(null); setShowModal(true) }} className="btn-primary">
             <UserPlus size={16} /> Add Member
@@ -271,7 +271,7 @@ export default function Members() {
       <div className="card p-4 flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 flex">
           <div className="relative flex-1">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-primary-400" />
             <input
               className="input pl-9 pr-3 rounded-r-none border-r-0"
               placeholder={`Search by ${searchBy === 'father_name' ? "father's name" : searchBy === 'member_id' ? 'ID' : searchBy}...`}
@@ -282,7 +282,7 @@ export default function Members() {
           <select
             value={searchBy}
             onChange={e => { setSearchBy(e.target.value); setSearch('') }}
-            className="input rounded-l-none border-l border-gray-600 w-auto text-xs text-gray-300 bg-gray-700 pr-7"
+            className="input rounded-l-none border-l border-gray-600 w-auto text-xs text-gray-300 pr-7"
           >
             <option value="name">Name</option>
             <option value="father_name">Father's Name</option>
@@ -316,12 +316,12 @@ export default function Members() {
           <Table>
             <Thead>
               <Th>
-                <button onClick={() => toggleSort('member_id')} className="flex items-center gap-1 hover:text-blue-400 transition">
+                <button onClick={() => toggleSort('member_id')} className="flex items-center gap-1 hover:text-primary-400 transition">
                   ID <SortIcon col="member_id" />
                 </button>
               </Th>
               <Th>
-                <button onClick={() => toggleSort('name')} className="flex items-center gap-1 hover:text-blue-400 transition">
+                <button onClick={() => toggleSort('name')} className="flex items-center gap-1 hover:text-primary-400 transition">
                   Name <SortIcon col="name" />
                 </button>
               </Th>
@@ -331,7 +331,7 @@ export default function Members() {
               <Th>Trainer</Th>
               <Th>Status</Th>
               <Th>
-                <button onClick={() => toggleSort('expiry_date')} className="flex items-center gap-1 hover:text-blue-400 transition">
+                <button onClick={() => toggleSort('expiry_date')} className="flex items-center gap-1 hover:text-primary-400 transition">
                   Expiry <SortIcon col="expiry_date" />
                 </button>
               </Th>
@@ -352,7 +352,7 @@ export default function Members() {
                   </Td>
                   <Td>{m.phone}</Td>
                   <Td>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${m.gender === 'FEMALE' ? 'bg-pink-500/20 text-pink-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${m.gender === 'FEMALE' ? 'bg-pink-500/20 text-pink-400' : 'bg-primary-500/20 text-primary-400'}`}>
                       {m.gender === 'FEMALE' ? 'Female' : 'Male'}
                     </span>
                   </Td>
@@ -371,7 +371,7 @@ export default function Members() {
                       <button
                         onClick={() => { setEditMember(m); setShowModal(true) }}
                         title="Edit"
-                        className="p-1.5 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition"
+                        className="p-1.5 text-gray-400 hover:text-primary-400 hover:bg-primary-500/10 rounded-lg transition"
                       >
                         <Pencil size={14} />
                       </button>
@@ -406,7 +406,7 @@ export default function Members() {
           {/* Search */}
           <div className="flex">
             <div className="relative flex-1">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-primary-400" />
               <input
                 className="input pl-8 rounded-r-none border-r-0 text-sm"
                 placeholder={`Search by ${deletedSearchBy === 'father_name' ? "father's name" : deletedSearchBy === 'member_id' ? 'ID' : deletedSearchBy}...`}
@@ -417,7 +417,7 @@ export default function Members() {
             <select
               value={deletedSearchBy}
               onChange={e => { setDeletedSearchBy(e.target.value); setDeletedSearch('') }}
-              className="input rounded-l-none border-l border-gray-600 w-auto text-xs text-gray-300 bg-gray-700 pr-7"
+              className="input rounded-l-none border-l border-gray-600 w-auto text-xs text-gray-300 pr-7"
             >
               <option value="name">Name</option>
               <option value="father_name">Father's Name</option>

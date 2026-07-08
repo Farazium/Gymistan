@@ -71,7 +71,7 @@ const TIERS = [
 ]
 
 const colorMap = {
-  blue:   { ring: 'ring-blue-500/40',   icon: 'bg-blue-500/20 text-blue-400',   badge: 'bg-blue-500/20 text-blue-300',   btn: 'bg-blue-600 hover:bg-blue-500' },
+  blue:   { ring: 'ring-primary-500/40',   icon: 'bg-primary-500/20 text-primary-400',   badge: 'bg-primary-500/20 text-primary-300',   btn: 'bg-primary-600 hover:bg-primary-500' },
   green:  { ring: 'ring-green-500/40',  icon: 'bg-green-500/20 text-green-400', badge: 'bg-green-500/20 text-green-300', btn: 'bg-green-600 hover:bg-green-500' },
   purple: { ring: 'ring-purple-500/40', icon: 'bg-purple-500/20 text-purple-400', badge: 'bg-purple-500/20 text-purple-300', btn: 'bg-purple-600 hover:bg-purple-500' },
   yellow: { ring: 'ring-yellow-500/40', icon: 'bg-yellow-500/20 text-yellow-400', badge: 'bg-yellow-500/20 text-yellow-300', btn: 'bg-yellow-500 hover:bg-yellow-400 text-gray-900' },
@@ -81,7 +81,7 @@ export default function Tiers() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-blue-400">Subscription Tiers</h1>
+        <h1 className="text-2xl font-bold text-primary-400">Subscription Tiers</h1>
         <p className="text-gray-500 text-sm mt-1">Assign tiers to gyms from their profile page</p>
       </div>
 

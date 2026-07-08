@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
-import { Plus, Package, Pencil, Trash2, AlertTriangle, TrendingDown, TrendingUp, SlidersHorizontal, FileDown } from 'lucide-react'
+import { Plus, Package, Pencil, Trash2, AlertTriangle, TrendingDown, TrendingUp, SlidersHorizontal, Download } from 'lucide-react'
 import { exportToExcel } from '../../utils/exportExcel'
 import api from '../../api/axios'
 import Modal from '../../components/ui/Modal'
@@ -145,7 +145,7 @@ export default function Inventory() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-blue-400">Inventory</h1>
+          <h1 className="text-2xl font-bold text-primary-400">Inventory</h1>
           <p className="text-gray-400 text-sm mt-1">{products.length} products
             {lowStockCount > 0 && <span className="ml-2 text-yellow-400 font-medium">· {lowStockCount} low stock</span>}
           </p>
@@ -162,10 +162,10 @@ export default function Inventory() {
               'Low Stock': p.is_low_stock ? 'Yes' : 'No',
               Description: p.description || '',
             })), 'Inventory')}
-            className="p-2 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-400/30 hover:bg-blue-500/30 hover:border-blue-400/50 transition"
+            className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 transition"
             title="Export"
           >
-            <FileDown size={18} />
+            <Download size={18} />
           </button>
           <button onClick={() => setShowAddModal(true)} className="btn-primary">
             <Plus size={16} /> Add Product
@@ -227,7 +227,7 @@ export default function Inventory() {
                 <button onClick={() => setStockAction({ product: p, action: 'RESTOCK' })} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded-lg transition">
                   <TrendingUp size={13} /> Restock
                 </button>
-                <button onClick={() => setStockAction({ product: p, action: 'ADJUSTMENT' })} className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-gray-700 text-gray-300 hover:bg-gray-600 rounded-lg transition">
+                <button onClick={() => setStockAction({ product: p, action: 'ADJUSTMENT' })} className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary-500/20 text-primary-400 hover:bg-primary-500/30 rounded-lg transition">
                   <SlidersHorizontal size={13} />
                 </button>
               </div>

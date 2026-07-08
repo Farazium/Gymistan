@@ -16,7 +16,7 @@ function InfoRow({ icon: Icon, label, value }) {
   return (
     <div className="flex items-start gap-3 py-3 border-b border-gray-700/50 last:border-0">
       <div className="w-8 h-8 bg-gray-700 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-        <Icon size={14} className="text-blue-400" />
+        <Icon size={14} className="text-primary-400" />
       </div>
       <div>
         <p className="text-xs text-gray-500 uppercase tracking-wide">{label}</p>
@@ -82,7 +82,7 @@ export default function GymProfile() {
 
   if (isLoading) return (
     <div className="flex justify-center py-32">
-      <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+      <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full" />
     </div>
   )
 
@@ -108,10 +108,10 @@ export default function GymProfile() {
         </button>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gray-700 rounded-xl flex items-center justify-center">
-            <Building2 size={20} className="text-blue-400" />
+            <Building2 size={20} className="text-primary-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-blue-400">{gym.name}</h1>
+            <h1 className="text-2xl font-bold text-primary-400">{gym.name}</h1>
             <div className="flex items-center gap-2 mt-0.5">
               <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${gym.is_active ? 'bg-green-500/10 text-green-400 border-green-500/30' : 'bg-red-500/10 text-red-400 border-red-500/30'}`}>
                 {gym.is_active ? 'Active' : 'Inactive'}
@@ -128,10 +128,10 @@ export default function GymProfile() {
         <div className="card p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-gray-100 flex items-center gap-2">
-              <Building2 size={15} className="text-blue-400" /> Gym Details
+              <Building2 size={15} className="text-primary-400" /> Gym Details
             </h2>
             {!editingGym ? (
-              <button onClick={() => setEditingGym(true)} className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition">
+              <button onClick={() => setEditingGym(true)} className="flex items-center gap-1.5 text-xs text-primary-400 hover:text-primary-300 transition">
                 <Pencil size={13} /> Edit
               </button>
             ) : (
@@ -177,10 +177,10 @@ export default function GymProfile() {
         <div className="card p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-gray-100 flex items-center gap-2">
-              <KeyRound size={15} className="text-blue-400" /> Admin Account
+              <KeyRound size={15} className="text-primary-400" /> Admin Account
             </h2>
             {admin && (!editingAdmin ? (
-              <button onClick={() => setEditingAdmin(true)} className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition">
+              <button onClick={() => setEditingAdmin(true)} className="flex items-center gap-1.5 text-xs text-primary-400 hover:text-primary-300 transition">
                 <Pencil size={13} /> Edit
               </button>
             ) : (
@@ -241,7 +241,7 @@ export default function GymProfile() {
       {/* Subscription */}
       <div className="card p-5">
         <h2 className="font-semibold text-gray-100 flex items-center gap-2 mb-4">
-          <RefreshCw size={15} className="text-blue-400" /> Subscription
+          <RefreshCw size={15} className="text-primary-400" /> Subscription
         </h2>
         <div className="flex flex-col sm:flex-row gap-5 items-start">
           <div>
@@ -261,7 +261,7 @@ export default function GymProfile() {
           </div>
           <div>
             <p className="label">Subscription Charges</p>
-            <p className="text-lg font-semibold text-blue-400 mt-1">
+            <p className="text-lg font-semibold text-primary-400 mt-1">
               {gym.subscription_amount ? `PKR ${Number(gym.subscription_amount).toLocaleString()}` : <span className="text-gray-500 text-sm">Not set</span>}
             </p>
             <p className="text-xs text-gray-500 mt-0.5">Edit in Gym Details</p>

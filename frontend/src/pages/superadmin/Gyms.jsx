@@ -117,7 +117,7 @@ export default function Gyms() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-blue-400">Gyms</h1>
+          <h1 className="text-2xl font-bold text-primary-400">Gyms</h1>
           <p className="text-gray-500 text-sm mt-1">{gyms.length} gyms registered</p>
         </div>
         <button onClick={() => setShowModal(true)} className="btn-primary">
@@ -127,7 +127,7 @@ export default function Gyms() {
 
       <div className="card">
         {isLoading ? (
-          <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full" /></div>
+          <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-primary-500 border-t-transparent rounded-full" /></div>
         ) : (
           <Table>
             <Thead>
@@ -147,10 +147,10 @@ export default function Gyms() {
                   <Td>
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 bg-gray-700 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Building2 size={17} className="text-blue-400" />
+                        <Building2 size={17} className="text-primary-400" />
                       </div>
                       <div>
-                        <button onClick={() => navigate(`/admin/gyms/${g.id}`)} className="font-medium text-gray-100 hover:text-blue-400 transition text-left">
+                        <button onClick={() => navigate(`/admin/gyms/${g.id}`)} className="font-medium text-gray-100 hover:text-primary-400 transition text-left">
                           {g.name}
                         </button>
                         {g.address && <p className="text-xs text-gray-400">{g.address}</p>}
@@ -173,13 +173,13 @@ export default function Gyms() {
                     ) : <span className="text-gray-500">—</span>}
                   </Td>
                   <Td>
-                    {g.tier === 'TIER1'    && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-500/20 text-blue-300">Starter</span>}
+                    {g.tier === 'TIER1'    && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-primary-500/20 text-primary-300">Starter</span>}
                     {g.tier === 'TIER2_WA' && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-500/20 text-green-300">Connect</span>}
                     {g.tier === 'TIER2_AT' && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-500/20 text-purple-300">Track</span>}
                     {g.tier === 'TIER3'    && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-yellow-500/20 text-yellow-300">Elite</span>}
                     {!g.tier && <span className="text-gray-500">—</span>}
                   </Td>
-                  <Td className="text-blue-400 font-medium">
+                  <Td className="text-primary-400 font-medium">
                     {g.subscription_amount ? `PKR ${Number(g.subscription_amount).toLocaleString()}` : <span className="text-gray-500">—</span>}
                   </Td>
                   <Td>

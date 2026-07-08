@@ -42,7 +42,7 @@ function MemberSearch({ members, value, onChange, onSelect }) {
     <div className="relative" ref={ref}>
       <div className="flex">
         <div className="relative flex-1">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-primary-400" />
           <input
             className="input pl-8 rounded-r-none border-r-0"
             placeholder={placeholders[searchBy]}
@@ -54,7 +54,7 @@ function MemberSearch({ members, value, onChange, onSelect }) {
         <select
           value={searchBy}
           onChange={e => { setSearchBy(e.target.value); setQuery('') }}
-          className="input rounded-l-none border-l border-gray-600 w-auto text-xs text-gray-300 bg-gray-700 pr-7"
+          className="input rounded-l-none border-l border-gray-600 w-auto text-xs text-gray-300 pr-7"
         >
           <option value="name">Name</option>
           <option value="father_name">Father's Name</option>

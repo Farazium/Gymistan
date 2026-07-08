@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Package as PackageIcon, Pencil, Trash2, FileDown, UserCog } from 'lucide-react'
+import { Plus, Package as PackageIcon, Pencil, Trash2, Download, UserCog } from 'lucide-react'
 import { exportToExcel } from '../../utils/exportExcel'
 import { useForm } from 'react-hook-form'
 import api from '../../api/axios'
@@ -72,7 +72,7 @@ function PackageForm({ pkg, onSuccess }) {
         <input className="input" placeholder="Gym access, Locker, WiFi" {...register('features')} />
       </div>
       <label className="flex items-center gap-2.5 cursor-pointer select-none">
-        <input type="checkbox" className="w-4 h-4 accent-blue-500 rounded" {...register('has_trainer')} />
+        <input type="checkbox" className="w-4 h-4 accent-primary-500 rounded" {...register('has_trainer')} />
         <span className="text-sm text-gray-200">Includes a personal trainer</span>
         <span className="text-xs text-gray-500">— lets you assign a trainer to members on this package</span>
       </label>
@@ -104,7 +104,7 @@ export default function Packages() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-blue-400">Packages</h1>
+          <h1 className="text-2xl font-bold text-primary-400">Packages</h1>
           <p className="text-gray-500 text-sm mt-1">Manage your gym membership packages</p>
         </div>
         <div className="flex gap-2">
@@ -118,10 +118,10 @@ export default function Packages() {
               'Members Enrolled': p.member_count || 0,
               Active: p.is_active ? 'Yes' : 'No',
             })), 'Packages')}
-            className="p-2 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-400/30 hover:bg-blue-500/30 hover:border-blue-400/50 transition"
+            className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 transition"
             title="Export"
           >
-            <FileDown size={18} />
+            <Download size={18} />
           </button>
           <button onClick={() => { setEditPkg(null); setShowModal(true) }} className="btn-primary">
             <Plus size={16} /> New Package
@@ -135,7 +135,7 @@ export default function Packages() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {packages.map((pkg, idx) => {
             const palettes = [
-              { border: 'border-blue-500/40', bar: 'bg-blue-500', icon: 'bg-blue-500/20 text-blue-400', price: 'text-blue-400', tag: 'bg-blue-500/15 text-blue-300 border border-blue-500/25' },
+              { border: 'border-primary-500/40', bar: 'bg-primary-500', icon: 'bg-primary-500/20 text-primary-400', price: 'text-primary-400', tag: 'bg-primary-500/15 text-primary-300 border border-primary-500/25' },
               { border: 'border-violet-500/40', bar: 'bg-violet-500', icon: 'bg-violet-500/20 text-violet-400', price: 'text-violet-400', tag: 'bg-violet-500/15 text-violet-300 border border-violet-500/25' },
               { border: 'border-emerald-500/40', bar: 'bg-emerald-500', icon: 'bg-emerald-500/20 text-emerald-400', price: 'text-emerald-400', tag: 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/25' },
               { border: 'border-orange-500/40', bar: 'bg-orange-500', icon: 'bg-orange-500/20 text-orange-400', price: 'text-orange-400', tag: 'bg-orange-500/15 text-orange-300 border border-orange-500/25' },
@@ -164,7 +164,7 @@ export default function Packages() {
                 <h3 className="font-semibold text-gray-100 text-base flex items-center gap-1.5">
                   <span>{pkg.name}</span>
                   {pkg.has_trainer && (
-                    <span title="Includes trainer" className="inline-flex text-blue-300">
+                    <span title="Includes trainer" className="inline-flex text-primary-300">
                       <UserCog size={15} />
                     </span>
                   )}

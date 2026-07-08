@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Download, MessageCircle, CheckCircle2, Search, Trash2, FileDown } from 'lucide-react'
+import { Plus, Download, MessageCircle, CheckCircle2, Search, Trash2 } from 'lucide-react'
 import { exportToExcel } from '../../utils/exportExcel'
 import api from '../../api/axios'
 import useAuthStore from '../../store/authStore'
@@ -87,7 +87,7 @@ export default function Payments() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-blue-400">Payments</h1>
+          <h1 className="text-2xl font-bold text-primary-400">Payments</h1>
           <p className="text-gray-500 text-sm mt-1">
             {payments.length} records — Total: <span className="font-semibold text-green-500">{fmt(total)}</span>
           </p>
@@ -105,10 +105,10 @@ export default function Payments() {
               Date: new Date(p.payment_date).toLocaleDateString('en-PK'),
               Notes: p.notes || '',
             })), 'Payments')}
-            className="p-2 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-400/30 hover:bg-blue-500/30 hover:border-blue-400/50 transition"
+            className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 transition"
             title="Export"
           >
-            <FileDown size={18} />
+            <Download size={18} />
           </button>
           <button onClick={() => setShowModal(true)} className="btn-primary">
             <Plus size={16} /> Record Payment
@@ -118,7 +118,7 @@ export default function Payments() {
 
       <div className="card p-4 flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-primary-400" />
           <input className="input pl-9" placeholder="Search member..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <select className="input w-auto" value={packageFilter} onChange={(e) => setPackageFilter(e.target.value)}>
@@ -163,7 +163,7 @@ export default function Payments() {
                         <p className="font-medium text-gray-100 truncate">{p.member_name}</p>
                         <p className="text-xs text-gray-400">{p.member_phone}</p>
                       </div>
-                      <span className="shrink-0 w-28 text-blue-400 text-xs truncate">
+                      <span className="shrink-0 w-28 text-primary-400 text-xs truncate">
                         {p.package_name || (p.notes === 'Admission fee' ? 'Admission Fee' : <span className="text-gray-500">—</span>)}
                       </span>
                       <span className="shrink-0 w-24 text-right font-semibold text-green-400">{fmt(p.amount_paid)}</span>
@@ -171,7 +171,7 @@ export default function Payments() {
                         {Number(p.discount) > 0 ? <span className="text-orange-400">{fmt(p.discount)}</span> : <span className="text-gray-600">—</span>}
                       </span>
                       <span className="shrink-0 w-16 text-center">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.payment_method === 'ONLINE' ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-700 text-gray-300'}`}>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.payment_method === 'ONLINE' ? 'bg-primary-500/20 text-primary-400' : 'bg-gray-700 text-gray-300'}`}>
                           {p.payment_method === 'ONLINE' ? 'Online' : 'Cash'}
                         </span>
                       </span>
@@ -179,7 +179,7 @@ export default function Payments() {
                         {new Date(p.payment_date).toLocaleDateString('en-PK')}
                       </span>
                       <div className="shrink-0 w-20 flex items-center justify-end gap-1">
-                        <button onClick={() => downloadSlip(p.id)} title="Download Slip" className="p-1.5 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition">
+                        <button onClick={() => downloadSlip(p.id)} title="Download Slip" className="p-1.5 text-gray-400 hover:text-primary-400 hover:bg-primary-500/10 rounded-lg transition">
                           <Download size={14} />
                         </button>
                         {hasWhatsApp && (

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { BookOpen, TrendingUp, PieChart, ArrowDownCircle, ArrowUpCircle, ChevronDown, ChevronRight, ChevronLeft, CalendarDays, FileDown, Loader2, ClipboardList, ChevronLeft as ChevLeft, ChevronRight as ChevRight } from 'lucide-react'
+import { BookOpen, TrendingUp, PieChart, ArrowDownCircle, ArrowUpCircle, ChevronDown, ChevronRight, ChevronLeft, CalendarDays, Download, Loader2, ClipboardList, ChevronLeft as ChevLeft, ChevronRight as ChevRight } from 'lucide-react'
 import api from '../../api/axios'
 import useAuthStore from '../../store/authStore'
 import { exportLedgerPDF, exportIncomeStatementPDF, exportExpenseCategoriesPDF, exportDailyCollectionPDF } from '../../utils/financePDF'
@@ -34,7 +34,7 @@ const MONTHS = ['January','February','March','April','May','June','July','August
 const YEARS = Array.from({ length: 6 }, (_, i) => today.getFullYear() - i)
 
 const CAT_COLORS = {
-  'Rent': 'bg-blue-500/20 text-blue-400',
+  'Rent': 'bg-primary-500/20 text-primary-400',
   'Utilities': 'bg-yellow-500/20 text-yellow-400',
   'Salaries': 'bg-purple-500/20 text-purple-400',
   'Equipment': 'bg-orange-500/20 text-orange-400',
@@ -103,7 +103,7 @@ function CustomCalendarPicker({ start, end, onStartChange, onEndChange }) {
       <button
         onClick={() => { setOpen(o => !o); setPicking('start') }}
         className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition ${
-          open ? 'bg-blue-600/20 border-blue-500/50 text-blue-300' : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+          open ? 'bg-primary-600/20 border-primary-500/50 text-primary-300' : 'bg-primary-500/10 border-primary-500/30 text-primary-300 hover:bg-primary-500/20'
         }`}
       >
         <CalendarDays size={13} />
@@ -156,7 +156,7 @@ function CustomCalendarPicker({ start, end, onStartChange, onEndChange }) {
                   <div
                     key={d}
                     className={`relative flex items-center justify-center h-9 ${
-                      inRange ? 'bg-blue-500/15' : ''
+                      inRange ? 'bg-primary-500/15' : ''
                     } ${isStart && end && start !== end ? 'rounded-l-full' : ''} ${isEnd && start !== end ? 'rounded-r-full' : ''}`}
                   >
                     <button
@@ -166,9 +166,9 @@ function CustomCalendarPicker({ start, end, onStartChange, onEndChange }) {
                       onMouseLeave={() => setHovered(null)}
                       className={`w-8 h-8 rounded-full text-xs font-medium transition-all
                         ${isFuture || isPast5 ? 'text-gray-700 cursor-not-allowed' : 'cursor-pointer'}
-                        ${isStart || isEnd ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 scale-105' : ''}
-                        ${isTodayDay && !isStart && !isEnd ? 'ring-1 ring-blue-400/60 text-blue-300' : ''}
-                        ${!isStart && !isEnd && !isFuture && !isPast5 ? 'text-gray-200 hover:bg-blue-500/30' : ''}
+                        ${isStart || isEnd ? 'bg-primary-600 text-white shadow-lg shadow-primary-500/30 scale-105' : ''}
+                        ${isTodayDay && !isStart && !isEnd ? 'ring-1 ring-primary-400/60 text-primary-300' : ''}
+                        ${!isStart && !isEnd && !isFuture && !isPast5 ? 'text-gray-200 hover:bg-primary-500/30' : ''}
                       `}
                     >
                       {d}
@@ -182,10 +182,10 @@ function CustomCalendarPicker({ start, end, onStartChange, onEndChange }) {
             <div className="mt-3 pt-3 border-t border-gray-700/60 flex items-center justify-between">
               <div className="space-y-0.5">
                 <p className="text-[11px] text-gray-500">
-                  From <span className="text-blue-400 font-medium">{formatDateDisplay(start)}</span>
+                  From <span className="text-primary-400 font-medium">{formatDateDisplay(start)}</span>
                 </p>
                 <p className="text-[11px] text-gray-500">
-                  To <span className="text-blue-400 font-medium">{formatDateDisplay(end)}</span>
+                  To <span className="text-primary-400 font-medium">{formatDateDisplay(end)}</span>
                 </p>
               </div>
               <div className="flex flex-col gap-1 text-right">
@@ -194,7 +194,7 @@ function CustomCalendarPicker({ start, end, onStartChange, onEndChange }) {
                 </span>
                 <button
                   onClick={() => { onStartChange(thisMonthStart); onEndChange(todayStr); setOpen(false); setPicking('start') }}
-                  className="text-[11px] text-gray-500 hover:text-blue-400 transition"
+                  className="text-[11px] text-gray-500 hover:text-primary-400 transition"
                 >
                   Reset to this month
                 </button>
@@ -216,8 +216,8 @@ function DateRangeFilter({ start, end, onStartChange, onEndChange, activePreset,
           onClick={() => onPreset(p)}
           className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
             activePreset === p.label
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              ? 'bg-primary-600 text-white'
+              : 'surface text-gray-400 hover:text-gray-200'
           }`}
         >
           {p.label}
@@ -226,7 +226,7 @@ function DateRangeFilter({ start, end, onStartChange, onEndChange, activePreset,
       <button
         onClick={() => onPreset(null)}
         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-          activePreset === null ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          activePreset === null ? 'bg-primary-600 text-white' : 'surface text-gray-400 hover:text-gray-200'
         }`}
       >
         Custom
@@ -249,10 +249,10 @@ function PdfExportButton({ onExport }) {
     <button
       onClick={handleExport}
       disabled={loading}
-      className="p-2 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-400/30 hover:bg-blue-500/30 hover:border-blue-400/50 transition disabled:opacity-50"
+      className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 transition disabled:opacity-50"
       title="Export PDF"
     >
-      {loading ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />}
+      {loading ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
     </button>
   )
 }
@@ -261,7 +261,7 @@ function SummaryCard({ label, value, color }) {
   const colors = {
     green: 'bg-green-500/10 border-green-500/20 text-green-400',
     red: 'bg-red-500/10 border-red-500/20 text-red-400',
-    blue: 'bg-blue-500/10 border-blue-500/20 text-blue-400',
+    blue: 'bg-primary-500/10 border-primary-500/20 text-primary-400',
   }
   return (
     <div className={`rounded-xl border p-4 ${colors[color]}`}>
@@ -306,7 +306,7 @@ function LedgerTab() {
 
       <div className="card overflow-hidden">
         {isLoading ? (
-          <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full" /></div>
+          <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-primary-500 border-t-transparent rounded-full" /></div>
         ) : (
           <table className="w-full text-sm">
             <thead>
@@ -376,13 +376,13 @@ function IncomeStatementTab() {
         <div className="flex rounded-lg overflow-hidden border border-gray-700">
           <button
             onClick={() => setFilterType('month')}
-            className={`px-4 py-1.5 text-xs font-medium transition ${filterType === 'month' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-gray-200'}`}
+            className={`px-4 py-1.5 text-xs font-medium transition ${filterType === 'month' ? 'bg-primary-600 text-white' : 'surface text-gray-400 hover:text-gray-200'}`}
           >
             By Month
           </button>
           <button
             onClick={() => setFilterType('year')}
-            className={`px-4 py-1.5 text-xs font-medium transition ${filterType === 'year' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-gray-200'}`}
+            className={`px-4 py-1.5 text-xs font-medium transition ${filterType === 'year' ? 'bg-primary-600 text-white' : 'surface text-gray-400 hover:text-gray-200'}`}
           >
             By Year
           </button>
@@ -400,7 +400,7 @@ function IncomeStatementTab() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full" /></div>
+        <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-primary-500 border-t-transparent rounded-full" /></div>
       ) : data && (
         <div className="space-y-4">
           {/* Summary */}
@@ -514,7 +514,7 @@ function ExpenseCategoriesTab() {
       )}
 
       {isLoading ? (
-        <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full" /></div>
+        <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-primary-500 border-t-transparent rounded-full" /></div>
       ) : data?.categories.length ? (
         <div className="space-y-3">
           {data.categories.map(cat => (
@@ -587,7 +587,7 @@ function DailyCollectionTab() {
 
   const Section = ({ title, color, items, cols, totalKey, emptyMsg }) => (
     <div className="card overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 bg-gray-800/40">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700" style={{ backgroundColor: 'rgb(var(--surface) / 0.4)' }}>
         <h3 className="text-sm font-semibold text-gray-100">{title}</h3>
         {data && <span className={`text-sm font-bold ${color}`}>{fmt(data.totals[totalKey])}</span>}
       </div>
@@ -621,21 +621,21 @@ function DailyCollectionTab() {
       {/* Date picker + export */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-1">
-          <button onClick={prevDay} className="p-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 transition"><ChevLeft size={15} /></button>
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 rounded-lg min-w-[140px] justify-center">
-            <CalendarDays size={13} className="text-gray-400" />
+          <button onClick={prevDay} className="p-1.5 rounded-lg bg-primary-500/15 hover:bg-primary-500/25 text-primary-300 transition"><ChevLeft size={15} /></button>
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-primary-500/10 rounded-lg min-w-[140px] justify-center">
+            <CalendarDays size={13} className="text-primary-400" />
             <span className="text-sm font-medium text-gray-100">{formatDateDisplay(date)}</span>
           </div>
-          <button onClick={nextDay} disabled={date >= todayStr} className="p-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 transition disabled:opacity-30 disabled:cursor-not-allowed"><ChevRight size={15} /></button>
+          <button onClick={nextDay} disabled={date >= todayStr} className="p-1.5 rounded-lg bg-primary-500/15 hover:bg-primary-500/25 text-primary-300 transition disabled:opacity-30 disabled:cursor-not-allowed"><ChevRight size={15} /></button>
           {date !== todayStr && (
-            <button onClick={() => setDate(todayStr)} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 transition">Today</button>
+            <button onClick={() => setDate(todayStr)} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-600/20 text-primary-400 hover:bg-primary-600/30 transition">Today</button>
           )}
         </div>
         {data && <PdfExportButton onExport={() => exportDailyCollectionPDF(data, gymName)} />}
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full" /></div>
+        <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-primary-500 border-t-transparent rounded-full" /></div>
       ) : data && (
         <div className="space-y-4">
           <Section title="Member Fees" color="text-green-400" items={data.member_fees} totalKey="member_fees" emptyMsg="No member fees collected"
@@ -683,7 +683,7 @@ export default function Finance() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-blue-400">Finance</h1>
+        <h1 className="text-2xl font-bold text-primary-400">Finance</h1>
         <p className="text-gray-500 text-sm mt-1">Complete financial overview of your gym</p>
       </div>
 
@@ -693,9 +693,9 @@ export default function Finance() {
           <button
             key={id}
             onClick={() => setActiveTab(id)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition -mb-px ${
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition -mb-px focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded-t ${
               activeTab === id
-                ? 'border-blue-500 text-blue-400'
+                ? 'border-primary-500 text-primary-400'
                 : 'border-transparent text-gray-400 hover:text-gray-200'
             }`}
           >

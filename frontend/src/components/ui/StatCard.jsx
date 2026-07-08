@@ -1,12 +1,4 @@
-export default function StatCard({ title, value, subtitle, icon: Icon, color = 'primary', trend }) {
-  const colors = {
-    primary: 'bg-gray-700 text-primary-400',
-    green: 'bg-gray-700 text-green-400',
-    yellow: 'bg-gray-700 text-yellow-400',
-    red: 'bg-gray-700 text-red-400',
-    blue: 'bg-gray-700 text-blue-400',
-  }
-
+export default function StatCard({ title, value, subtitle, icon: Icon, trend }) {
   return (
     <div className="card p-5">
       <div className="flex items-start justify-between">
@@ -21,7 +13,7 @@ export default function StatCard({ title, value, subtitle, icon: Icon, color = '
           )}
         </div>
         {Icon && (
-          <div className={`p-2.5 rounded-lg ${colors[color]}`}>
+          <div className="p-2.5 rounded-lg bg-primary-500/15 text-primary-400">
             <Icon size={20} />
           </div>
         )}

@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { UserPlus, Search, UserCog, Trash2 } from 'lucide-react'
+import { UserPlus, Search, UserCog, Trash2, Download } from 'lucide-react'
 import api from '../../api/axios'
+import { exportToExcel } from '../../utils/exportExcel'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
 import Modal from '../../components/ui/Modal'
 import TrainerForm from './TrainerForm'
@@ -51,17 +52,33 @@ export default function Trainers() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-blue-400">Trainers</h1>
+          <h1 className="text-2xl font-bold text-primary-400">Trainers</h1>
           <p className="text-gray-500 text-sm mt-1">{trainers.length} trainers</p>
         </div>
-        <button onClick={() => { setEditTrainer(null); setShowModal(true) }} className="btn-primary">
-          <UserPlus size={16} /> Add Trainer
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => exportToExcel(trainers.map((t) => ({
+              Name: t.name,
+              Phone: t.phone || '',
+              CNIC: t.cnic || '',
+              'Joining Date': t.join_date ? new Date(t.join_date).toLocaleDateString('en-PK') : '',
+              'Monthly Salary': t.monthly_salary || 0,
+              'Salary Status': t.salary_status?.status || '',
+            })), 'Trainers')}
+            className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 transition"
+            title="Export"
+          >
+            <Download size={18} />
+          </button>
+          <button onClick={() => { setEditTrainer(null); setShowModal(true) }} className="btn-primary">
+            <UserPlus size={16} /> Add Trainer
+          </button>
+        </div>
       </div>
 
       <div className="card p-4">
         <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-primary-400" />
           <input className="input pl-9" placeholder="Search trainer..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
       </div>
@@ -90,7 +107,7 @@ export default function Trainers() {
                   </Td>
                   <Td>{t.phone || <span className="text-gray-500">—</span>}</Td>
                   <Td>
-                    <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-500/20 text-blue-400">
+                    <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-primary-500/20 text-primary-400">
                       {t.members_count}
                     </span>
                   </Td>

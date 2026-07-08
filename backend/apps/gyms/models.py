@@ -8,6 +8,40 @@ class Tier(models.TextChoices):
     TIER3    = 'TIER3',    'Pro'
 
 
+class ThemeColor(models.TextChoices):
+    ROSE    = 'rose',    'Rose'
+    RED     = 'red',     'Red'
+    ORANGE  = 'orange',  'Orange'
+    AMBER   = 'amber',   'Amber'
+    YELLOW  = 'yellow',  'Yellow'
+    LIME    = 'lime',    'Lime'
+    GREEN   = 'green',   'Green'
+    EMERALD = 'emerald', 'Emerald'
+    TEAL    = 'teal',    'Teal'
+    CYAN    = 'cyan',    'Cyan'
+    SKY     = 'sky',     'Sky'
+    BLUE    = 'blue',    'Blue'
+    INDIGO  = 'indigo',  'Indigo'
+    VIOLET  = 'violet',  'Violet'
+    PURPLE  = 'purple',  'Purple'
+    FUCHSIA = 'fuchsia', 'Fuchsia'
+    PINK    = 'pink',    'Pink'
+
+
+class CardColor(models.TextChoices):
+    SLATE    = 'slate',    'Slate'
+    GRAPHITE = 'graphite', 'Graphite'
+    MIDNIGHT = 'midnight', 'Midnight'
+    NAVY     = 'navy',     'Navy'
+    INDIGO   = 'indigo',   'Indigo'
+    OCEAN    = 'ocean',    'Ocean'
+    FOREST   = 'forest',   'Forest'
+    STONE    = 'stone',    'Stone'
+    BRONZE   = 'bronze',   'Bronze'
+    PLUM     = 'plum',     'Plum'
+    WINE     = 'wine',     'Wine'
+
+
 class Gym(models.Model):
     name = models.CharField(max_length=200)
     address = models.TextField(blank=True)
@@ -18,6 +52,8 @@ class Gym(models.Model):
     expiry_date = models.DateField(null=True, blank=True)
     subscription_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     tier = models.CharField(max_length=20, choices=Tier.choices, default=Tier.TIER1)
+    theme_color = models.CharField(max_length=20, choices=ThemeColor.choices, default=ThemeColor.BLUE)
+    card_color = models.CharField(max_length=20, choices=CardColor.choices, default=CardColor.SLATE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

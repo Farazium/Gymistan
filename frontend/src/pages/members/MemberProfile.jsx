@@ -11,8 +11,8 @@ function InfoRow({ icon: Icon, label, value }) {
   if (!value) return null
   return (
     <div className="flex items-start gap-3 py-3 border-b border-gray-700 last:border-0">
-      <div className="p-2 bg-gray-700 rounded-lg mt-0.5">
-        <Icon size={14} className="text-gray-400" />
+      <div className="p-2 bg-primary-500/15 rounded-lg mt-0.5">
+        <Icon size={14} className="text-primary-400" />
       </div>
       <div>
         <p className="text-xs text-gray-400">{label}</p>
@@ -83,7 +83,7 @@ export default function MemberProfile() {
             </div>
             <button
               onClick={() => photoRef.current.click()}
-              className="absolute bottom-0 right-0 p-1.5 bg-blue-600 rounded-full hover:bg-blue-700 transition"
+              className="absolute bottom-0 right-0 p-1.5 bg-primary-600 rounded-full hover:bg-primary-700 transition"
             >
               {photoMutation.isPending
                 ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />

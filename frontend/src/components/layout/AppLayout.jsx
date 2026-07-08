@@ -2,13 +2,20 @@ import { useEffect } from 'react'
 import { Outlet, Navigate } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import useAuthStore from '../../store/authStore'
+import { applyTheme, applySurface } from '../../utils/theme'
 
 export default function AppLayout() {
-  const { isAuthenticated, refreshUser } = useAuthStore()
+  const { isAuthenticated, refreshUser, user } = useAuthStore()
 
   useEffect(() => {
     if (isAuthenticated) refreshUser()
   }, [])
+
+  // Re-color the app to the gym's chosen accent + surface whenever they change.
+  useEffect(() => {
+    applyTheme(user?.gym_theme)
+    applySurface(user?.gym_card)
+  }, [user?.gym_theme, user?.gym_card])
 
   if (!isAuthenticated) return <Navigate to="/login" replace />
 

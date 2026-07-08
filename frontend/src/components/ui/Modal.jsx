@@ -13,7 +13,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className={`relative bg-gray-800 rounded-xl shadow-xl w-full ${sizes[size]} max-h-[90vh] flex flex-col border border-gray-700`}>
+      <div className={`relative surface rounded-xl shadow-xl w-full ${sizes[size]} max-h-[90vh] flex flex-col border border-gray-700`}>
         <div className="flex items-center justify-between p-5 border-b border-gray-700">
           <h2 className="text-lg font-semibold text-gray-100">{title}</h2>
           <button onClick={onClose} className="p-1 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-700 transition">

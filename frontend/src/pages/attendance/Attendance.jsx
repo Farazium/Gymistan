@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
-import { Users, Dumbbell, ChevronLeft, ChevronRight, Check, X, Settings, Download } from 'lucide-react'
+import { Users, Dumbbell, ChevronLeft, ChevronRight, Check, X, Settings, Download, CalendarDays } from 'lucide-react'
 import api from '../../api/axios'
 import { exportToExcel } from '../../utils/exportExcel'
 import Modal from '../../components/ui/Modal'
@@ -33,7 +33,7 @@ function rangeLabel(data) {
 
 function StatTile({ label, value, tone = 'gray' }) {
   const tones = {
-    gray: 'text-gray-100', green: 'text-green-400', red: 'text-red-400', blue: 'text-blue-400',
+    gray: 'text-gray-100', green: 'text-green-400', red: 'text-red-400', blue: 'text-primary-400',
   }
   return (
     <div className="card p-4">
@@ -103,27 +103,27 @@ export default function Attendance() {
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-blue-400">Attendance</h1>
+          <h1 className="text-2xl font-bold text-primary-400">Attendance</h1>
           <p className="text-gray-500 text-sm mt-1">Biometric check-ins synced from your ZKTeco device.</p>
         </div>
         <div className="flex gap-2">
           <button onClick={exportSheet} disabled={!rows.length}
-            className="p-2 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-400/30 hover:bg-blue-500/30 disabled:opacity-40 transition" title="Export">
+            className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 disabled:opacity-40 transition" title="Export">
             <Download size={18} />
           </button>
           <button onClick={() => setShowDevice(true)}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-700/60 text-gray-200 hover:bg-gray-700 transition text-sm">
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 transition text-sm">
             <Settings size={16} /> Device
           </button>
         </div>
       </div>
 
       {/* Member / Trainer tabs */}
-      <div className="flex gap-1 p-1 bg-gray-800/60 rounded-xl w-fit">
+      <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ backgroundColor: 'rgb(var(--surface) / 0.6)' }}>
         {[['member', 'Members', Users], ['trainer', 'Trainers', Dumbbell]].map(([val, label, Icon]) => (
           <button key={val} onClick={() => setType(val)}
             className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition ${
-              type === val ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-gray-200'}`}>
+              type === val ? 'bg-primary-500/80 text-white' : 'text-gray-400 hover:text-gray-200'}`}>
             <Icon size={16} /> {label}
           </button>
         ))}
@@ -131,7 +131,7 @@ export default function Attendance() {
 
       {/* Scope switch + date nav */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-1 p-1 bg-gray-800/60 rounded-lg">
+        <div className="flex gap-1 p-1 rounded-lg" style={{ backgroundColor: 'rgb(var(--surface) / 0.6)' }}>
           {['daily', 'weekly', 'monthly'].map((s) => (
             <button key={s} onClick={() => setScope(s)}
               className={`px-4 py-1.5 rounded-md text-sm font-medium capitalize transition ${
@@ -140,18 +140,21 @@ export default function Attendance() {
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <button onClick={() => setDate(shiftDate(date, scope, -1))}
-            className="p-1.5 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-gray-100 transition">
-            <ChevronLeft size={18} />
+            className="p-1.5 rounded-lg bg-primary-500/15 hover:bg-primary-500/25 text-primary-300 transition">
+            <ChevronLeft size={15} />
           </button>
-          <span className="text-sm text-gray-100 min-w-[11rem] text-center font-medium">{rangeLabel(data)}</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-primary-500/10 rounded-lg min-w-[11rem] justify-center">
+            <CalendarDays size={13} className="text-primary-400" />
+            <span className="text-sm font-medium text-gray-100">{rangeLabel(data)}</span>
+          </div>
           <button onClick={() => setDate(shiftDate(date, scope, 1))}
-            className="p-1.5 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-gray-100 transition">
-            <ChevronRight size={18} />
+            className="p-1.5 rounded-lg bg-primary-500/15 hover:bg-primary-500/25 text-primary-300 transition">
+            <ChevronRight size={15} />
           </button>
           <button onClick={() => setDate(iso(new Date()))}
-            className="ml-1 px-3 py-1.5 text-xs rounded-lg bg-gray-700/60 text-gray-300 hover:bg-gray-700 transition">
+            className="ml-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-600/20 text-primary-400 hover:bg-primary-600/30 transition">
             Today
           </button>
         </div>
@@ -242,7 +245,7 @@ function MatrixSheet({ rows, days, scope, onToggle }) {
       <table className="w-full border-collapse">
         <thead>
           <tr className="text-xs text-gray-500">
-            <th className="sticky left-0 bg-gray-800 z-10 text-left font-semibold uppercase tracking-wider px-4 py-3 min-w-[10rem]">Name</th>
+            <th className="sticky left-0 surface z-10 text-left font-semibold uppercase tracking-wider px-4 py-3 min-w-[10rem]">Name</th>
             {head.map((h) => (
               <th key={h.key} className="px-1 py-2 font-medium text-center min-w-[2.2rem]">
                 <div>{h.top}</div>
@@ -255,7 +258,7 @@ function MatrixSheet({ rows, days, scope, onToggle }) {
         <tbody>
           {rows.map((r) => (
             <tr key={r.id} className="border-t border-gray-700/50 hover:bg-gray-700/20">
-              <td className="sticky left-0 bg-gray-800 z-10 px-4 py-2">
+              <td className="sticky left-0 surface z-10 px-4 py-2">
                 <p className="font-medium text-gray-100 text-sm truncate">{r.name}</p>
                 {r.code && <p className="text-[10px] text-gray-500">#{r.code}</p>}
               </td>

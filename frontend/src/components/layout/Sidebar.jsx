@@ -41,14 +41,14 @@ export default function Sidebar() {
 
   return (
     <>
-      <aside className="w-64 min-h-screen bg-gray-800 flex flex-col border-r border-gray-700/50">
+      <aside className="w-64 min-h-screen surface flex flex-col border-r border-gray-700/50">
         <div className="p-6 border-b border-gray-700/50">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600/20 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Dumbbell size={20} className="text-blue-400" />
+            <div className="w-10 h-10 bg-primary-600/20 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Dumbbell size={20} className="text-primary-400" />
             </div>
             <div className="min-w-0">
-              <p className="text-blue-400 font-bold text-xs tracking-widest uppercase leading-none">Gymistan</p>
+              <p className="text-primary-400 font-bold text-xs tracking-widest uppercase leading-none">Gymistan</p>
             </div>
           </div>
         </div>
@@ -61,8 +61,8 @@ export default function Sidebar() {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                   isActive
-                    ? 'bg-gray-700 text-white'
-                    : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-100'
+                    ? 'bg-primary-500/15 text-primary-400'
+                    : 'text-gray-400 hover:bg-primary-500/10 hover:text-gray-100'
                 }`
               }
             >
@@ -76,7 +76,7 @@ export default function Sidebar() {
               to="/attendance"
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                  isActive ? 'bg-gray-700 text-white' : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-100'
+                  isActive ? 'bg-primary-500/15 text-primary-400' : 'text-gray-400 hover:bg-primary-500/10 hover:text-gray-100'
                 }`
               }
             >
@@ -89,7 +89,7 @@ export default function Sidebar() {
         <div className="p-4 border-t border-gray-700/50 space-y-1">
           <button
             onClick={() => navigate('/settings')}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-700/50 transition group"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-primary-500/10 transition group"
           >
             <div className="w-8 h-8 bg-gray-700 rounded-full overflow-hidden flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
               {user?.gym_logo
@@ -105,7 +105,7 @@ export default function Sidebar() {
           </button>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:bg-gray-700/50 hover:text-gray-100 text-sm transition-all"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:bg-primary-500/10 hover:text-gray-100 text-sm transition-all"
           >
             <LogOut size={16} />
             Logout

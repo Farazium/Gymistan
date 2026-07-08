@@ -1,9 +1,11 @@
 import { useState, useRef } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { Building2, Camera, Image as ImageIcon } from 'lucide-react'
+import { Building2, Camera, Image as ImageIcon, Check, ChevronRight } from 'lucide-react'
 import api from '../../api/axios'
 import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
+import Modal from '../../components/ui/Modal'
+import { applyTheme, applySurface, PRESETS, SURFACE_PRESETS, DEFAULT_THEME, DEFAULT_SURFACE } from '../../utils/theme'
 
 // Small "not wired yet" tag for placeholder settings.
 const SoonBadge = () => (
@@ -19,6 +21,48 @@ function Row({ label, hint, children }) {
         {hint && <p className="text-xs text-gray-500 mt-0.5">{hint}</p>}
       </div>
       <div className="w-64 flex-shrink-0 flex justify-end">{children}</div>
+    </div>
+  )
+}
+
+// Row control that shows the current color + name and opens the picker modal.
+function ColorTrigger({ preset, onClick, bordered }) {
+  return (
+    <button
+      onClick={onClick}
+      className="inline-flex items-center gap-2.5 pl-2 pr-2.5 py-1.5 rounded-lg border border-gray-600 hover:bg-gray-700/50 transition"
+    >
+      <span
+        className={`w-5 h-5 rounded-full ${bordered ? 'border border-gray-500' : ''}`}
+        style={{ backgroundColor: preset.swatch }}
+      />
+      <span className="text-sm text-gray-200">{preset.name}</span>
+      <ChevronRight size={15} className="text-gray-500" />
+    </button>
+  )
+}
+
+// Grid of named color options shown inside the picker modal.
+function ColorGrid({ presets, current, onSelect, bordered }) {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+      {presets.map((p) => (
+        <button
+          key={p.id}
+          onClick={() => onSelect(p.id)}
+          className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition ${
+            current === p.id ? 'border-primary-500 bg-primary-500/10' : 'border-gray-700 hover:border-gray-500 hover:bg-gray-700/40'
+          }`}
+        >
+          <span
+            className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center ${bordered ? 'border border-gray-500' : ''}`}
+            style={{ backgroundColor: p.swatch }}
+          >
+            {current === p.id && <Check size={13} className="text-white" />}
+          </span>
+          <span className="text-sm text-gray-200">{p.name}</span>
+        </button>
+      ))}
     </div>
   )
 }
@@ -44,8 +88,10 @@ export default function Settings() {
   const [currentPw, setCurrentPw] = useState('')
   const [newPw, setNewPw] = useState('')
   const [confirmPw, setConfirmPw] = useState('')
+  const [theme, setTheme] = useState(user?.gym_theme || DEFAULT_THEME)
+  const [surface, setSurface] = useState(user?.gym_card || DEFAULT_SURFACE)
+  const [colorModal, setColorModal] = useState(null) // 'accent' | 'card' | null
   // Placeholder-only settings (not persisted yet).
-  const [theme, setTheme] = useState('dark')
   const [printable, setPrintable] = useState(false)
   const logoRef = useRef(null)
 
@@ -67,6 +113,30 @@ export default function Settings() {
     onSuccess: ({ data }) => setUser({ ...user, gym_name: data.name, gym_logo: data.logo || user.gym_logo }),
     onError: () => toast.error('Failed to update gym'),
   })
+
+  const themeMutation = useMutation({
+    mutationFn: (color) => api.patch(`/gyms/${user.gym}/`, { theme_color: color }),
+    onSuccess: ({ data }) => { setUser({ ...user, gym_theme: data.theme_color }); toast.success('Theme updated') },
+    onError: () => { setTheme(user?.gym_theme || DEFAULT_THEME); applyTheme(user?.gym_theme); toast.error('Failed to update theme') },
+  })
+
+  const selectTheme = (color) => {
+    setTheme(color)
+    applyTheme(color)          // instant preview
+    themeMutation.mutate(color) // persist
+  }
+
+  const surfaceMutation = useMutation({
+    mutationFn: (color) => api.patch(`/gyms/${user.gym}/`, { card_color: color }),
+    onSuccess: ({ data }) => { setUser({ ...user, gym_card: data.card_color }); toast.success('Card color updated') },
+    onError: () => { setSurface(user?.gym_card || DEFAULT_SURFACE); applySurface(user?.gym_card); toast.error('Failed to update card color') },
+  })
+
+  const selectSurface = (color) => {
+    setSurface(color)
+    applySurface(color)
+    surfaceMutation.mutate(color)
+  }
 
   const passwordMutation = useMutation({
     mutationFn: () => api.post('/auth/change-password/', { current_password: currentPw, new_password: newPw }),
@@ -103,11 +173,13 @@ export default function Settings() {
   }
 
   const saving = profileMutation.isPending || gymMutation.isPending
+  const currentAccent = PRESETS.find((p) => p.id === theme) || PRESETS[0]
+  const currentSurface = SURFACE_PRESETS.find((p) => p.id === surface) || SURFACE_PRESETS[0]
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-blue-400">Settings</h1>
+        <h1 className="text-2xl font-bold text-primary-400">Settings</h1>
         <p className="text-gray-500 text-sm mt-1">Manage your account and gym preferences</p>
       </div>
 
@@ -138,7 +210,7 @@ export default function Settings() {
                 </div>
                 <button
                   onClick={() => logoRef.current.click()}
-                  className="absolute -bottom-1 -right-1 p-1 bg-blue-600 rounded-full hover:bg-blue-700 transition"
+                  className="absolute -bottom-1 -right-1 p-1 bg-primary-600 rounded-full hover:bg-primary-700 transition"
                 >
                   <Camera size={10} className="text-white" />
                 </button>
@@ -161,12 +233,17 @@ export default function Settings() {
 
       {/* Customization */}
       <Section title="Customization" description="Personalize how the app looks and behaves">
-        <Row label={<span className="flex items-center gap-2">Theme <SoonBadge /></span>} hint="App appearance">
-          <select className="input" value={theme} onChange={(e) => setTheme(e.target.value)} disabled>
-            <option value="dark">Dark</option>
-            <option value="light">Light</option>
-          </select>
-        </Row>
+        {user?.gym && (
+          <Row label="Accent Color" hint="Match your gym's brand color">
+            <ColorTrigger preset={currentAccent} onClick={() => setColorModal('accent')} />
+          </Row>
+        )}
+
+        {user?.gym && (
+          <Row label="Card Color" hint="Surface tone for cards and sidebar">
+            <ColorTrigger preset={currentSurface} onClick={() => setColorModal('card')} bordered />
+          </Row>
+        )}
 
         <Row label={<span className="flex items-center gap-2">Background Picture <SoonBadge /></span>} hint="Custom app background">
           <button
@@ -180,7 +257,7 @@ export default function Settings() {
         <Row label={<span className="flex items-center gap-2">Printable Receipts <SoonBadge /></span>} hint="Enable a print/PDF button on payments">
           <button
             onClick={() => { setPrintable(v => !v); toast('Printable receipts coming soon', { icon: '🕓' }) }}
-            className={`relative w-11 h-6 rounded-full transition ${printable ? 'bg-blue-600' : 'bg-gray-600'}`}
+            className={`relative w-11 h-6 rounded-full transition ${printable ? 'bg-primary-600' : 'bg-gray-600'}`}
           >
             <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${printable ? 'translate-x-5' : ''}`} />
           </button>
@@ -208,6 +285,25 @@ export default function Settings() {
           </button>
         </div>
       </Section>
+
+      <Modal isOpen={colorModal === 'accent'} onClose={() => setColorModal(null)} title="Accent Color" size="md">
+        <p className="text-xs text-gray-500 mb-4">Used for buttons, links, active menu and highlights.</p>
+        <ColorGrid
+          presets={PRESETS}
+          current={theme}
+          onSelect={(id) => { selectTheme(id); setColorModal(null) }}
+        />
+      </Modal>
+
+      <Modal isOpen={colorModal === 'card'} onClose={() => setColorModal(null)} title="Card Color" size="md">
+        <p className="text-xs text-gray-500 mb-4">Surface tone for cards and the sidebar. All kept dark for readability.</p>
+        <ColorGrid
+          presets={SURFACE_PRESETS}
+          current={surface}
+          onSelect={(id) => { selectSurface(id); setColorModal(null) }}
+          bordered
+        />
+      </Modal>
     </div>
   )
 }

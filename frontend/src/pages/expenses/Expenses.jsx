@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, Receipt, FileDown } from 'lucide-react'
+import { Plus, Trash2, Receipt, Download } from 'lucide-react'
 import { exportToExcel } from '../../utils/exportExcel'
 import { useForm } from 'react-hook-form'
 import api from '../../api/axios'
@@ -13,7 +13,7 @@ const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${Stri
 const CATEGORIES = ['RENT', 'UTILITIES', 'BILLS', 'SALARIES', 'EQUIPMENT', 'MAINTENANCE', 'MARKETING', 'INVENTORY', 'OTHER']
 
 const categoryColors = {
-  RENT: 'bg-gray-700 text-blue-400',
+  RENT: 'bg-gray-700 text-primary-400',
   UTILITIES: 'bg-gray-700 text-yellow-400',
   BILLS: 'bg-gray-700 text-cyan-400',
   SALARIES: 'bg-gray-700 text-green-400',
@@ -136,7 +136,7 @@ export default function Expenses() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-blue-400">Expenses</h1>
+          <h1 className="text-2xl font-bold text-primary-400">Expenses</h1>
           <p className="text-gray-500 text-sm mt-1">
             {expenses.length} entries — Total: <span className="font-semibold text-red-500">{fmt(total)}</span>
           </p>
@@ -150,10 +150,10 @@ export default function Expenses() {
               Date: new Date(e.date).toLocaleDateString('en-PK'),
               Description: e.description || '',
             })), 'Expenses')}
-            className="p-2 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-400/30 hover:bg-blue-500/30 hover:border-blue-400/50 transition"
+            className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 transition"
             title="Export"
           >
-            <FileDown size={18} />
+            <Download size={18} />
           </button>
           <button onClick={() => setShowModal(true)} className="btn-primary">
             <Plus size={16} /> Add Expense

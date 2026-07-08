@@ -36,7 +36,7 @@ export default function Login() {
             <Dumbbell size={32} className="text-white" />
           </div>
           <h1 className="text-3xl font-bold text-white">GymPro</h1>
-          <p className="text-blue-200 mt-1 text-sm">Gym Management System</p>
+          <p className="text-primary-200 mt-1 text-sm">Gym Management System</p>
         </div>
 
         <div className="bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-gray-700/50">

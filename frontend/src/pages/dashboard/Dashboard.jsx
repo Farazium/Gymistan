@@ -18,12 +18,12 @@ function SuperAdminDashboard() {
     refetchInterval: 60000,
   })
 
-  if (isLoading) return <div className="flex items-center justify-center h-64"><div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" /></div>
+  if (isLoading) return <div className="flex items-center justify-center h-64"><div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full" /></div>
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-blue-400">Dashboard</h1>
+        <h1 className="text-2xl font-bold text-primary-400">Dashboard</h1>
         <p className="text-gray-500 text-sm mt-1">Platform-wide overview</p>
       </div>
 
@@ -49,7 +49,7 @@ function SuperAdminDashboard() {
               {data.top_gyms.map((g) => (
                 <Tr key={g.id}>
                   <Td>
-                    <button onClick={() => navigate(`/admin/gyms/${g.id}`)} className="font-medium text-gray-100 hover:text-blue-400 transition">
+                    <button onClick={() => navigate(`/admin/gyms/${g.id}`)} className="font-medium text-gray-100 hover:text-primary-400 transition">
                       {g.name}
                     </button>
                   </Td>
@@ -95,7 +95,7 @@ function SuperAdminDashboard() {
 }
 
 const TIER_META = {
-  TIER1:    { label: 'Starter', color: 'bg-blue-500/20 text-blue-300 ring-blue-500/40',    icon: Zap },
+  TIER1:    { label: 'Starter', color: 'bg-primary-500/20 text-primary-300 ring-primary-500/40',    icon: Zap },
   TIER2_WA: { label: 'Connect', color: 'bg-green-500/20 text-green-300 ring-green-500/40', icon: MessageCircle },
   TIER2_AT: { label: 'Track',   color: 'bg-purple-500/20 text-purple-300 ring-purple-500/40', icon: Fingerprint },
   TIER3:    { label: 'Elite',   color: 'bg-yellow-500/20 text-yellow-300 ring-yellow-500/40', icon: Zap },
@@ -116,20 +116,20 @@ const ALL_TIERS = [
 ]
 
 const TIER_COLORS = {
-  blue:   { card: 'border-blue-500/30 bg-blue-500/5',     badge: 'bg-blue-500/20 text-blue-300',    icon: 'text-blue-400' },
+  blue:   { card: 'border-primary-500/30 bg-primary-500/5',     badge: 'bg-primary-500/20 text-primary-300',    icon: 'text-primary-400' },
   green:  { card: 'border-green-500/30 bg-green-500/5',   badge: 'bg-green-500/20 text-green-300',  icon: 'text-green-400' },
   purple: { card: 'border-purple-500/30 bg-purple-500/5', badge: 'bg-purple-500/20 text-purple-300', icon: 'text-purple-400' },
   yellow: { card: 'border-yellow-500/30 bg-yellow-500/5', badge: 'bg-yellow-500/20 text-yellow-300', icon: 'text-yellow-400' },
 }
 
 const TIER_RING = {
-  blue:   'ring-blue-500/40',
+  blue:   'ring-primary-500/40',
   green:  'ring-green-500/40',
   purple: 'ring-purple-500/40',
   yellow: 'ring-yellow-500/40',
 }
 const TIER_ICON_BG = {
-  blue:   'bg-blue-500/20 text-blue-400',
+  blue:   'bg-primary-500/20 text-primary-400',
   green:  'bg-green-500/20 text-green-400',
   purple: 'bg-purple-500/20 text-purple-400',
   yellow: 'bg-yellow-500/20 text-yellow-400',
@@ -139,8 +139,8 @@ function TierInfoModal({ tier, onClose }) {
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-gray-800 rounded-2xl border border-gray-700 shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-5 border-b border-gray-700 sticky top-0 bg-gray-800 z-10">
+      <div className="relative surface rounded-2xl border border-gray-700 shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-gray-700 sticky top-0 surface z-10">
           <h2 className="text-gray-100 font-semibold">Subscription Plans</h2>
           <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-100 hover:bg-gray-700 rounded-lg transition">
             <X size={15} />
@@ -218,7 +218,7 @@ function GymDashboard() {
     <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-blue-400">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-primary-400">Dashboard</h1>
           <p className="text-gray-500 text-sm mt-1">Overview of your gym's performance</p>
         </div>
         <div className="flex items-center gap-1.5 mt-1">

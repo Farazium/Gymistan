@@ -32,7 +32,7 @@ class GymSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Gym
-        fields = ['id', 'name', 'address', 'phone', 'logo', 'is_active', 'joining_date', 'expiry_date', 'subscription_amount', 'tier', 'created_at', 'updated_at', 'member_count', 'user_count']
+        fields = ['id', 'name', 'address', 'phone', 'logo', 'is_active', 'joining_date', 'expiry_date', 'subscription_amount', 'tier', 'theme_color', 'card_color', 'created_at', 'updated_at', 'member_count', 'user_count']
 
     def get_member_count(self, obj):
         return obj.members.filter(is_deleted=False).count()

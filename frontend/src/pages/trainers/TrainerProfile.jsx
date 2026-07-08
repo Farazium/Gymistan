@@ -29,8 +29,8 @@ const todayISO = () => {
 function InfoRow({ icon: Icon, label, value }) {
   return (
     <div className="flex items-start gap-3 py-3 border-b border-gray-700/50 last:border-0">
-      <div className="w-8 h-8 bg-gray-700 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-        <Icon size={14} className="text-blue-400" />
+      <div className="w-8 h-8 bg-primary-500/15 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+        <Icon size={14} className="text-primary-400" />
       </div>
       <div>
         <p className="text-xs text-gray-500 uppercase tracking-wide">{label}</p>
@@ -86,7 +86,7 @@ function PaySalaryForm({ trainer, onSuccess }) {
       <div className="rounded-lg bg-gray-700/40 border border-gray-700 px-4 py-3 space-y-1.5 text-sm">
         <div className="flex justify-between"><span className="text-gray-400">Monthly Salary</span><span className="text-gray-200">{fmt(base)}</span></div>
         <div className="flex justify-between"><span className="text-gray-400">Commission</span><span className="text-gray-200">{commission > 0 ? fmt(commission) : '—'}</span></div>
-        <div className="flex justify-between pt-1.5 border-t border-gray-700"><span className="font-semibold text-gray-100">Total</span><span className="font-bold text-blue-400">{fmt(total)}</span></div>
+        <div className="flex justify-between pt-1.5 border-t border-gray-700"><span className="font-semibold text-gray-100">Total</span><span className="font-bold text-primary-400">{fmt(total)}</span></div>
       </div>
 
       <button type="submit" disabled={mutation.isPending || total <= 0} className="btn-primary w-full justify-center">
@@ -123,7 +123,7 @@ export default function TrainerProfile() {
 
   if (isLoading) return (
     <div className="flex justify-center py-32">
-      <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+      <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full" />
     </div>
   )
   if (isError || !t) return (
@@ -144,7 +144,7 @@ export default function TrainerProfile() {
   const assignedMembersCard = (
     <div className="card p-5">
       <h2 className="font-semibold text-gray-100 flex items-center gap-2 mb-3">
-        <Users size={15} className="text-blue-400" /> Assigned Members
+        <Users size={15} className="text-primary-400" /> Assigned Members
         <span className="text-xs text-gray-500">({t.assigned_members?.length || 0})</span>
       </h2>
       {t.assigned_members?.length ? (
@@ -172,7 +172,7 @@ export default function TrainerProfile() {
   const salaryHistoryCard = (
     <div className="card p-5">
       <h2 className="font-semibold text-gray-100 flex items-center gap-2 mb-3">
-        <Banknote size={15} className="text-blue-400" /> Salary History
+        <Banknote size={15} className="text-primary-400" /> Salary History
       </h2>
       {t.salary_history?.length ? (
         <div className="overflow-x-auto">
@@ -218,12 +218,12 @@ export default function TrainerProfile() {
               <div className="w-14 h-14 rounded-full bg-gray-700 overflow-hidden flex items-center justify-center">
                 {photoUrl
                   ? <img src={photoUrl} alt={t.name} className="w-full h-full object-cover" />
-                  : <UserCog size={26} className="text-blue-400" />
+                  : <UserCog size={26} className="text-primary-400" />
                 }
               </div>
               <button
                 onClick={() => photoRef.current.click()}
-                className="absolute bottom-0 right-0 p-1.5 bg-blue-600 rounded-full hover:bg-blue-700 transition"
+                className="absolute bottom-0 right-0 p-1.5 bg-primary-600 rounded-full hover:bg-primary-700 transition"
               >
                 {photoMutation.isPending
                   ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -240,7 +240,7 @@ export default function TrainerProfile() {
                 }} />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-blue-400">{t.name}</h1>
+              <h1 className="text-2xl font-bold text-primary-400">{t.name}</h1>
               <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${t.is_active ? 'bg-green-500/10 text-green-400 border-green-500/30' : 'bg-red-500/10 text-red-400 border-red-500/30'}`}>
                 {t.is_active ? 'Active' : 'Inactive'}
               </span>
@@ -275,7 +275,7 @@ export default function TrainerProfile() {
         {/* Details */}
         <div className="card p-5">
           <h2 className="font-semibold text-gray-100 flex items-center gap-2 mb-3">
-            <UserCog size={15} className="text-blue-400" /> Details
+            <UserCog size={15} className="text-primary-400" /> Details
           </h2>
           <InfoRow icon={Phone} label="Phone" value={t.phone} />
           <InfoRow icon={Fingerprint} label="CNIC" value={t.cnic} />
