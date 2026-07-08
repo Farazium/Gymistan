@@ -23,11 +23,12 @@ class DashboardView(APIView):
         month_start = today.replace(day=1)
         last_month_start = (month_start - timedelta(days=1)).replace(day=1)
 
+        EXPIRY_WINDOW = 3  # days ahead considered "expiring soon"
         members = Member.objects.filter(gym=gym, is_deleted=False)
         active_members = members.filter(status='ACTIVE').count()
         expired_members = members.filter(status='EXPIRED').count()
         expiring_soon = members.filter(
-            status='ACTIVE', expiry_date__lte=today + timedelta(days=7), expiry_date__gte=today
+            status='ACTIVE', expiry_date__lte=today + timedelta(days=EXPIRY_WINDOW), expiry_date__gte=today
         ).count()
         new_members_this_month = members.filter(join_date__gte=month_start).count()
 
@@ -56,9 +57,20 @@ class DashboardView(APIView):
             for p in recent_payments
         ]
 
-        members_expiring = members.filter(
-            status='ACTIVE', expiry_date__lte=today + timedelta(days=7), expiry_date__gte=today
-        ).values('id', 'name', 'phone', 'expiry_date')[:10]
+        expiring_qs = members.filter(
+            status='ACTIVE', expiry_date__lte=today + timedelta(days=EXPIRY_WINDOW), expiry_date__gte=today
+        ).order_by('expiry_date')[:10]
+        members_expiring = [
+            {
+                'id': m.id,
+                'name': m.name,
+                'phone': m.phone,
+                'expiry_date': m.expiry_date,
+                # Already reminded for this exact expiry date? Frontend disables the button.
+                'reminder_sent': m.reminder_sent_for == m.expiry_date,
+            }
+            for m in expiring_qs
+        ]
 
         products = list(Product.objects.filter(gym=gym, is_active=True))
         total_products = len(products)
@@ -122,7 +134,7 @@ class DashboardView(APIView):
                 'profit_this_month': round(inventory_profit_this_month, 2),
             },
             'recent_payments': recent_payments_data,
-            'members_expiring_soon': list(members_expiring),
+            'members_expiring_soon': members_expiring,
         })
 
 

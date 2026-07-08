@@ -1,7 +1,8 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Users, CreditCard, TrendingUp, AlertTriangle, Receipt, DollarSign, Boxes, ShoppingCart, Building2, Wallet, Info, X, Check, Lock, Zap, MessageCircle, Fingerprint } from 'lucide-react'
+import { Users, CreditCard, TrendingUp, AlertTriangle, Receipt, DollarSign, Boxes, ShoppingCart, Building2, Wallet, Info, X, Check, Lock, Zap, MessageCircle, Fingerprint, Loader2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import api from '../../api/axios'
 import StatCard from '../../components/ui/StatCard'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
@@ -196,12 +197,20 @@ function TierInfoModal({ tier, onClose }) {
 
 function GymDashboard() {
   const { user } = useAuthStore()
+  const queryClient = useQueryClient()
   const [showTierInfo, setShowTierInfo] = useState(false)
   const { data, isLoading } = useQuery({ queryKey: ['dashboard'], queryFn: async () => { const { data } = await api.get('/dashboard/'); return data }, refetchInterval: 60000 })
 
   const tier = user?.gym_tier || 'TIER1'
   const tierMeta = TIER_META[tier]
   const TierIcon = tierMeta.icon
+  const waEnabled = tier === 'TIER2_WA' || tier === 'TIER3'
+
+  const sendReminder = useMutation({
+    mutationFn: (id) => api.post(`/members/${id}/reminder/`),
+    onSuccess: () => { toast.success('Reminder sent via WhatsApp!'); queryClient.invalidateQueries(['dashboard']) },
+    onError: (err) => toast.error(err.response?.data?.message || 'Failed to send reminder'),
+  })
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full" /></div>
 
@@ -235,7 +244,7 @@ function GymDashboard() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Expiring Soon" value={data.members.expiring_soon} subtitle="Within 7 days" icon={AlertTriangle} color="yellow" />
+        <StatCard title="Expiring Soon" value={data.members.expiring_soon} subtitle="Within 3 days" icon={AlertTriangle} color="yellow" />
         <StatCard title="Expired Members" value={data.members.expired} subtitle="Need renewal" icon={Users} color="red" />
         <StatCard title="New This Month" value={data.members.new_this_month} subtitle="Joined this month" icon={TrendingUp} color="blue" />
         <StatCard title="Inventory Products" value={data.inventory.total_products} subtitle={data.inventory.low_stock_count > 0 ? `⚠ ${data.inventory.low_stock_count} low stock` : 'All stocked'} icon={Boxes} color={data.inventory.low_stock_count > 0 ? 'yellow' : 'primary'} />
@@ -273,16 +282,35 @@ function GymDashboard() {
             <h3 className="font-semibold text-gray-100">Members Expiring Soon</h3>
           </div>
           <Table>
-            <Thead><Th>Member</Th><Th>Phone</Th><Th>Expires</Th></Thead>
+            <Thead><Th>Member</Th><Th>Phone</Th><Th>Expires</Th>{waEnabled && <Th>Reminder</Th>}</Thead>
             <Tbody>
-              {data.members_expiring_soon.map((m) => (
+              {data.members_expiring_soon.map((m) => {
+                const sending = sendReminder.isPending && sendReminder.variables === m.id
+                return (
                 <Tr key={m.id}>
                   <Td className="font-medium">{m.name}</Td>
                   <Td>{m.phone}</Td>
                   <Td className="text-orange-400 font-medium">{new Date(m.expiry_date).toLocaleDateString('en-PK')}</Td>
+                  {waEnabled && (
+                    <Td>
+                      {m.reminder_sent ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-green-400"><Check size={13} /> Sent</span>
+                      ) : (
+                        <button
+                          onClick={() => sendReminder.mutate(m.id)}
+                          disabled={sending}
+                          title="Send WhatsApp renewal reminder"
+                          className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg border border-green-500/30 text-green-400 hover:bg-green-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {sending ? <Loader2 size={13} className="animate-spin" /> : <MessageCircle size={13} />}
+                          {sending ? 'Sending' : 'Remind'}
+                        </button>
+                      )}
+                    </Td>
+                  )}
                 </Tr>
-              ))}
-              {!data.members_expiring_soon.length && <Tr><Td colSpan={3} className="text-center text-gray-400 py-8">No members expiring soon</Td></Tr>}
+              )})}
+              {!data.members_expiring_soon.length && <Tr><Td colSpan={waEnabled ? 4 : 3} className="text-center text-gray-400 py-8">No members expiring soon</Td></Tr>}
             </Tbody>
           </Table>
         </div>

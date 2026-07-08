@@ -8,7 +8,7 @@ from .models import Member
 from .serializers import MemberSerializer, MemberListSerializer
 from apps.accounts.permissions import IsGymMember
 from apps.payments.models import Payment
-from apps.payments.utils import send_whatsapp_welcome
+from apps.payments.utils import send_whatsapp_welcome, send_whatsapp_expiry_reminder
 import datetime
 
 # Tiers that include WhatsApp messaging.
@@ -191,3 +191,30 @@ class HardDeleteMemberView(APIView):
             return Response({'detail': 'Not found'}, status=404)
         member.delete()
         return Response(status=204)
+
+
+class SendReminderView(APIView):
+    """Send a one-off WhatsApp renewal reminder to a member (from the dashboard).
+
+    Idempotent per expiry date: once a reminder is sent for the member's current
+    expiry_date it can't be sent again (guarded by Member.reminder_sent_for), so
+    the same person isn't pinged repeatedly for the same expiry."""
+    permission_classes = [IsAuthenticated, IsGymMember]
+
+    def post(self, request, pk):
+        try:
+            member = Member.objects.get(pk=pk, gym=request.user.gym, is_deleted=False)
+        except Member.DoesNotExist:
+            return Response({'message': 'Member not found'}, status=404)
+        if member.gym.tier not in WA_TIERS:
+            return Response({'message': 'WhatsApp is not enabled for your plan'}, status=403)
+        if not member.phone:
+            return Response({'message': 'Member has no phone number'}, status=400)
+        if member.reminder_sent_for == member.expiry_date:
+            return Response({'message': 'Reminder already sent for this expiry'}, status=400)
+        ok, detail = send_whatsapp_expiry_reminder(member)
+        if not ok:
+            return Response({'message': detail or 'Failed to send reminder'}, status=502)
+        member.reminder_sent_for = member.expiry_date
+        member.save(update_fields=['reminder_sent_for'])
+        return Response({'message': 'Reminder sent', 'reminder_sent': True})
