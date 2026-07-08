@@ -161,14 +161,16 @@ export default function Packages() {
                     </button>
                   </div>
                 </div>
-                <h3 className="font-semibold text-gray-100 text-base">{pkg.name}</h3>
+                <h3 className="font-semibold text-gray-100 text-base flex items-center gap-1.5">
+                  <span>{pkg.name}</span>
+                  {pkg.has_trainer && (
+                    <span title="Includes trainer" className="inline-flex text-blue-300">
+                      <UserCog size={15} />
+                    </span>
+                  )}
+                </h3>
                 <p className={`text-2xl font-bold mt-1 ${p.price}`}>PKR {Number(pkg.price).toLocaleString()}</p>
                 <p className="text-sm text-gray-400 mt-0.5">{months} {months === 1 ? 'Month' : 'Months'}</p>
-                {pkg.has_trainer && (
-                  <span className="inline-flex items-center gap-1 mt-2 text-xs px-2 py-0.5 rounded-full font-medium bg-blue-500/15 text-blue-300 border border-blue-500/25">
-                    <UserCog size={11} /> Includes Trainer
-                  </span>
-                )}
                 {pkg.features?.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {pkg.features.map((f, i) => (
