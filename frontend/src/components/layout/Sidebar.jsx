@@ -1,11 +1,9 @@
-import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Package, CreditCard, Receipt,
   Building2, LogOut, Dumbbell, Boxes, Settings, Fingerprint, Wallet, BarChart2, UserCog
 } from 'lucide-react'
 import useAuthStore from '../../store/authStore'
-import ProfileModal from '../ui/ProfileModal'
 import toast from 'react-hot-toast'
 
 const navItems = [
@@ -29,7 +27,6 @@ const superAdminItems = [
 export default function Sidebar() {
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
-  const [showProfile, setShowProfile] = useState(false)
 
   const hasAttendance = ['TIER2_AT', 'TIER3'].includes(user?.gym_tier)
   const hasWhatsApp = ['TIER2_WA', 'TIER3'].includes(user?.gym_tier)
@@ -91,7 +88,7 @@ export default function Sidebar() {
 
         <div className="p-4 border-t border-gray-700/50 space-y-1">
           <button
-            onClick={() => setShowProfile(true)}
+            onClick={() => navigate('/settings')}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-700/50 transition group"
           >
             <div className="w-8 h-8 bg-gray-700 rounded-full overflow-hidden flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
@@ -115,8 +112,6 @@ export default function Sidebar() {
           </button>
         </div>
       </aside>
-
-      {showProfile && <ProfileModal onClose={() => setShowProfile(false)} />}
     </>
   )
 }
