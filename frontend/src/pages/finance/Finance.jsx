@@ -113,11 +113,11 @@ function CustomCalendarPicker({ start, end, onStartChange, onEndChange }) {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => { setOpen(false); setPicking('start') }} />
-          <div className="absolute top-full mt-2 left-0 z-50 bg-gray-850 border border-gray-700 rounded-2xl shadow-2xl p-4 w-72" style={{ background: '#1a2332' }}>
+          <div className="absolute top-full mt-2 left-0 z-50 surface border border-gray-700 rounded-2xl shadow-2xl p-4 w-72">
 
             {/* Month nav */}
             <div className="flex items-center justify-between mb-3">
-              <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-white transition">
+              <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-primary-500/15 text-gray-400 hover:text-primary-300 transition">
                 <ChevronLeft size={15} />
               </button>
               <div className="text-center">
@@ -127,7 +127,7 @@ function CustomCalendarPicker({ start, end, onStartChange, onEndChange }) {
               <button
                 onClick={nextMonth}
                 disabled={new Date(viewYear, viewMonth + 1, 1) > today}
-                className="p-1.5 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-white transition disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-1.5 rounded-lg hover:bg-primary-500/15 text-gray-400 hover:text-primary-300 transition disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronRight size={15} />
               </button>
@@ -151,13 +151,14 @@ function CustomCalendarPicker({ start, end, onStartChange, onEndChange }) {
                 const isTodayDay = ds === todayStr
                 const isFuture = ds > todayStr
                 const isPast5 = ds < fiveYearsAgo
+                const hasRange = effectiveEnd && start !== effectiveEnd
 
                 return (
                   <div
                     key={d}
                     className={`relative flex items-center justify-center h-9 ${
-                      inRange ? 'bg-primary-500/15' : ''
-                    } ${isStart && end && start !== end ? 'rounded-l-full' : ''} ${isEnd && start !== end ? 'rounded-r-full' : ''}`}
+                      (inRange || ((isStart || isEnd) && hasRange)) ? 'bg-primary-500' : ''
+                    } ${isStart && hasRange ? 'rounded-l-full' : ''} ${isEnd && hasRange ? 'rounded-r-full' : ''}`}
                   >
                     <button
                       disabled={isFuture || isPast5}
@@ -166,9 +167,10 @@ function CustomCalendarPicker({ start, end, onStartChange, onEndChange }) {
                       onMouseLeave={() => setHovered(null)}
                       className={`w-8 h-8 rounded-full text-xs font-medium transition-all
                         ${isFuture || isPast5 ? 'text-gray-700 cursor-not-allowed' : 'cursor-pointer'}
-                        ${isStart || isEnd ? 'bg-primary-600 text-white shadow-lg shadow-primary-500/30 scale-105' : ''}
-                        ${isTodayDay && !isStart && !isEnd ? 'ring-1 ring-primary-400/60 text-primary-300' : ''}
-                        ${!isStart && !isEnd && !isFuture && !isPast5 ? 'text-gray-200 hover:bg-primary-500/30' : ''}
+                        ${isStart || isEnd ? 'bg-primary-600 text-white font-bold' : ''}
+                        ${inRange ? 'text-white font-semibold' : ''}
+                        ${isTodayDay && !isStart && !isEnd && !inRange ? 'ring-1 ring-primary-400/60 text-primary-300' : ''}
+                        ${!isStart && !isEnd && !inRange && !isFuture && !isPast5 ? 'text-gray-200 hover:bg-primary-500/30' : ''}
                       `}
                     >
                       {d}
