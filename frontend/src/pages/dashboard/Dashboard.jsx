@@ -231,7 +231,7 @@ function GymDashboard() {
         <StatCard title="Active Members" value={data.members.active} subtitle={`${data.members.total} total`} icon={Users} color="primary" />
         <StatCard title="Revenue This Month" value={fmt(data.revenue.this_month)} subtitle="Fees + inventory sales" icon={CreditCard} color="green" trend={data.revenue.growth} />
         <StatCard title="Expenses This Month" value={fmt(data.expenses.this_month)} subtitle="Total spent" icon={Receipt} color="red" />
-        <StatCard title="Net Profit" value={fmt(data.net_profit)} subtitle="Revenue + inv. profit − expenses" icon={DollarSign} color={data.net_profit >= 0 ? 'green' : 'red'} />
+        <StatCard title="Net Profit" value={fmt(data.net_profit)} subtitle="Fees + inventory sales − expenses" icon={DollarSign} color={data.net_profit >= 0 ? 'green' : 'red'} />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

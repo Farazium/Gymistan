@@ -91,7 +91,9 @@ class GymStatsView(APIView):
                 'expiring_soon': members.filter(status='ACTIVE', expiry_date__lte=today + timedelta(days=7), expiry_date__gte=today).count(),
                 'revenue_this_month': float(revenue),
                 'expenses_this_month': float(expenses),
-                'net_profit': float(revenue) - float(expenses),
+                # Cash basis: member fees + inventory sales − all expenses (stock
+                # purchases are already booked as INVENTORY expenses).
+                'net_profit': float(revenue) + inventory_revenue - float(expenses),
                 'inventory_products': len(products),
                 'inventory_low_stock': low_stock_count,
                 'inventory_stock_value': round(stock_value, 2),

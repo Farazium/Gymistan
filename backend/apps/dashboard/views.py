@@ -2,7 +2,7 @@ import datetime
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Sum, Count, Q
+from django.db.models import Sum, Count
 from django.utils import timezone
 from django.utils.timezone import localdate
 from datetime import timedelta
@@ -39,10 +39,6 @@ class DashboardView(APIView):
         revenue_last_month = payments.filter(
             payment_date__gte=last_month_start, payment_date__lt=month_start
         ).aggregate(total=Sum('amount_paid'))['total'] or 0
-
-        pending_payments = payments.filter(status='PENDING').aggregate(
-            total=Sum('amount'), count=Count('id')
-        )
 
         expenses_this_month = Expense.objects.filter(
             gym=gym, date__gte=month_start
@@ -82,9 +78,21 @@ class DashboardView(APIView):
             for log in sales_this_month
         )
 
+        sales_last_month = StockLog.objects.filter(
+            product__gym=gym,
+            action='SELL',
+            created_at__date__gte=last_month_start,
+            created_at__date__lt=month_start,
+        ).select_related('product')
+        inventory_revenue_last_month = sum(
+            float(log.product.sell_price) * log.quantity for log in sales_last_month
+        )
+
         total_revenue_this_month = float(revenue_this_month) + inventory_revenue_this_month
-        total_revenue_last_month = float(revenue_last_month)  # inventory last month not tracked separately
-        net_profit = float(revenue_this_month) + inventory_profit_this_month - float(expenses_this_month)
+        total_revenue_last_month = float(revenue_last_month) + inventory_revenue_last_month
+        # Cash basis: total money in − all expenses (stock purchases are booked as
+        # INVENTORY expenses, so cost of goods is captured there, not subtracted twice).
+        net_profit = total_revenue_this_month - float(expenses_this_month)
 
         return Response({
             'members': {
