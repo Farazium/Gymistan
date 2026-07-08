@@ -41,8 +41,9 @@ export default function GymProfile() {
   const [newPassword, setNewPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['gym-stats', id],
+    retry: false,
     queryFn: async () => {
       const { data } = await api.get(`/gyms/${id}/stats/`)
       setGymName(data.gym.name || '')
@@ -82,6 +83,16 @@ export default function GymProfile() {
   if (isLoading) return (
     <div className="flex justify-center py-32">
       <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+    </div>
+  )
+
+  if (isError || !data) return (
+    <div className="flex flex-col items-center justify-center py-32 text-center">
+      <p className="text-gray-300 font-medium">Gym not found</p>
+      <p className="text-gray-500 text-sm mt-1">It may have been removed, or the link is wrong.</p>
+      <button onClick={() => navigate('/admin/gyms')} className="btn-primary mt-4">
+        <ArrowLeft size={16} /> Back to Gyms
+      </button>
     </div>
   )
 

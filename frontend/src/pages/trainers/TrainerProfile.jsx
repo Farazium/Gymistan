@@ -105,9 +105,10 @@ export default function TrainerProfile() {
   const hasAttendance = ['TIER2_AT', 'TIER3'].includes(user?.gym_tier)
   const [showPay, setShowPay] = useState(false)
 
-  const { data: t, isLoading } = useQuery({
+  const { data: t, isLoading, isError } = useQuery({
     queryKey: ['trainer', id],
     queryFn: async () => { const { data } = await api.get(`/trainers/${id}/`); return data },
+    retry: false,
   })
 
   const photoMutation = useMutation({
@@ -125,7 +126,15 @@ export default function TrainerProfile() {
       <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
     </div>
   )
-  if (!t) return null
+  if (isError || !t) return (
+    <div className="flex flex-col items-center justify-center py-32 text-center">
+      <p className="text-gray-300 font-medium">Trainer not found</p>
+      <p className="text-gray-500 text-sm mt-1">It may have been removed, or the link is wrong.</p>
+      <button onClick={() => navigate('/trainers')} className="btn-primary mt-4">
+        <ArrowLeft size={16} /> Back to Trainers
+      </button>
+    </div>
+  )
 
   const ss = t.salary_status || {}
   const photoUrl = t.photo
