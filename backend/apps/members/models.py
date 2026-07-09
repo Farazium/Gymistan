@@ -27,6 +27,12 @@ class Member(models.Model):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
     notes = models.TextField(blank=True)
     is_deleted = models.BooleanField(default=False)
+    # Blacklist: a banned member. `blacklist_until` null while blacklisted means an
+    # indefinite ban; a date means the ban lapses on/after that day.
+    blacklisted = models.BooleanField(default=False)
+    blacklist_reason = models.TextField(blank=True)
+    blacklist_until = models.DateField(null=True, blank=True)
+    blacklisted_at = models.DateTimeField(null=True, blank=True)
     # Maps this member to their user id on the ZKTeco biometric device.
     device_user_id = models.CharField(max_length=32, blank=True)
     # Expiry-date value we last sent a WhatsApp renewal reminder for, so a member is

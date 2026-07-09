@@ -98,10 +98,12 @@ function StockModal({ product, action, onSuccess }) {
         {restockCost > 0 && <p className="text-emerald-400 text-xs mt-1">An expense of PKR {restockCost.toLocaleString()} will be recorded (cost {cost.toLocaleString()} × qty)</p>}
         {action === 'RESTOCK' && cost === 0 && <p className="text-gray-500 text-xs mt-1">No cost price set — no expense will be recorded</p>}
       </div>
-      <div>
-        <label className="label">Note <span className="text-gray-400 text-xs">(optional)</span></label>
-        <input className="input" placeholder="e.g. sold to Ali" {...register('note')} />
-      </div>
+      {action !== 'SELL' && (
+        <div>
+          <label className="label">Note <span className="text-gray-400 text-xs">(optional)</span></label>
+          <input className="input" placeholder="e.g. restocked from supplier" {...register('note')} />
+        </div>
+      )}
       <button type="submit" disabled={isSubmitting} className="btn-primary w-full justify-center">
         {isSubmitting ? 'Saving...' : labels[action]}
       </button>

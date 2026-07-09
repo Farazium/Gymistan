@@ -1,14 +1,16 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
-import { ArrowLeft, UserCog, Phone, Calendar, CreditCard, Users, Wallet, Fingerprint, Banknote, Camera } from 'lucide-react'
+import { ArrowLeft, UserCog, Phone, Calendar, CreditCard, Users, Wallet, Fingerprint, Banknote, MoreVertical, Eye, ImageUp, Trash2 } from 'lucide-react'
 import api from '../../api/axios'
 import StatCard from '../../components/ui/StatCard'
 import Modal from '../../components/ui/Modal'
 import AttendanceCalendar from '../../components/ui/AttendanceCalendar'
+import PhotoViewer from '../../components/ui/PhotoViewer'
 import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
+import { isNotFound, retryUnlessNotFound } from '../../utils/queryRetry'
 
 const fmt = (n) => `PKR ${Number(n).toLocaleString('en-PK')}`
 const fmtDate = (s) => (s ? new Date(s + 'T00:00:00').toLocaleDateString('en-PK') : '—')
@@ -105,10 +107,10 @@ export default function TrainerProfile() {
   const hasAttendance = ['TIER2_AT', 'TIER3'].includes(user?.gym_tier)
   const [showPay, setShowPay] = useState(false)
 
-  const { data: t, isLoading, isError } = useQuery({
+  const { data: t, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['trainer', id],
     queryFn: async () => { const { data } = await api.get(`/trainers/${id}/`); return data },
-    retry: false,
+    retry: retryUnlessNotFound,
   })
 
   const photoMutation = useMutation({
@@ -121,12 +123,39 @@ export default function TrainerProfile() {
     onError: () => toast.error('Failed to upload photo'),
   })
 
+  const removePhotoMutation = useMutation({
+    mutationFn: () => api.patch(`/trainers/${id}/`, { photo: null }),
+    onSuccess: () => { toast.success('Photo removed'); queryClient.invalidateQueries(['trainer', id]) },
+    onError: () => toast.error('Failed to remove photo'),
+  })
+
+  const photoMenuRef = useRef(null)
+  const [showPhotoMenu, setShowPhotoMenu] = useState(false)
+  const [viewPhoto, setViewPhoto] = useState(false)
+  useEffect(() => {
+    if (!showPhotoMenu) return
+    const onClick = (e) => { if (photoMenuRef.current && !photoMenuRef.current.contains(e.target)) setShowPhotoMenu(false) }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [showPhotoMenu])
+
   if (isLoading) return (
     <div className="flex justify-center py-32">
       <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full" />
     </div>
   )
-  if (isError || !t) return (
+  // Transient failure (network / server restart / 5xx) — the trainer isn't gone,
+  // so offer a retry instead of falsely claiming "not found".
+  if (isError && !isNotFound(error)) return (
+    <div className="flex flex-col items-center justify-center py-32 text-center">
+      <p className="text-gray-300 font-medium">Couldn’t load this trainer</p>
+      <p className="text-gray-500 text-sm mt-1">A connection or server hiccup — the record is safe.</p>
+      <button onClick={() => refetch()} disabled={isFetching} className="btn-primary mt-4">
+        {isFetching ? 'Retrying…' : 'Retry'}
+      </button>
+    </div>
+  )
+  if (!t) return (
     <div className="flex flex-col items-center justify-center py-32 text-center">
       <p className="text-gray-300 font-medium">Trainer not found</p>
       <p className="text-gray-500 text-sm mt-1">It may have been removed, or the link is wrong.</p>
@@ -221,15 +250,43 @@ export default function TrainerProfile() {
                   : <UserCog size={26} className="text-primary-400" />
                 }
               </div>
-              <button
-                onClick={() => photoRef.current.click()}
-                className="absolute bottom-0 right-0 p-1.5 bg-primary-600 rounded-full hover:bg-primary-700 transition"
-              >
-                {photoMutation.isPending
-                  ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  : <Camera size={11} className="text-white" />
-                }
-              </button>
+              <div className="absolute bottom-0 right-0" ref={photoMenuRef}>
+                <button
+                  onClick={() => setShowPhotoMenu((s) => !s)}
+                  className="p-1.5 rounded-full bg-primary-600 text-white hover:bg-primary-700 shadow-md transition"
+                >
+                  {(photoMutation.isPending || removePhotoMutation.isPending)
+                    ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    : <MoreVertical size={11} />
+                  }
+                </button>
+                {showPhotoMenu && (
+                  <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 w-36 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-20 overflow-hidden">
+                    {photoUrl && (
+                      <button
+                        onClick={() => { setShowPhotoMenu(false); setViewPhoto(true) }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-gray-200 hover:bg-gray-700/70 transition text-left"
+                      >
+                        <Eye size={14} className="text-primary-400" /> View
+                      </button>
+                    )}
+                    <button
+                      onClick={() => { setShowPhotoMenu(false); photoRef.current.click() }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-gray-200 hover:bg-gray-700/70 transition text-left border-t border-gray-700 first:border-t-0"
+                    >
+                      <ImageUp size={14} className="text-primary-400" /> Update
+                    </button>
+                    {photoUrl && (
+                      <button
+                        onClick={() => { setShowPhotoMenu(false); if (confirm('Remove this photo?')) removePhotoMutation.mutate() }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-red-400 hover:bg-gray-700/70 transition text-left border-t border-gray-700"
+                      >
+                        <Trash2 size={14} /> Remove
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
               <input ref={photoRef} type="file" accept="image/*" className="hidden"
                 onChange={(e) => {
                   const file = e.target.files[0]
@@ -309,6 +366,8 @@ export default function TrainerProfile() {
           }}
         />
       </Modal>
+
+      {viewPhoto && photoUrl && <PhotoViewer src={photoUrl} alt={t.name} onClose={() => setViewPhoto(false)} />}
     </div>
   )
 }

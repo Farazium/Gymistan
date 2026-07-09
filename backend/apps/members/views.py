@@ -9,6 +9,7 @@ from .serializers import MemberSerializer, MemberListSerializer
 from apps.accounts.permissions import IsGymMember
 from apps.payments.models import Payment
 from apps.payments.utils import send_whatsapp_welcome, send_whatsapp_expiry_reminder
+import calendar
 import datetime
 
 # Tiers that include WhatsApp messaging.
@@ -191,6 +192,76 @@ class HardDeleteMemberView(APIView):
             return Response({'detail': 'Not found'}, status=404)
         member.delete()
         return Response(status=204)
+
+
+class BlacklistedMembersView(APIView):
+    """List all blacklisted members of the gym (active bans first)."""
+    permission_classes = [IsAuthenticated, IsGymMember]
+
+    def get(self, request):
+        members = (Member.objects
+                   .filter(gym=request.user.gym, is_deleted=False, blacklisted=True)
+                   .select_related('package')
+                   .order_by('-blacklisted_at'))
+        data = MemberListSerializer(members, many=True).data
+        return Response(data)
+
+
+class BlacklistMemberView(APIView):
+    """POST to blacklist a member (reason + optional duration in months, or
+    indefinite). DELETE to lift the ban."""
+    permission_classes = [IsAuthenticated, IsGymMember]
+
+    def _get_member(self, request, pk):
+        return Member.objects.get(pk=pk, gym=request.user.gym, is_deleted=False)
+
+    def post(self, request, pk):
+        try:
+            member = self._get_member(request, pk)
+        except Member.DoesNotExist:
+            return Response({'detail': 'Not found'}, status=404)
+
+        reason = (request.data.get('reason') or '').strip()
+        if not reason:
+            return Response({'reason': 'A reason is required'}, status=400)
+
+        indefinite = _truthy(request.data.get('indefinite'))
+        until = None
+        if not indefinite:
+            months = request.data.get('duration_months')
+            try:
+                months = int(months)
+            except (TypeError, ValueError):
+                return Response({'duration_months': 'Enter a whole number of months, or choose indefinite'}, status=400)
+            if months < 1:
+                return Response({'duration_months': 'Duration must be at least 1 month'}, status=400)
+            today = datetime.date.today()
+            # Add `months` calendar months, clamping the day to the target month's length.
+            total = today.month - 1 + months
+            year = today.year + total // 12
+            month = total % 12 + 1
+            day = min(today.day, calendar.monthrange(year, month)[1])
+            until = datetime.date(year, month, day)
+
+
+        member.blacklisted = True
+        member.blacklist_reason = reason
+        member.blacklist_until = until
+        member.blacklisted_at = datetime.datetime.now()
+        member.save(update_fields=['blacklisted', 'blacklist_reason', 'blacklist_until', 'blacklisted_at'])
+        return Response(MemberSerializer(member).data)
+
+    def delete(self, request, pk):
+        try:
+            member = self._get_member(request, pk)
+        except Member.DoesNotExist:
+            return Response({'detail': 'Not found'}, status=404)
+        member.blacklisted = False
+        member.blacklist_reason = ''
+        member.blacklist_until = None
+        member.blacklisted_at = None
+        member.save(update_fields=['blacklisted', 'blacklist_reason', 'blacklist_until', 'blacklisted_at'])
+        return Response(MemberSerializer(member).data)
 
 
 class SendReminderView(APIView):

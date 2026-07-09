@@ -1,11 +1,66 @@
-import { useRef } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Camera, Phone, User, Package, Calendar, MapPin, FileText } from 'lucide-react'
+import { ArrowLeft, MoreVertical, Eye, ImageUp, Trash2, Phone, User, Package, Calendar, MapPin, FileText, Ban } from 'lucide-react'
 import api from '../../api/axios'
 import toast from 'react-hot-toast'
 import useAuthStore from '../../store/authStore'
 import AttendanceCalendar from '../../components/ui/AttendanceCalendar'
+import Modal from '../../components/ui/Modal'
+import PhotoViewer from '../../components/ui/PhotoViewer'
+import { apiErrorMessage } from '../../utils/apiError'
+import { isNotFound, retryUnlessNotFound } from '../../utils/queryRetry'
+
+function BlacklistForm({ onSubmit, isPending }) {
+  const [reason, setReason] = useState('')
+  const [indefinite, setIndefinite] = useState(false)
+  const [months, setMonths] = useState(1)
+
+  const submit = (e) => {
+    e.preventDefault()
+    if (!reason.trim()) { toast.error('Please enter a reason'); return }
+    if (!indefinite && (!months || months < 1)) { toast.error('Enter at least 1 month, or choose indefinite'); return }
+    onSubmit({ reason: reason.trim(), indefinite, duration_months: indefinite ? undefined : Number(months) })
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-4">
+      <div>
+        <label className="label">Reason *</label>
+        <textarea
+          className="input min-h-[80px]"
+          placeholder="Why is this member being blacklisted?"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        />
+      </div>
+      <div>
+        <label className="label">Duration</label>
+        <label className="flex items-center gap-2 cursor-pointer select-none mb-3">
+          <input type="checkbox" className="w-4 h-4 accent-amber-500" checked={indefinite} onChange={(e) => setIndefinite(e.target.checked)} />
+          <span className="text-sm text-gray-300">Indefinite (no end date)</span>
+        </label>
+        {!indefinite && (
+          <div className="flex items-center gap-2">
+            <input
+              className="input w-28 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              type="number"
+              min="1"
+              value={months}
+              onWheel={(e) => e.target.blur()}
+              onKeyDown={(e) => { if (['-', 'e', 'E', '+', '.'].includes(e.key)) e.preventDefault() }}
+              onChange={(e) => setMonths(e.target.value)}
+            />
+            <span className="text-sm text-gray-400">month{Number(months) === 1 ? '' : 's'}</span>
+          </div>
+        )}
+      </div>
+      <button type="submit" disabled={isPending} className="btn-primary w-full justify-center">
+        {isPending ? 'Blacklisting…' : 'Blacklist Member'}
+      </button>
+    </form>
+  )
+}
 
 function InfoRow({ icon: Icon, label, value }) {
   if (!value) return null
@@ -30,9 +85,10 @@ export default function MemberProfile() {
   const { user } = useAuthStore()
   const hasAttendance = ['TIER2_AT', 'TIER3'].includes(user?.gym_tier)
 
-  const { data: member, isLoading } = useQuery({
+  const { data: member, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['member', id],
     queryFn: async () => { const { data } = await api.get(`/members/${id}/`); return data },
+    retry: retryUnlessNotFound,
   })
 
   const { data: payments = [] } = useQuery({
@@ -53,13 +109,74 @@ export default function MemberProfile() {
     onError: () => toast.error('Failed to upload photo'),
   })
 
+  const removePhotoMutation = useMutation({
+    mutationFn: () => api.patch(`/members/${id}/`, { photo: null }),
+    onSuccess: () => { toast.success('Photo removed'); queryClient.invalidateQueries(['member', id]) },
+    onError: () => toast.error('Failed to remove photo'),
+  })
+
+  const photoMenuRef = useRef(null)
+  const [showPhotoMenu, setShowPhotoMenu] = useState(false)
+  useEffect(() => {
+    if (!showPhotoMenu) return
+    const onClick = (e) => { if (photoMenuRef.current && !photoMenuRef.current.contains(e.target)) setShowPhotoMenu(false) }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [showPhotoMenu])
+
+  const [viewPhoto, setViewPhoto] = useState(false)
+  const [showBlacklist, setShowBlacklist] = useState(false)
+
+  const blacklistMutation = useMutation({
+    mutationFn: (body) => api.post(`/members/${id}/blacklist/`, body),
+    onSuccess: () => {
+      setShowBlacklist(false)
+      queryClient.invalidateQueries(['member', id])
+      queryClient.invalidateQueries(['members'])
+      queryClient.invalidateQueries(['members-blacklisted'])
+      toast.success('Member blacklisted')
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Failed to blacklist member')),
+  })
+
+  const unblacklistMutation = useMutation({
+    mutationFn: () => api.delete(`/members/${id}/blacklist/`),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['member', id])
+      queryClient.invalidateQueries(['members'])
+      queryClient.invalidateQueries(['members-blacklisted'])
+      toast.success('Removed from blacklist')
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Failed to update blacklist')),
+  })
+
   if (isLoading) return (
     <div className="flex justify-center py-16">
       <div className="animate-spin w-6 h-6 border-4 border-primary-500 border-t-transparent rounded-full" />
     </div>
   )
 
-  if (!member) return <div className="text-gray-400 text-center py-16">Member not found</div>
+  // A genuine 404 means the member is gone. Any other failure (network blip,
+  // server restart, 5xx) is transient — don't cry "not found", offer a retry.
+  if (isError && !isNotFound(error)) return (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <p className="text-gray-300 font-medium">Couldn’t load this member</p>
+      <p className="text-gray-500 text-sm mt-1">A connection or server hiccup — the record is safe.</p>
+      <button onClick={() => refetch()} disabled={isFetching} className="btn-primary mt-4">
+        {isFetching ? 'Retrying…' : 'Retry'}
+      </button>
+    </div>
+  )
+
+  if (!member) return (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <p className="text-gray-300 font-medium">Member not found</p>
+      <p className="text-gray-500 text-sm mt-1">It may have been removed, or the link is wrong.</p>
+      <button onClick={() => navigate('/members')} className="btn-primary mt-4">
+        <ArrowLeft size={16} /> Back to Members
+      </button>
+    </div>
+  )
 
   const photoUrl = member.photo
     ? (member.photo.startsWith('http') ? member.photo : `http://localhost:8000${member.photo}`)
@@ -81,15 +198,43 @@ export default function MemberProfile() {
                 : <span className="text-3xl font-bold text-gray-400">{member.name?.[0]?.toUpperCase()}</span>
               }
             </div>
-            <button
-              onClick={() => photoRef.current.click()}
-              className="absolute bottom-0 right-0 p-1.5 bg-primary-600 rounded-full hover:bg-primary-700 transition"
-            >
-              {photoMutation.isPending
-                ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                : <Camera size={12} className="text-white" />
-              }
-            </button>
+            <div className="absolute bottom-0 right-0" ref={photoMenuRef}>
+              <button
+                onClick={() => setShowPhotoMenu((s) => !s)}
+                className="p-1.5 rounded-full bg-primary-600 text-white hover:bg-primary-700 shadow-md transition"
+              >
+                {(photoMutation.isPending || removePhotoMutation.isPending)
+                  ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  : <MoreVertical size={12} />
+                }
+              </button>
+              {showPhotoMenu && (
+                <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 w-36 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-20 overflow-hidden">
+                  {photoUrl && (
+                    <button
+                      onClick={() => { setShowPhotoMenu(false); setViewPhoto(true) }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-gray-200 hover:bg-gray-700/70 transition text-left"
+                    >
+                      <Eye size={14} className="text-primary-400" /> View
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { setShowPhotoMenu(false); photoRef.current.click() }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-gray-200 hover:bg-gray-700/70 transition text-left border-t border-gray-700 first:border-t-0"
+                  >
+                    <ImageUp size={14} className="text-primary-400" /> Update
+                  </button>
+                  {photoUrl && (
+                    <button
+                      onClick={() => { setShowPhotoMenu(false); if (confirm('Remove this photo?')) removePhotoMutation.mutate() }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-red-400 hover:bg-gray-700/70 transition text-left border-t border-gray-700"
+                    >
+                      <Trash2 size={14} /> Remove
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
             <input ref={photoRef} type="file" accept="image/*" className="hidden"
               onChange={(e) => {
                 const file = e.target.files[0]
@@ -106,6 +251,11 @@ export default function MemberProfile() {
               <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${member.status === 'ACTIVE' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
                 {member.status === 'ACTIVE' ? 'Active' : 'Expired'}
               </span>
+              {member.blacklist_active && (
+                <span className="text-xs px-2.5 py-0.5 rounded-full font-medium bg-amber-500/20 text-amber-400 flex items-center gap-1">
+                  <Ban size={11} /> Blacklisted
+                </span>
+              )}
             </div>
             {member.package_detail?.name && (
               <p className="text-primary-400 text-sm mt-1">{member.package_detail.name}</p>
@@ -113,13 +263,43 @@ export default function MemberProfile() {
             <p className="text-gray-400 text-sm mt-1">{member.phone}</p>
           </div>
 
-          <div className="text-right hidden sm:block">
-            <p className="text-xs text-gray-400">Expires</p>
-            <p className="text-gray-100 font-semibold mt-1">
-              {member.expiry_date ? new Date(member.expiry_date).toLocaleDateString('en-PK') : '—'}
-            </p>
+          <div className="flex flex-col items-end gap-3">
+            <div className="text-right hidden sm:block">
+              <p className="text-xs text-gray-400">Expires</p>
+              <p className="text-gray-100 font-semibold mt-1">
+                {member.expiry_date ? new Date(member.expiry_date).toLocaleDateString('en-PK') : '—'}
+              </p>
+            </div>
+            {member.blacklist_active ? (
+              <button
+                onClick={() => { if (confirm('Remove this member from the blacklist?')) unblacklistMutation.mutate() }}
+                disabled={unblacklistMutation.isPending}
+                className="flex items-center gap-1.5 text-xs text-green-400 hover:text-green-300 border border-green-500/30 hover:border-green-400 px-3 py-1.5 rounded-lg transition"
+              >
+                <Ban size={14} /> Remove from Blacklist
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowBlacklist(true)}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-500/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 hover:shadow-lg hover:shadow-primary-500/20 transition-all"
+              >
+                <Ban size={14} /> Blacklist
+              </button>
+            )}
           </div>
         </div>
+        {member.blacklist_active && member.blacklist_reason && (
+          <div className="mt-4 pt-4 border-t border-gray-700 text-sm">
+            <span className="text-amber-400 font-medium">Blacklisted:</span>{' '}
+            <span className="text-gray-300">{member.blacklist_reason}</span>
+            <span className="text-gray-500">
+              {' · '}
+              {member.blacklist_until
+                ? `Until ${new Date(member.blacklist_until).toLocaleDateString('en-PK')}`
+                : 'Indefinite'}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -164,6 +344,12 @@ export default function MemberProfile() {
           <p className="text-gray-400 text-sm text-center py-6">No payments recorded</p>
         )}
       </div>
+
+      <Modal isOpen={showBlacklist} onClose={() => setShowBlacklist(false)} title={`Blacklist ${member.name}`}>
+        <BlacklistForm onSubmit={(body) => blacklistMutation.mutate(body)} isPending={blacklistMutation.isPending} />
+      </Modal>
+
+      {viewPhoto && photoUrl && <PhotoViewer src={photoUrl} alt={member.name} onClose={() => setViewPhoto(false)} />}
     </div>
   )
 }

@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
-import { Plus, Search, UserPlus, Download, ChevronUp, ChevronDown, Trash2, RotateCcw, Pencil } from 'lucide-react'
+import { Plus, Search, UserPlus, Download, ChevronUp, ChevronDown, Trash2, RotateCcw, Pencil, MoreVertical, Ban } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../api/axios'
 import useAuthStore from '../../store/authStore'
@@ -153,6 +153,9 @@ export default function Members() {
   const [trainerFilter, setTrainerFilter] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [showDeleted, setShowDeleted] = useState(false)
+  const [showBlacklist, setShowBlacklist] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
+  const menuRef = useRef(null)
   const [editMember, setEditMember] = useState(null)
   const [sort, setSort] = useState({ key: null, dir: 'asc' })
 
@@ -182,6 +185,31 @@ export default function Members() {
     enabled: showDeleted,
   })
   const deletedMembers = deletedData || []
+
+  const { data: blacklistData } = useQuery({
+    queryKey: ['members-blacklisted'],
+    queryFn: async () => { const { data } = await api.get('/members/blacklisted/'); return data },
+    enabled: showBlacklist,
+  })
+  const blacklistedMembers = blacklistData || []
+
+  const unblacklistMutation = useMutation({
+    mutationFn: (id) => api.delete(`/members/${id}/blacklist/`),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['members'])
+      queryClient.invalidateQueries(['members-blacklisted'])
+      toast.success('Removed from blacklist')
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Failed to update blacklist')),
+  })
+
+  // Close the kebab menu on outside click.
+  useEffect(() => {
+    if (!showMenu) return
+    const onClick = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false) }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [showMenu])
 
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/members/${id}/`),
@@ -258,13 +286,31 @@ export default function Members() {
           <button onClick={() => { setEditMember(null); setShowModal(true) }} className="btn-primary">
             <UserPlus size={16} /> Add Member
           </button>
-          <button
-            onClick={() => setShowDeleted(true)}
-            title="Deleted Members"
-            className="p-2 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/40 transition"
-          >
-            <Trash2 size={18} />
-          </button>
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setShowMenu((s) => !s)}
+              title="More"
+              className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-500/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 hover:shadow-lg hover:shadow-primary-500/20 transition-all"
+            >
+              <MoreVertical size={18} />
+            </button>
+            {showMenu && (
+              <div className="absolute right-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-20 overflow-hidden">
+                <button
+                  onClick={() => { setShowMenu(false); setShowDeleted(true) }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:bg-gray-700/70 transition text-left"
+                >
+                  <Trash2 size={15} className="text-red-400" /> Deleted Members
+                </button>
+                <button
+                  onClick={() => { setShowMenu(false); setShowBlacklist(true) }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:bg-gray-700/70 transition text-left border-t border-gray-700"
+                >
+                  <Ban size={15} className="text-amber-400" /> Blacklist
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -465,6 +511,46 @@ export default function Members() {
               ))
             })()}
           </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={showBlacklist} onClose={() => setShowBlacklist(false)} title="Blacklisted Members">
+        <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+          {!blacklistedMembers.length ? (
+            <p className="text-center text-gray-400 py-8">No blacklisted members.</p>
+          ) : (
+            blacklistedMembers.map((m) => (
+              <div key={m.id} className="flex items-center gap-3 px-4 py-3 bg-gray-700/40 rounded-lg">
+                {m.member_id && (
+                  <span className="font-mono text-xs text-gray-400 bg-gray-700 px-1.5 py-0.5 rounded shrink-0">{String(m.member_id).padStart(5, '0')}</span>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => { setShowBlacklist(false); navigate(`/members/${m.id}`) }} className="font-medium text-gray-100 truncate hover:text-primary-400 transition">
+                      {m.name}
+                    </button>
+                    {!m.blacklist_active && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-600/50 text-gray-300 shrink-0">Ban expired</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400 truncate">
+                    {m.blacklist_reason || 'No reason'}
+                    {' · '}
+                    {m.blacklist_until
+                      ? `Until ${new Date(m.blacklist_until).toLocaleDateString('en-PK')}`
+                      : 'Indefinite'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => { if (confirm(`Remove ${m.name} from the blacklist?`)) unblacklistMutation.mutate(m.id) }}
+                  disabled={unblacklistMutation.isPending}
+                  className="flex items-center gap-1.5 text-xs text-green-400 hover:text-green-300 border border-green-500/30 hover:border-green-400 px-3 py-1.5 rounded-lg transition shrink-0"
+                >
+                  <RotateCcw size={13} /> Remove
+                </button>
+              </div>
+            ))
+          )}
         </div>
       </Modal>
 
