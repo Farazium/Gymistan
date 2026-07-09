@@ -7,6 +7,7 @@ import api from '../../api/axios'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
 import { apiErrorMessage } from '../../utils/apiError'
+import { invalidateFinance } from '../../utils/invalidateFinance'
 
 const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 
@@ -112,7 +113,7 @@ export default function Expenses() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/expenses/${id}/`),
-    onSuccess: () => { queryClient.invalidateQueries(['expenses']); toast.success('Expense deleted') },
+    onSuccess: () => { queryClient.invalidateQueries(['expenses']); invalidateFinance(queryClient); toast.success('Expense deleted') },
     onError: (err) => toast.error(apiErrorMessage(err, 'Failed to delete expense')),
   })
 
@@ -225,7 +226,7 @@ export default function Expenses() {
       )}
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Add Expense">
-        <ExpenseForm onSuccess={() => { setShowModal(false); queryClient.invalidateQueries(['expenses']) }} />
+        <ExpenseForm onSuccess={() => { setShowModal(false); queryClient.invalidateQueries(['expenses']); invalidateFinance(queryClient) }} />
       </Modal>
     </div>
   )

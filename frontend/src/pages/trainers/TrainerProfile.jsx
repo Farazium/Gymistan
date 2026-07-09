@@ -11,6 +11,7 @@ import PhotoViewer from '../../components/ui/PhotoViewer'
 import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
 import { isNotFound, retryUnlessNotFound } from '../../utils/queryRetry'
+import { invalidateFinance } from '../../utils/invalidateFinance'
 
 const fmt = (n) => `PKR ${Number(n).toLocaleString('en-PK')}`
 const fmtDate = (s) => (s ? new Date(s + 'T00:00:00').toLocaleDateString('en-PK') : '—')
@@ -388,6 +389,7 @@ export default function TrainerProfile() {
             setShowPay(false)
             queryClient.invalidateQueries(['trainer', id])
             queryClient.invalidateQueries(['trainers'])
+            invalidateFinance(queryClient)
           }}
         />
       </Modal>

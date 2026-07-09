@@ -7,6 +7,7 @@ import api from '../../api/axios'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
 import { apiErrorMessage } from '../../utils/apiError'
+import { invalidateFinance } from '../../utils/invalidateFinance'
 
 const noNeg = e => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault() }
 
@@ -131,6 +132,7 @@ export default function Inventory() {
     setEditProduct(null)
     setStockAction(null)
     queryClient.invalidateQueries(['inventory'])
+    invalidateFinance(queryClient) // restock records an expense
   }
 
   return (

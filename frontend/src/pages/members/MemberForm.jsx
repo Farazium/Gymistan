@@ -43,8 +43,9 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
   const { user } = useAuthStore()
   const hasWhatsApp = ['TIER2_WA', 'TIER3'].includes(user?.gym_tier)
   const hasAttendance = ['TIER2_AT', 'TIER3'].includes(user?.gym_tier)
+  const todayISO = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
   const { register, handleSubmit, watch, setError, setValue, formState: { errors } } = useForm({
-    defaultValues: member ? { ...member } : { member_id: defaultMemberId || '', status: 'EXPIRED' },
+    defaultValues: member ? { ...member } : { member_id: defaultMemberId || '', status: 'EXPIRED', join_date: todayISO },
   })
 
   const joinDate = watch('join_date')
@@ -139,6 +140,18 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
         </div>
 
         <div>
+          <label className="label">Father's Name <span className="text-gray-400 text-xs">(optional)</span></label>
+          <input
+            className="input"
+            {...register('father_name', {
+              pattern: { value: /^[^\d]*$/, message: 'Name cannot contain numbers' },
+            })}
+            onKeyDown={(e) => { if (/\d/.test(e.key)) e.preventDefault() }}
+          />
+          {errors.father_name && <p className="text-red-500 text-xs mt-1">{errors.father_name.message}</p>}
+        </div>
+
+        <div>
           <label className="label">Member ID *</label>
           {(() => {
             const midReg = register('member_id', {
@@ -190,18 +203,6 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
             <option value="FEMALE">Female</option>
           </select>
           {errors.gender && <p className="text-red-500 text-xs mt-1">{errors.gender.message}</p>}
-        </div>
-
-        <div>
-          <label className="label">Father's Name <span className="text-gray-400 text-xs">(optional)</span></label>
-          <input
-            className="input"
-            {...register('father_name', {
-              pattern: { value: /^[^\d]*$/, message: 'Name cannot contain numbers' },
-            })}
-            onKeyDown={(e) => { if (/\d/.test(e.key)) e.preventDefault() }}
-          />
-          {errors.father_name && <p className="text-red-500 text-xs mt-1">{errors.father_name.message}</p>}
         </div>
 
         <div>

@@ -6,6 +6,7 @@ import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
 import Modal from '../../components/ui/Modal'
 import { applyTheme, applySurface, PRESETS, SURFACE_PRESETS, DEFAULT_THEME, DEFAULT_SURFACE } from '../../utils/theme'
+import { isPrintingEnabled, setPrintingEnabled, getPaperWidth, setPaperWidth } from '../../utils/printReceipt'
 
 // Small "not wired yet" tag for placeholder settings.
 const SoonBadge = () => (
@@ -91,9 +92,20 @@ export default function Settings() {
   const [theme, setTheme] = useState(user?.gym_theme || DEFAULT_THEME)
   const [surface, setSurface] = useState(user?.gym_card || DEFAULT_SURFACE)
   const [colorModal, setColorModal] = useState(null) // 'accent' | 'card' | null
-  // Placeholder-only settings (not persisted yet).
-  const [printable, setPrintable] = useState(false)
+  // Receipt printing — persisted per-device in localStorage (the thermal printer
+  // is physically attached to this machine).
+  const [printable, setPrintable] = useState(isPrintingEnabled())
+  const [paperWidth, setPaperWidthState] = useState(getPaperWidth())
   const logoRef = useRef(null)
+
+  const togglePrinting = () => {
+    const next = !printable
+    setPrintable(next)
+    setPrintingEnabled(next)
+    toast.success(next ? 'Receipt printing enabled' : 'Receipt printing disabled')
+  }
+
+  const changePaperWidth = (w) => { setPaperWidthState(w); setPaperWidth(w) }
 
   const gymLogoUrl = user?.gym_logo ? `http://localhost:8000${user.gym_logo}` : null
 
@@ -254,14 +266,30 @@ export default function Settings() {
           </button>
         </Row>
 
-        <Row label={<span className="flex items-center gap-2">Printable Receipts <SoonBadge /></span>} hint="Enable a print/PDF button on payments">
+        <Row label="Receipt Printing" hint="Show a print option on payments for a thermal receipt printer">
           <button
-            onClick={() => { setPrintable(v => !v); toast('Printable receipts coming soon', { icon: '🕓' }) }}
+            onClick={togglePrinting}
             className={`relative w-11 h-6 rounded-full transition ${printable ? 'bg-primary-600' : 'bg-gray-600'}`}
           >
             <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${printable ? 'translate-x-5' : ''}`} />
           </button>
         </Row>
+
+        {printable && (
+          <Row label="Receipt Paper Width" hint="Match your thermal printer's roll">
+            <div className="inline-flex rounded-lg border border-gray-600 overflow-hidden">
+              {[80, 58].map((w) => (
+                <button
+                  key={w}
+                  onClick={() => changePaperWidth(w)}
+                  className={`px-4 py-1.5 text-sm transition ${paperWidth === w ? 'bg-primary-600 text-white' : 'text-gray-300 hover:bg-gray-700/50'}`}
+                >
+                  {w}mm
+                </button>
+              ))}
+            </div>
+          </Row>
+        )}
       </Section>
 
       {/* Privacy */}

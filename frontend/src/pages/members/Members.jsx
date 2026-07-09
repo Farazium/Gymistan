@@ -11,6 +11,7 @@ import MemberForm from './MemberForm'
 import toast from 'react-hot-toast'
 import { exportToExcel } from '../../utils/exportExcel'
 import { apiErrorMessage } from '../../utils/apiError'
+import { invalidateFinance } from '../../utils/invalidateFinance'
 
 function calcExpiryISO(isoDate, status, pkgMonths) {
   if (!isoDate || isoDate.length < 10) return ''
@@ -225,6 +226,7 @@ export default function Members() {
       queryClient.invalidateQueries(['members-deleted'])
       queryClient.invalidateQueries(['members-blacklisted'])
       queryClient.invalidateQueries(['member-next-id'])
+      invalidateFinance(queryClient) // admission fee may create a payment
       setRestoreMember(null)
       toast.success('Member restored')
     },
@@ -595,6 +597,7 @@ export default function Members() {
             setShowModal(false)
             queryClient.invalidateQueries(['members'])
             queryClient.invalidateQueries(['member-next-id'])
+            invalidateFinance(queryClient) // admission fee may create a payment
           }}
         />
       </Modal>

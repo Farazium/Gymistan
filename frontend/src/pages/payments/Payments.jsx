@@ -7,6 +7,7 @@ import useAuthStore from '../../store/authStore'
 import Modal from '../../components/ui/Modal'
 import PaymentForm from './PaymentForm'
 import toast from 'react-hot-toast'
+import { invalidateFinance } from '../../utils/invalidateFinance'
 
 const fmt = (n) => `PKR ${Number(n).toLocaleString('en-PK')}`
 
@@ -54,7 +55,7 @@ export default function Payments() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/payments/${id}/`),
-    onSuccess: () => { queryClient.invalidateQueries(['payments']); toast.success('Payment deleted') },
+    onSuccess: () => { queryClient.invalidateQueries(['payments']); invalidateFinance(queryClient); toast.success('Payment deleted') },
     onError: () => toast.error('Failed to delete payment'),
   })
 
