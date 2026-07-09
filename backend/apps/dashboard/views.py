@@ -222,7 +222,9 @@ class FinanceLedgerView(APIView):
             product__gym=gym, action='SELL', created_at__date__range=[start, end]
         ).select_related('product'):
             entries.append({
-                'date': s.created_at.date().isoformat(),
+                # created_at is stored in UTC; convert to local (Asia/Karachi)
+                # before taking the date, or a late-night sale shows the prior day.
+                'date': localdate(s.created_at).isoformat(),
                 'description': s.product.name,
                 'category': 'Inventory Sale',
                 'type': 'IN',

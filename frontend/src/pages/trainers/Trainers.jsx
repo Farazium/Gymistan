@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { UserPlus, Search, UserCog, Trash2, Download } from 'lucide-react'
+import { UserPlus, Search, UserCog, Trash2, Download, Pencil } from 'lucide-react'
 import api from '../../api/axios'
 import { exportToExcel } from '../../utils/exportExcel'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
@@ -125,9 +125,21 @@ export default function Trainers() {
                     ) : <span className="text-gray-500">—</span>}
                   </Td>
                   <Td>
-                    <div className="flex gap-2">
-                      <button onClick={() => { setEditTrainer(t); setShowModal(true) }} className="text-primary-600 hover:underline text-xs font-medium">Edit</button>
-                      <button onClick={() => { if (confirm('Remove this trainer? Members assigned to them will be unassigned.')) deleteMutation.mutate(t.id) }} className="text-red-500 hover:underline text-xs font-medium">Remove</button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => { setEditTrainer(t); setShowModal(true) }}
+                        title="Edit"
+                        className="p-1.5 text-gray-400 hover:text-primary-400 hover:bg-primary-500/10 rounded-lg transition"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        onClick={() => { if (confirm('Remove this trainer? Members assigned to them will be unassigned.')) deleteMutation.mutate(t.id) }}
+                        title="Remove"
+                        className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </Td>
                 </Tr>
