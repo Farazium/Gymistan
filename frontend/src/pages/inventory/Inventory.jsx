@@ -62,10 +62,6 @@ function ProductForm({ product, onSuccess }) {
         <input className="input" type="number" min="0" onWheel={e => e.target.blur()} onKeyDown={noNeg} {...register('low_stock_alert', { min: { value: 0, message: 'Cannot be negative' } })} />
         {errors.low_stock_alert && <p className="text-red-500 text-xs mt-1">{errors.low_stock_alert.message}</p>}
       </div>
-      <div>
-        <label className="label">Description <span className="text-gray-400 text-xs">(optional)</span></label>
-        <textarea className="input h-16 resize-none" {...register('description')} />
-      </div>
       <button type="submit" disabled={isSubmitting} className="btn-primary w-full justify-center">
         {isSubmitting ? 'Saving...' : product ? 'Update Product' : 'Add Product'}
       </button>
@@ -98,12 +94,6 @@ function StockModal({ product, action, onSuccess }) {
         {restockCost > 0 && <p className="text-emerald-400 text-xs mt-1">An expense of PKR {restockCost.toLocaleString()} will be recorded (cost {cost.toLocaleString()} × qty)</p>}
         {action === 'RESTOCK' && cost === 0 && <p className="text-gray-500 text-xs mt-1">No cost price set — no expense will be recorded</p>}
       </div>
-      {action !== 'SELL' && (
-        <div>
-          <label className="label">Note <span className="text-gray-400 text-xs">(optional)</span></label>
-          <input className="input" placeholder="e.g. restocked from supplier" {...register('note')} />
-        </div>
-      )}
       <button type="submit" disabled={isSubmitting} className="btn-primary w-full justify-center">
         {isSubmitting ? 'Saving...' : labels[action]}
       </button>
@@ -162,7 +152,6 @@ export default function Inventory() {
               'Cost Price (PKR)': p.cost_price || 0,
               'Low Stock Alert': p.low_stock_alert,
               'Low Stock': p.is_low_stock ? 'Yes' : 'No',
-              Description: p.description || '',
             })), 'Inventory')}
             className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 transition"
             title="Export"
