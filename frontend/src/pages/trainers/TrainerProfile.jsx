@@ -19,10 +19,6 @@ const monthLabel = (m) => {
   const [y, mm] = m.split('-')
   return new Date(Number(y), Number(mm) - 1, 1).toLocaleString('en-PK', { month: 'long', year: 'numeric' })
 }
-const currentMonth = () => {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-}
 const todayISO = () => {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -47,7 +43,6 @@ function PaySalaryForm({ trainer, onSuccess }) {
   const { register, handleSubmit, watch } = useForm({
     defaultValues: {
       commission: '',
-      month: currentMonth(),
       payment_date: todayISO(),
       note: '',
     },
@@ -55,22 +50,46 @@ function PaySalaryForm({ trainer, onSuccess }) {
   const commission = Number(watch('commission')) || 0
   const total = base + commission
 
+  // The salary month is simply the month of the payment date — no separate field.
+  // Its due date is the trainer's join day (clamped to the month's length);
+  // paying before that day isn't allowed.
+  const paymentDate = watch('payment_date')
+  const selectedMonth = paymentDate ? paymentDate.slice(0, 7) : ''
+  const dueDate = (() => {
+    if (!selectedMonth) return null
+    const [y, m] = selectedMonth.split('-').map(Number)
+    if (!y || !m) return null
+    const joinDay = trainer.join_date ? Number(trainer.join_date.slice(8, 10)) || 1 : 1
+    const lastDay = new Date(y, m, 0).getDate()
+    return new Date(y, m - 1, Math.min(joinDay, lastDay))
+  })()
+  const notDueYet = (() => {
+    if (!dueDate) return false
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    return today < dueDate
+  })()
+
   const mutation = useMutation({
     mutationFn: (payload) => api.post(`/trainers/${trainer.id}/pay-salary/`, { ...payload, base_salary: base }),
     onSuccess: () => { toast.success('Salary paid'); onSuccess() },
     onError: (err) => toast.error(err.response?.data?.detail || 'Failed to pay salary'),
   })
 
+  const onSubmit = (d) => {
+    if (mutation.isPending) return // guard against double/triple submit
+    if (notDueYet) {
+      toast.error(`Salary for this month isn't due yet — it can be paid on or after ${dueDate.toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}.`)
+      return
+    }
+    mutation.mutate(d)
+  }
+
   return (
-    <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="label">Month</label>
-          <input type="month" className="input [color-scheme:dark]" {...register('month', { required: true })} />
-        </div>
-        <div>
           <label className="label">Date paid</label>
-          <input type="date" className="input [color-scheme:dark]" {...register('payment_date')} />
+          <input type="date" className="input [color-scheme:dark]" {...register('payment_date', { required: true })} />
         </div>
         <div>
           <label className="label">Commission (PKR) <span className="text-gray-400 text-xs">(optional)</span></label>
@@ -90,6 +109,12 @@ function PaySalaryForm({ trainer, onSuccess }) {
         <div className="flex justify-between"><span className="text-gray-400">Commission</span><span className="text-gray-200">{commission > 0 ? fmt(commission) : '—'}</span></div>
         <div className="flex justify-between pt-1.5 border-t border-gray-700"><span className="font-semibold text-gray-100">Total</span><span className="font-bold text-primary-400">{fmt(total)}</span></div>
       </div>
+
+      {notDueYet && (
+        <p className="text-yellow-400 text-xs text-center">
+          Salary for this month isn’t due yet — it can be paid on or after {dueDate.toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}.
+        </p>
+      )}
 
       <button type="submit" disabled={mutation.isPending || total <= 0} className="btn-primary w-full justify-center">
         {mutation.isPending ? 'Paying...' : `Pay ${fmt(total)}`}

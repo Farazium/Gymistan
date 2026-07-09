@@ -9,7 +9,7 @@ from apps.accounts.permissions import IsGymMember
 from apps.expenses.models import Expense
 from .models import Trainer, SalaryPayment
 from .serializers import (
-    TrainerSerializer, TrainerDetailSerializer, SalaryPaymentSerializer, salary_status_for,
+    TrainerSerializer, TrainerDetailSerializer, SalaryPaymentSerializer, salary_status_for, _due_date,
 )
 
 
@@ -65,12 +65,25 @@ class PaySalaryView(APIView):
             return Response({'detail': 'Total must be greater than 0'}, status=status.HTTP_400_BAD_REQUEST)
 
         today = datetime.date.today()
-        month = request.data.get('month') or today.strftime('%Y-%m')
+
+        # The salary month is derived from the payment date — no separate field.
         date_str = request.data.get('payment_date')
         try:
             payment_date = datetime.date.fromisoformat(date_str) if date_str else today
-        except ValueError:
+        except (ValueError, TypeError):
             payment_date = today
+        month = payment_date.strftime('%Y-%m')
+
+        # Salary can't be paid before its due date: the trainer's join day within
+        # the paid month. Until that day arrives the salary hasn't accrued.
+        join_day = trainer.join_date.day if trainer.join_date else 1
+        due_date = _due_date(payment_date.year, payment_date.month, join_day)
+        if today < due_date:
+            return Response(
+                {'detail': f"Salary for {due_date.strftime('%B %Y')} isn't due yet — "
+                           f"it can be paid on or after {due_date.strftime('%d %b %Y')}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         note = request.data.get('note', '')
         desc = f'Salary for {month}'
@@ -78,6 +91,17 @@ class PaySalaryView(APIView):
             desc += f' (incl. commission PKR {commission:,.0f})'
 
         with transaction.atomic():
+            # Lock the trainer row so two near-simultaneous "Pay" clicks can't both
+            # slip past the already-paid check and each record an expense.
+            Trainer.objects.select_for_update().get(pk=trainer.pk)
+
+            # One salary payment per trainer per month — block duplicates outright.
+            if SalaryPayment.objects.filter(trainer=trainer, month=month).exists():
+                return Response(
+                    {'detail': f"Salary for {due_date.strftime('%B %Y')} has already been paid."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             expense = Expense.objects.create(
                 gym=trainer.gym,
                 added_by=request.user,

@@ -4,6 +4,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import IntegrityError
+from django.db.models import Q
+from django.utils import timezone
 from .models import Member
 from .serializers import MemberSerializer, MemberListSerializer
 from apps.accounts.permissions import IsGymMember
@@ -63,7 +65,11 @@ class MemberListCreateView(generics.ListCreateAPIView):
         return MemberSerializer
 
     def get_queryset(self):
-        qs = Member.objects.filter(gym=self.request.user.gym, is_deleted=False).select_related('package')
+        # Blacklisted members are managed from their own list — keep them out of
+        # the main roster, same as soft-deleted members.
+        qs = Member.objects.filter(
+            gym=self.request.user.gym, is_deleted=False, blacklisted=False
+        ).select_related('package')
 
         status = self.request.query_params.get('status')
         today = datetime.date.today()
@@ -126,11 +132,14 @@ class MemberDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated, IsGymMember]
 
     def get_queryset(self):
-        return Member.objects.filter(gym=self.request.user.gym, is_deleted=False)
+        # Not restricted to non-deleted: deleted/blacklisted profiles remain
+        # viewable (their detail pages are linked from those management lists).
+        return Member.objects.filter(gym=self.request.user.gym)
 
     def perform_destroy(self, instance):
         instance.is_deleted = True
-        instance.save()
+        instance.deleted_at = timezone.now()
+        instance.save(update_fields=['is_deleted', 'deleted_at'])
 
 
 class DeletedMembersView(APIView):
@@ -146,11 +155,21 @@ class RestoreMemberView(APIView):
     permission_classes = [IsAuthenticated, IsGymMember]
 
     def post(self, request, pk):
+        # Restore applies to members pulled out of the roster — either
+        # soft-deleted or blacklisted. Restoring clears both flags.
         try:
-            member = Member.objects.get(pk=pk, gym=request.user.gym, is_deleted=True)
+            member = Member.objects.get(
+                Q(is_deleted=True) | Q(blacklisted=True),
+                pk=pk, gym=request.user.gym,
+            )
         except Member.DoesNotExist:
             return Response({'detail': 'Not found'}, status=404)
         member.is_deleted = False
+        member.deleted_at = None
+        member.blacklisted = False
+        member.blacklist_reason = ''
+        member.blacklist_until = None
+        member.blacklisted_at = None
         if request.data.get('join_date'):
             member.join_date = request.data['join_date']
         if request.data.get('package'):
@@ -247,7 +266,7 @@ class BlacklistMemberView(APIView):
         member.blacklisted = True
         member.blacklist_reason = reason
         member.blacklist_until = until
-        member.blacklisted_at = datetime.datetime.now()
+        member.blacklisted_at = timezone.now()
         member.save(update_fields=['blacklisted', 'blacklist_reason', 'blacklist_until', 'blacklisted_at'])
         return Response(MemberSerializer(member).data)
 

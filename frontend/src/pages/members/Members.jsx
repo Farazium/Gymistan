@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
-import { Plus, Search, UserPlus, Download, ChevronUp, ChevronDown, Trash2, RotateCcw, Pencil, MoreVertical, Ban } from 'lucide-react'
+import { Search, UserPlus, Download, ChevronUp, ChevronDown, Trash2, RotateCcw, Pencil, MoreVertical, Ban } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../api/axios'
 import useAuthStore from '../../store/authStore'
@@ -135,6 +135,11 @@ function RestoreForm({ member, onSubmit, isPending }) {
   )
 }
 
+function SortIcon({ col, sort }) {
+  if (sort.key !== col) return <ChevronUp size={13} className="text-gray-600" />
+  return sort.dir === 'asc' ? <ChevronUp size={13} className="text-primary-400" /> : <ChevronDown size={13} className="text-primary-400" />
+}
+
 const fetchMembers = async (search, searchBy, status, gender, hasTrainer) => {
   const params = {}
   if (search) { params.search = search; params.search_by = searchBy }
@@ -161,10 +166,6 @@ export default function Members() {
 
   const toggleSort = (key) => setSort((s) => ({ key, dir: s.key === key && s.dir === 'asc' ? 'desc' : 'asc' }))
 
-  const SortIcon = ({ col }) => {
-    if (sort.key !== col) return <ChevronUp size={13} className="text-gray-600" />
-    return sort.dir === 'asc' ? <ChevronUp size={13} className="text-primary-400" /> : <ChevronDown size={13} className="text-primary-400" />
-  }
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
@@ -192,16 +193,7 @@ export default function Members() {
     enabled: showBlacklist,
   })
   const blacklistedMembers = blacklistData || []
-
-  const unblacklistMutation = useMutation({
-    mutationFn: (id) => api.delete(`/members/${id}/blacklist/`),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['members'])
-      queryClient.invalidateQueries(['members-blacklisted'])
-      toast.success('Removed from blacklist')
-    },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Failed to update blacklist')),
-  })
+  const [blMenuId, setBlMenuId] = useState(null)
 
   // Close the kebab menu on outside click.
   useEffect(() => {
@@ -216,6 +208,7 @@ export default function Members() {
     onSuccess: () => {
       queryClient.invalidateQueries(['members'])
       queryClient.invalidateQueries(['members-deleted'])
+      queryClient.invalidateQueries(['members-blacklisted'])
       toast.success('Member removed')
     },
     onError: (err) => toast.error(apiErrorMessage(err, 'Failed to remove member')),
@@ -230,6 +223,7 @@ export default function Members() {
     onSuccess: () => {
       queryClient.invalidateQueries(['members'])
       queryClient.invalidateQueries(['members-deleted'])
+      queryClient.invalidateQueries(['members-blacklisted'])
       queryClient.invalidateQueries(['member-next-id'])
       setRestoreMember(null)
       toast.success('Member restored')
@@ -363,12 +357,12 @@ export default function Members() {
             <Thead>
               <Th>
                 <button onClick={() => toggleSort('member_id')} className="flex items-center gap-1 hover:text-primary-400 transition">
-                  ID <SortIcon col="member_id" />
+                  ID <SortIcon col="member_id" sort={sort} />
                 </button>
               </Th>
               <Th>
                 <button onClick={() => toggleSort('name')} className="flex items-center gap-1 hover:text-primary-400 transition">
-                  Name <SortIcon col="name" />
+                  Name <SortIcon col="name" sort={sort} />
                 </button>
               </Th>
               <Th>Phone</Th>
@@ -378,7 +372,7 @@ export default function Members() {
               <Th>Status</Th>
               <Th>
                 <button onClick={() => toggleSort('expiry_date')} className="flex items-center gap-1 hover:text-primary-400 transition">
-                  Expiry <SortIcon col="expiry_date" />
+                  Expiry <SortIcon col="expiry_date" sort={sort} />
                 </button>
               </Th>
               <Th>Actions</Th>
@@ -491,8 +485,16 @@ export default function Members() {
                     <span className="font-mono text-xs text-gray-400 bg-gray-700 px-1.5 py-0.5 rounded shrink-0">{String(m.member_id).padStart(5, '0')}</span>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-100 truncate">{m.name}</p>
-                    <p className="text-xs text-gray-400">{m.phone} · {m.package_name || 'No package'}</p>
+                    <button
+                      onClick={() => { setShowDeleted(false); navigate(`/members/${m.id}`) }}
+                      className="font-medium text-gray-100 truncate hover:text-primary-400 transition text-left"
+                    >
+                      {m.name}
+                    </button>
+                    <p className="text-xs text-gray-400">
+                      {m.phone} · {m.package_name || 'No package'}
+                      {m.deleted_at && <span className="text-gray-500"> · Deleted {new Date(m.deleted_at).toLocaleDateString('en-PK')}</span>}
+                    </p>
                   </div>
                   <button
                     onClick={() => setRestoreMember(m)}
@@ -514,7 +516,7 @@ export default function Members() {
         </div>
       </Modal>
 
-      <Modal isOpen={showBlacklist} onClose={() => setShowBlacklist(false)} title="Blacklisted Members">
+      <Modal isOpen={showBlacklist} onClose={() => { setShowBlacklist(false); setBlMenuId(null) }} title="Blacklisted Members">
         <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
           {!blacklistedMembers.length ? (
             <p className="text-center text-gray-400 py-8">No blacklisted members.</p>
@@ -541,13 +543,29 @@ export default function Members() {
                       : 'Indefinite'}
                   </p>
                 </div>
-                <button
-                  onClick={() => { if (confirm(`Remove ${m.name} from the blacklist?`)) unblacklistMutation.mutate(m.id) }}
-                  disabled={unblacklistMutation.isPending}
-                  className="flex items-center gap-1.5 text-xs text-green-400 hover:text-green-300 border border-green-500/30 hover:border-green-400 px-3 py-1.5 rounded-lg transition shrink-0"
-                >
-                  <RotateCcw size={13} /> Remove
-                </button>
+                {blMenuId === m.id ? (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => { setBlMenuId(null); setRestoreMember(m) }}
+                      className="flex items-center gap-1.5 text-xs text-green-400 hover:text-green-300 border border-green-500/30 hover:border-green-400 px-3 py-1.5 rounded-lg transition"
+                    >
+                      <RotateCcw size={13} /> Restore
+                    </button>
+                    <button
+                      onClick={() => { setBlMenuId(null); if (confirm(`Move ${m.name} to Deleted Members?`)) deleteMutation.mutate(m.id) }}
+                      className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 border border-red-500/30 hover:border-red-400 px-3 py-1.5 rounded-lg transition"
+                    >
+                      <Trash2 size={13} /> Delete
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setBlMenuId(m.id)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition shrink-0"
+                  >
+                    <MoreVertical size={16} />
+                  </button>
+                )}
               </div>
             ))
           )}

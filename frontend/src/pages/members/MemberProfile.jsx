@@ -139,17 +139,6 @@ export default function MemberProfile() {
     onError: (err) => toast.error(apiErrorMessage(err, 'Failed to blacklist member')),
   })
 
-  const unblacklistMutation = useMutation({
-    mutationFn: () => api.delete(`/members/${id}/blacklist/`),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['member', id])
-      queryClient.invalidateQueries(['members'])
-      queryClient.invalidateQueries(['members-blacklisted'])
-      toast.success('Removed from blacklist')
-    },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Failed to update blacklist')),
-  })
-
   if (isLoading) return (
     <div className="flex justify-center py-16">
       <div className="animate-spin w-6 h-6 border-4 border-primary-500 border-t-transparent rounded-full" />
@@ -248,14 +237,22 @@ export default function MemberProfile() {
           <div className="flex-1">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-gray-100">{member.name}</h1>
-              <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${member.status === 'ACTIVE' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                {member.status === 'ACTIVE' ? 'Active' : 'Expired'}
-              </span>
-              {member.blacklist_active && (
-                <span className="text-xs px-2.5 py-0.5 rounded-full font-medium bg-amber-500/20 text-amber-400 flex items-center gap-1">
-                  <Ban size={11} /> Blacklisted
-                </span>
-              )}
+              {(() => {
+                // Deleted and blacklisted take precedence over the membership status.
+                const deleted = member.is_deleted
+                const bl = member.blacklist_active
+                const label = deleted ? 'Deleted' : bl ? 'Blacklisted' : member.status === 'ACTIVE' ? 'Active' : 'Expired'
+                const cls = deleted ? 'bg-gray-500/20 text-gray-300'
+                  : bl ? 'bg-amber-500/20 text-amber-400'
+                  : member.status === 'ACTIVE' ? 'bg-green-500/20 text-green-400'
+                  : 'bg-red-500/20 text-red-400'
+                return (
+                  <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium flex items-center gap-1 ${cls}`}>
+                    {deleted ? <Trash2 size={11} /> : bl ? <Ban size={11} /> : null}
+                    {label}
+                  </span>
+                )
+              })()}
             </div>
             {member.package_detail?.name && (
               <p className="text-primary-400 text-sm mt-1">{member.package_detail.name}</p>
@@ -270,15 +267,7 @@ export default function MemberProfile() {
                 {member.expiry_date ? new Date(member.expiry_date).toLocaleDateString('en-PK') : '—'}
               </p>
             </div>
-            {member.blacklist_active ? (
-              <button
-                onClick={() => { if (confirm('Remove this member from the blacklist?')) unblacklistMutation.mutate() }}
-                disabled={unblacklistMutation.isPending}
-                className="flex items-center gap-1.5 text-xs text-green-400 hover:text-green-300 border border-green-500/30 hover:border-green-400 px-3 py-1.5 rounded-lg transition"
-              >
-                <Ban size={14} /> Remove from Blacklist
-              </button>
-            ) : (
+            {!member.blacklist_active && (
               <button
                 onClick={() => setShowBlacklist(true)}
                 className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-500/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 hover:shadow-lg hover:shadow-primary-500/20 transition-all"

@@ -27,6 +27,7 @@ class Member(models.Model):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
     notes = models.TextField(blank=True)
     is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
     # Blacklist: a banned member. `blacklist_until` null while blacklisted means an
     # indefinite ban; a date means the ban lapses on/after that day.
     blacklisted = models.BooleanField(default=False)
