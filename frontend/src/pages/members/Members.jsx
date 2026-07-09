@@ -413,7 +413,7 @@ export default function Members() {
                       <button
                         onClick={() => { setEditMember(m); setShowModal(true) }}
                         title="Edit"
-                        className="p-1.5 text-gray-400 hover:text-primary-400 hover:bg-primary-500/10 rounded-lg transition"
+                        className="p-1.5 text-gray-400 hover:text-white hover:bg-primary-500 rounded-lg transition"
                       >
                         <Pencil size={14} />
                       </button>
@@ -422,7 +422,7 @@ export default function Members() {
                           if (confirm('Remove this member?')) deleteMutation.mutate(m.id)
                         }}
                         title="Remove"
-                        className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"
+                        className="p-1.5 text-gray-400 hover:text-white hover:bg-red-500 rounded-lg transition"
                       >
                         <Trash2 size={14} />
                       </button>

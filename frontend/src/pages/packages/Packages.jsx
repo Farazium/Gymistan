@@ -153,10 +153,10 @@ export default function Packages() {
                     <PackageIcon size={20} />
                   </div>
                   <div className="flex gap-1">
-                    <button onClick={() => { setEditPkg(pkg); setShowModal(true) }} className="p-1.5 text-gray-500 hover:text-gray-200 hover:bg-gray-700 rounded-lg transition">
+                    <button onClick={() => { setEditPkg(pkg); setShowModal(true) }} className="p-1.5 text-gray-500 hover:text-white hover:bg-primary-500 rounded-lg transition">
                       <Pencil size={14} />
                     </button>
-                    <button onClick={() => { if (confirm('Delete package?')) deleteMutation.mutate(pkg.id) }} className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition">
+                    <button onClick={() => { if (confirm('Delete package?')) deleteMutation.mutate(pkg.id) }} className="p-1.5 text-gray-500 hover:text-white hover:bg-red-500 rounded-lg transition">
                       <Trash2 size={14} />
                     </button>
                   </div>

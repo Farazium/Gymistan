@@ -180,7 +180,7 @@ export default function Payments() {
                         {new Date(p.payment_date).toLocaleDateString('en-PK')}
                       </span>
                       <div className="shrink-0 w-20 flex items-center justify-end gap-1">
-                        <button onClick={() => downloadSlip(p.id)} title="Download Slip" className="p-1.5 text-gray-400 hover:text-primary-400 hover:bg-primary-500/10 rounded-lg transition">
+                        <button onClick={() => downloadSlip(p.id)} title="Download Slip" className="p-1.5 text-gray-400 hover:text-white hover:bg-primary-500 rounded-lg transition">
                           <Download size={14} />
                         </button>
                         {hasWhatsApp && (
@@ -189,12 +189,12 @@ export default function Payments() {
                               <CheckCircle2 size={14} />
                             </span>
                           ) : (
-                            <button onClick={() => sendWhatsApp.mutate(p.id)} title="Send via WhatsApp" className="p-1.5 text-gray-400 hover:text-green-400 hover:bg-green-500/10 rounded-lg transition">
+                            <button onClick={() => sendWhatsApp.mutate(p.id)} title="Send via WhatsApp" className="p-1.5 text-gray-400 hover:text-white hover:bg-green-500 rounded-lg transition">
                               <MessageCircle size={14} />
                             </button>
                           )
                         )}
-                        <button onClick={() => { if (confirm('Delete this payment record?')) deleteMutation.mutate(p.id) }} title="Delete" className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition">
+                        <button onClick={() => { if (confirm('Delete this payment record?')) deleteMutation.mutate(p.id) }} title="Delete" className="p-1.5 text-gray-400 hover:text-white hover:bg-red-500 rounded-lg transition">
                           <Trash2 size={14} />
                         </button>
                       </div>

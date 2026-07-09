@@ -208,7 +208,7 @@ export default function GymPayments() {
                   <Td>
                     <button
                       onClick={() => { if (confirm('Delete this payment?')) deleteMutation.mutate(p.id) }}
-                      className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"
+                      className="p-1.5 text-gray-400 hover:text-white hover:bg-red-500 rounded-lg transition"
                     >
                       <Trash2 size={14} />
                     </button>
