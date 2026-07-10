@@ -81,8 +81,8 @@ export default function AttendanceCalendar({ title = 'Attendance', type, personI
                 ${isToday ? 'ring-2 ring-primary-400' : ''}
                 ${st === 'upcoming' ? 'text-gray-500' :
                   st === 'present'
-                    ? 'bg-green-500/20 text-green-400 ring-1 ring-green-500/50'
-                    : 'bg-red-500/20 text-red-400 ring-1 ring-red-500/50'
+                    ? 'bg-[#368239] text-white'
+                    : 'bg-[#990F02] text-white'
                 }
               `}>
                 {d}
@@ -94,10 +94,10 @@ export default function AttendanceCalendar({ title = 'Attendance', type, personI
 
       <div className="flex gap-4 mt-4 pt-3 border-t border-gray-700">
         <div className="flex items-center gap-1.5 text-xs text-gray-400">
-          <div className="w-3 h-3 rounded-full bg-green-500/50" /> Present
+          <div className="w-3 h-3 rounded-full bg-[#368239]" /> Present
         </div>
         <div className="flex items-center gap-1.5 text-xs text-gray-400">
-          <div className="w-3 h-3 rounded-full bg-red-500/50" /> Absent
+          <div className="w-3 h-3 rounded-full bg-[#990F02]" /> Absent
         </div>
         <div className="flex items-center gap-1.5 text-xs text-gray-400">
           <div className="w-3 h-3 rounded-full bg-gray-700" /> Upcoming

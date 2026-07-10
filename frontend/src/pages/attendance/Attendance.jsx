@@ -45,8 +45,8 @@ function StatTile({ label, value, tone = 'gray' }) {
 
 function Dot({ status }) {
   const base = 'w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-semibold mx-auto'
-  if (status === 'present') return <div className={`${base} bg-green-500/20 text-green-400 ring-1 ring-green-500/40`}><Check size={13} /></div>
-  if (status === 'absent') return <div className={`${base} bg-red-500/20 text-red-400 ring-1 ring-red-500/40`}><X size={12} /></div>
+  if (status === 'present') return <div className={`${base} bg-[#368239] text-white`}><Check size={13} /></div>
+  if (status === 'absent') return <div className={`${base} bg-[#990F02] text-white`}><X size={12} /></div>
   return <div className={`${base} bg-gray-700/40 text-gray-600`}>·</div>
 }
 
@@ -221,8 +221,8 @@ function DailySheet({ rows, day, onToggle, busy }) {
               <button disabled={busy} onClick={() => onToggle(r, day, cell)}
                 title="Click to toggle"
                 className={`text-xs px-3 py-1 rounded-full font-medium transition ${
-                  present ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
-                          : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'}`}>
+                  present ? 'bg-[#368239] text-white hover:bg-[#2b6a2f]'
+                          : 'bg-[#990F02] text-white hover:bg-[#7a0c02]'}`}>
                 {present ? 'Present' : 'Absent'}
               </button>
             </div>
