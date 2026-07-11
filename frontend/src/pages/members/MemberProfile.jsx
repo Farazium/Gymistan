@@ -317,7 +317,7 @@ export default function MemberProfile() {
             {payments.slice(0, 10).map((p) => (
               <div key={p.id} className="flex items-center justify-between py-2 border-b border-gray-700 last:border-0">
                 <div>
-                  <p className="text-sm text-gray-100 font-medium">PKR {Number(p.amount_paid).toLocaleString()}</p>
+                  <p className="text-sm text-gray-100 font-medium">PKR {Number(p.amount_paid).toLocaleString('en-PK')}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{p.notes || 'Monthly payment'}</p>
                 </div>
                 <div className="text-right">

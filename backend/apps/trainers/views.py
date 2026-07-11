@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
+from django.utils import timezone
 from apps.accounts.permissions import IsGymMember
 from apps.expenses.models import Expense
 from .models import Trainer, SalaryPayment
@@ -64,7 +65,7 @@ class PaySalaryView(APIView):
         if total <= 0:
             return Response({'detail': 'Total must be greater than 0'}, status=status.HTTP_400_BAD_REQUEST)
 
-        today = datetime.date.today()
+        today = timezone.localdate()
 
         # The salary month is derived from the payment date — no separate field.
         date_str = request.data.get('payment_date')

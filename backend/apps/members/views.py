@@ -7,6 +7,7 @@ from django.db import IntegrityError
 from django.db.models import Q
 from django.utils import timezone
 from .models import Member
+from .queries import active_q, expired_q
 from .serializers import MemberSerializer, MemberListSerializer
 from apps.accounts.permissions import IsGymMember
 from apps.payments.models import Payment
@@ -72,11 +73,10 @@ class MemberListCreateView(generics.ListCreateAPIView):
         ).select_related('package')
 
         status = self.request.query_params.get('status')
-        today = datetime.date.today()
         if status == 'ACTIVE':
-            qs = qs.filter(expiry_date__gt=today) | qs.filter(expiry_date__isnull=True)
+            qs = qs.filter(active_q())
         elif status == 'EXPIRED':
-            qs = qs.filter(expiry_date__lte=today)
+            qs = qs.filter(expired_q())
 
         has_trainer = self.request.query_params.get('has_trainer')
         if has_trainer == 'true':
@@ -254,7 +254,7 @@ class BlacklistMemberView(APIView):
                 return Response({'duration_months': 'Enter a whole number of months, or choose indefinite'}, status=400)
             if months < 1:
                 return Response({'duration_months': 'Duration must be at least 1 month'}, status=400)
-            today = datetime.date.today()
+            today = timezone.localdate()
             # Add `months` calendar months, clamping the day to the target month's length.
             total = today.month - 1 + months
             year = today.year + total // 12

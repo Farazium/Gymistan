@@ -8,7 +8,9 @@ from .models import Payment
 from .serializers import PaymentSerializer
 from .utils import generate_payment_slip, send_whatsapp_slip
 from apps.accounts.permissions import IsGymMember
+from apps.common.dates import renew_from
 import datetime
+from django.utils import timezone
 
 
 class PaymentListCreateView(generics.ListCreateAPIView):
@@ -29,10 +31,7 @@ class PaymentListCreateView(generics.ListCreateAPIView):
         payment = serializer.save(gym=self.request.user.gym, collected_by=self.request.user)
         if payment.status == 'PAID' and payment.package:
             member = payment.member
-            base = member.expiry_date if member.expiry_date else datetime.date.today()
-            months = round(payment.package.duration_days / 30)
-            m = base.month - 1 + months
-            new_expiry = base.replace(year=base.year + m // 12, month=m % 12 + 1)
+            new_expiry = renew_from(member.expiry_date, payment.package.duration_months)
             payment.prev_expiry = member.expiry_date
             payment.new_expiry = new_expiry
             payment.save(update_fields=['prev_expiry', 'new_expiry'])

@@ -8,6 +8,7 @@ import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
 import { apiErrorMessage } from '../../utils/apiError'
 import { invalidateFinance } from '../../utils/invalidateFinance'
+import { fmtCurrency as fmt } from '../../utils/format'
 
 const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 
@@ -25,7 +26,6 @@ const categoryColors = {
   OTHER: 'bg-gray-700 text-gray-300',
 }
 
-const fmt = (n) => `PKR ${Number(n).toLocaleString('en-PK')}`
 
 function ExpenseForm({ onSuccess }) {
   const { register, handleSubmit, formState: { isSubmitting, errors } } = useForm({

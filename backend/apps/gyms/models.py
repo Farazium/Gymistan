@@ -2,10 +2,12 @@ from django.db import models
 
 
 class Tier(models.TextChoices):
-    TIER1    = 'TIER1',    'Basic'
-    TIER2_WA = 'TIER2_WA', 'WhatsApp'
-    TIER2_AT = 'TIER2_AT', 'Attendance'
-    TIER3    = 'TIER3',    'Pro'
+    # Labels mirror the product names shown in the frontend (Starter / Connect /
+    # Track / Elite) so admin and UI stay consistent.
+    TIER1    = 'TIER1',    'Starter'
+    TIER2_WA = 'TIER2_WA', 'Connect'
+    TIER2_AT = 'TIER2_AT', 'Track'
+    TIER3    = 'TIER3',    'Elite'
 
 
 class ThemeColor(models.TextChoices):

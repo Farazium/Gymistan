@@ -8,8 +8,8 @@ import Modal from '../../components/ui/Modal'
 import PaymentForm from './PaymentForm'
 import toast from 'react-hot-toast'
 import { invalidateFinance } from '../../utils/invalidateFinance'
+import { fmtCurrency as fmt } from '../../utils/format'
 
-const fmt = (n) => `PKR ${Number(n).toLocaleString('en-PK')}`
 
 function monthKey(dateStr) {
   return dateStr ? dateStr.slice(0, 7) : ''

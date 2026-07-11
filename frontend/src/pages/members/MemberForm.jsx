@@ -69,7 +69,7 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
   })
 
   const selectedPkg = packages?.find((p) => String(p.id) === String(selectedPkgId))
-  const pkgMonths = selectedPkg ? Math.round(selectedPkg.duration_days / 30) : null
+  const pkgMonths = selectedPkg ? selectedPkg.duration_months : null
   const trainerAllowed = !!selectedPkg?.has_trainer
 
   // Trainer can only be set on packages that include a trainer; clear it otherwise
@@ -80,7 +80,7 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
   const mutation = useMutation({
     mutationFn: (payload) => {
       const pkg = packages?.find((p) => String(p.id) === String(payload.package))
-      const months = pkg ? Math.round(pkg.duration_days / 30) : null
+      const months = pkg ? pkg.duration_months : null
       const mid = payload.member_id ? String(payload.member_id).padStart(5, '0') : ''
       const base = { ...payload, member_id: mid || null, trainer: payload.trainer || null }
       const body = member
@@ -210,7 +210,7 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
           <select className="input" {...register('package', { required: 'Package is required' })}>
             <option value="">Select a package</option>
             {packages?.map((p) => (
-              <option key={p.id} value={p.id}>{p.name} — PKR {Number(p.price).toLocaleString()}</option>
+              <option key={p.id} value={p.id}>{p.name} — PKR {Number(p.price).toLocaleString('en-PK')}</option>
             ))}
           </select>
           {errors.package && <p className="text-red-500 text-xs mt-1">{errors.package.message}</p>}

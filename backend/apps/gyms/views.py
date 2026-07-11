@@ -4,10 +4,11 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Sum
 from django.utils import timezone
-from datetime import timedelta
 from .models import Gym, GymPayment
 from .serializers import GymSerializer, CreateGymSerializer, GymPaymentSerializer
-from apps.accounts.permissions import IsSuperAdmin, IsGymAdminOrAbove
+from apps.members.queries import active_q, expired_q, expiring_soon_q
+from apps.common.dates import renew_from
+from apps.accounts.permissions import IsSuperAdmin
 from apps.members.models import Member
 from apps.payments.models import Payment
 from apps.expenses.models import Expense
@@ -64,7 +65,7 @@ class GymStatsView(APIView):
 
     def get(self, request, pk):
         gym = Gym.objects.get(pk=pk)
-        today = timezone.now().date()
+        today = timezone.localdate()
         month_start = today.replace(day=1)
 
         members = Member.objects.filter(gym=gym, is_deleted=False)
@@ -86,9 +87,9 @@ class GymStatsView(APIView):
             'admin': {'id': admin.id, 'name': admin.name, 'email': admin.email} if admin else None,
             'stats': {
                 'total_members': members.count(),
-                'active_members': members.filter(status='ACTIVE').count(),
-                'expired_members': members.filter(status='EXPIRED').count(),
-                'expiring_soon': members.filter(status='ACTIVE', expiry_date__lte=today + timedelta(days=7), expiry_date__gte=today).count(),
+                'active_members': members.filter(active_q(today)).count(),
+                'expired_members': members.filter(expired_q(today)).count(),
+                'expiring_soon': members.filter(expiring_soon_q(7, today)).count(),
                 'revenue_this_month': float(revenue),
                 'expenses_this_month': float(expenses),
                 # Cash basis: member fees + inventory sales − all expenses (stock
@@ -107,13 +108,9 @@ class RenewGymView(APIView):
     permission_classes = [IsAuthenticated, IsSuperAdmin]
 
     def post(self, request, pk):
-        import datetime
         gym = Gym.objects.get(pk=pk)
         months = int(request.data.get('months', 1))
-        base = gym.expiry_date or datetime.date.today()
-        m = base.month - 1 + months
-        new_expiry = base.replace(year=base.year + m // 12, month=m % 12 + 1)
-        gym.expiry_date = new_expiry
+        gym.expiry_date = renew_from(gym.expiry_date, months)
         gym.save(update_fields=['expiry_date'])
         return Response({'expiry_date': gym.expiry_date})
 
@@ -130,16 +127,12 @@ class GymPaymentListCreateView(APIView):
         return Response(serializer.data)
 
     def post(self, request):
-        import datetime
         serializer = GymPaymentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         payment = serializer.save()
 
         gym = payment.gym
-        months = payment.months
-        base = gym.expiry_date if gym.expiry_date and gym.expiry_date >= datetime.date.today() else datetime.date.today()
-        m = base.month - 1 + months
-        gym.expiry_date = base.replace(year=base.year + m // 12, month=m % 12 + 1)
+        gym.expiry_date = renew_from(gym.expiry_date, payment.months)
         gym.save(update_fields=['expiry_date'])
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)

@@ -19,3 +19,17 @@ class IsGymMember(BasePermission):
         if request.user.role == 'SUPERADMIN':
             return True
         return request.user.gym is not None
+
+
+class HasAttendance(BasePermission):
+    """Gym's plan must include the attendance feature (TIER2_AT or TIER3).
+
+    Mirrors the frontend gating so the API can't be hit directly by plans that
+    don't include attendance.
+    """
+    ATTENDANCE_TIERS = ('TIER2_AT', 'TIER3')
+    message = 'Attendance is not enabled for your plan.'
+
+    def has_permission(self, request, view):
+        gym = getattr(request.user, 'gym', None)
+        return gym is not None and gym.tier in self.ATTENDANCE_TIERS

@@ -3,6 +3,7 @@ import datetime
 from rest_framework import serializers
 from django.db.models import Sum
 from .models import Trainer, SalaryPayment
+from django.utils import timezone
 
 
 def _due_date(year, month, join_day):
@@ -15,7 +16,7 @@ def _due_date(year, month, join_day):
 def salary_status_for(trainer, month=None):
     """This-month (or given month) salary standing for a trainer, with the
     salary due date derived from the trainer's join date."""
-    today = datetime.date.today()
+    today = timezone.localdate()
     month = month or today.strftime('%Y-%m')
     agg = SalaryPayment.objects.filter(trainer=trainer, month=month).aggregate(
         base=Sum('base_salary'), total=Sum('amount')

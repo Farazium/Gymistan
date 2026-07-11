@@ -16,7 +16,7 @@ const fetchPackages = async () => {
 function PackageForm({ pkg, onSuccess }) {
   const { register, handleSubmit, formState: { isSubmitting, errors } } = useForm({
     defaultValues: pkg
-      ? { ...pkg, duration_months: Math.round(pkg.duration_days / 30) || 1, features: pkg.features?.join(', ') }
+      ? { ...pkg, duration_months: pkg.duration_months || 1, features: pkg.features?.join(', ') }
       : { duration_months: 1 },
   })
 
@@ -24,10 +24,9 @@ function PackageForm({ pkg, onSuccess }) {
     mutationFn: (payload) => {
       const body = {
         ...payload,
-        duration_days: Number(payload.duration_months) * 30,
+        duration_months: Number(payload.duration_months),
         features: payload.features ? payload.features.split(',').map(f => f.trim()).filter(Boolean) : [],
       }
-      delete body.duration_months
       return pkg ? api.patch(`/packages/${pkg.id}/`, body) : api.post('/packages/', body)
     },
     onSuccess: () => { toast.success(pkg ? 'Package updated' : 'Package created'); onSuccess() },
@@ -112,7 +111,7 @@ export default function Packages() {
             onClick={() => exportToExcel(packages.map((p) => ({
               Name: p.name,
               'Price (PKR)': p.price,
-              'Duration (Months)': Math.round(p.duration_days / 30),
+              'Duration (Months)': p.duration_months,
               Features: p.features?.join(', ') || '',
               Description: p.description || '',
               'Members Enrolled': p.member_count || 0,
@@ -143,7 +142,7 @@ export default function Packages() {
               { border: 'border-cyan-500/40', bar: 'bg-cyan-500', icon: 'bg-cyan-500/20 text-cyan-400', price: 'text-cyan-400', tag: 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/25' },
             ]
             const p = palettes[idx % palettes.length]
-            const months = Math.round(pkg.duration_days / 30)
+            const months = pkg.duration_months
             return (
             <div key={pkg.id} className={`card p-0 overflow-hidden border ${p.border} ${!pkg.is_active ? 'opacity-50' : ''}`}>
               <div className={`h-1 w-full ${p.bar}`} />
@@ -169,7 +168,7 @@ export default function Packages() {
                     </span>
                   )}
                 </h3>
-                <p className={`text-2xl font-bold mt-1 ${p.price}`}>PKR {Number(pkg.price).toLocaleString()}</p>
+                <p className="text-2xl font-bold mt-1">PKR {Number(pkg.price).toLocaleString('en-PK')}</p>
                 <p className="text-sm text-gray-400 mt-0.5">{months} {months === 1 ? 'Month' : 'Months'}</p>
                 {pkg.features?.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-1.5">

@@ -1,11 +1,11 @@
-import datetime
 from rest_framework import serializers
+from django.utils.timezone import localdate
 from .models import Member
 from apps.packages.serializers import PackageSerializer
 
 
 def compute_status(member):
-    if member.expiry_date and member.expiry_date <= datetime.date.today():
+    if member.expiry_date and member.expiry_date <= localdate():
         return 'EXPIRED'
     return 'ACTIVE'
 
@@ -14,7 +14,7 @@ def blacklist_is_active(member):
     # Blacklisted and either indefinite (no end date) or the end date hasn't passed.
     if not member.blacklisted:
         return False
-    return member.blacklist_until is None or member.blacklist_until >= datetime.date.today()
+    return member.blacklist_until is None or member.blacklist_until >= localdate()
 
 
 class MemberSerializer(serializers.ModelSerializer):

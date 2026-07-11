@@ -60,13 +60,13 @@ function RestoreForm({ member, onSubmit, isPending }) {
   const status = watch('status')
   const selectedPkgId = watch('package')
   const selectedPkg = packages.find(p => String(p.id) === String(selectedPkgId))
-  const pkgMonths = selectedPkg ? Math.round(selectedPkg.duration_days / 30) : null
+  const pkgMonths = selectedPkg ? selectedPkg.duration_months : null
   const expiryISO = calcExpiryISO(joinDate, status, pkgMonths)
   const expiryDisplay = expiryISO ? new Date(expiryISO + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''
 
   const onFormSubmit = (data) => {
     const pkg = packages.find(p => String(p.id) === String(data.package))
-    const months = pkg ? Math.round(pkg.duration_days / 30) : null
+    const months = pkg ? pkg.duration_months : null
     onSubmit({
       join_date: data.join_date,
       package: data.package,
@@ -103,7 +103,7 @@ function RestoreForm({ member, onSubmit, isPending }) {
           <select className="input" {...register('package', { required: 'Package is required' })}>
             <option value="">Select a package</option>
             {packages.map(p => (
-              <option key={p.id} value={p.id}>{p.name} — PKR {Number(p.price).toLocaleString()}</option>
+              <option key={p.id} value={p.id}>{p.name} — PKR {Number(p.price).toLocaleString('en-PK')}</option>
             ))}
           </select>
           {errors.package && <p className="text-red-500 text-xs mt-1">{errors.package.message}</p>}

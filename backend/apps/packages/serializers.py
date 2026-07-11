@@ -18,7 +18,7 @@ class PackageSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Price must be greater than 0')
         return value
 
-    def validate_duration_days(self, value):
+    def validate_duration_months(self, value):
         if value is None or value <= 0:
             raise serializers.ValidationError('Duration must be at least 1 month')
         return value

@@ -2,6 +2,19 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 from .models import User
 
+# Roles a gym admin is allowed to assign to staff. SUPERADMIN can only ever be
+# granted by another SUPERADMIN — otherwise a gym admin could escalate to full
+# cross-gym access by editing (or creating) a user with that role.
+GYM_ADMIN_ASSIGNABLE_ROLES = ('GYM_ADMIN', 'ACCOUNTANT')
+
+
+def guard_assignable_role(serializer, role):
+    request = serializer.context.get('request')
+    requester = getattr(request, 'user', None)
+    if role and requester and requester.role != 'SUPERADMIN' and role not in GYM_ADMIN_ASSIGNABLE_ROLES:
+        raise serializers.ValidationError('You are not allowed to assign this role.')
+    return role
+
 
 class UserSerializer(serializers.ModelSerializer):
     gym_name = serializers.CharField(source='gym.name', read_only=True)
@@ -48,5 +61,20 @@ class CreateUserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['name', 'email', 'password', 'role', 'gym']
 
+    def validate_role(self, value):
+        return guard_assignable_role(self, value)
+
     def create(self, validated_data):
         return User.objects.create_user(**validated_data)
+
+
+class StaffUserUpdateSerializer(serializers.ModelSerializer):
+    """Editing an existing staff member. `gym` is intentionally not writable so a
+    user can't be moved across tenants, and `role` is guarded so a gym admin can't
+    escalate anyone to SUPERADMIN."""
+    class Meta:
+        model = User
+        fields = ['name', 'role', 'is_active']
+
+    def validate_role(self, value):
+        return guard_assignable_role(self, value)

@@ -2,6 +2,7 @@ from decimal import Decimal
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import Gym, GymPayment
+from django.utils import timezone
 
 User = get_user_model()
 
@@ -21,7 +22,7 @@ class GymPaymentSerializer(serializers.ModelSerializer):
 
     def validate_payment_date(self, value):
         import datetime
-        if value and value > datetime.date.today():
+        if value and value > timezone.localdate():
             raise serializers.ValidationError('Payment date cannot be in the future')
         return value
 
@@ -60,7 +61,7 @@ class CreateGymSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         import datetime
-        today = datetime.date.today()
+        today = timezone.localdate()
         trial_days = validated_data.get('trial_days', 30)
         expiry_date = validated_data.get('expiry_date') or (today + datetime.timedelta(days=trial_days))
         gym = Gym.objects.create(

@@ -4,8 +4,8 @@ import { BookOpen, TrendingUp, PieChart, ArrowDownCircle, ArrowUpCircle, Chevron
 import api from '../../api/axios'
 import useAuthStore from '../../store/authStore'
 import { exportLedgerPDF, exportIncomeStatementPDF, exportExpenseCategoriesPDF, exportDailyCollectionPDF } from '../../utils/financePDF'
+import { fmtCurrency as fmt } from '../../utils/format'
 
-const fmt = (n) => `PKR ${Number(n).toLocaleString('en-PK')}`
 
 const localStr = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`

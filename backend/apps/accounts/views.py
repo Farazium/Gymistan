@@ -3,9 +3,12 @@ from rest_framework.response import Response
 from rest_framework import status, generics
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import LoginSerializer, UserSerializer, ChangePasswordSerializer, CreateUserSerializer
+from .serializers import (
+    LoginSerializer, UserSerializer, ChangePasswordSerializer,
+    CreateUserSerializer, StaffUserUpdateSerializer,
+)
 from .models import User
-from .permissions import IsSuperAdmin, IsGymAdminOrAbove
+from .permissions import IsSuperAdmin
 
 
 class LoginView(APIView):
@@ -49,24 +52,24 @@ class ChangePasswordView(APIView):
 
 
 class StaffUserListCreateView(generics.ListCreateAPIView):
+    # Gym accounts are provisioned by the superadmin only — a gym is one login and
+    # cannot create additional users, so these endpoints are superadmin-only.
     serializer_class = CreateUserSerializer
-    permission_classes = [IsAuthenticated, IsGymAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
 
     def get_queryset(self):
-        if self.request.user.role == 'SUPERADMIN':
-            return User.objects.filter(gym_id=self.kwargs.get('gym_id'))
-        return User.objects.filter(gym=self.request.user.gym)
-
-    def perform_create(self, serializer):
-        gym = self.request.user.gym if self.request.user.role != 'SUPERADMIN' else None
-        serializer.save(gym=gym)
+        return User.objects.filter(gym_id=self.kwargs.get('gym_id'))
 
 
 class StaffUserDetailView(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated, IsGymAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+
+    def get_serializer_class(self):
+        # Reads return the full profile; writes go through the guarded serializer
+        # (no gym reassignment, no self-escalation to SUPERADMIN).
+        if self.request.method in ('PUT', 'PATCH'):
+            return StaffUserUpdateSerializer
+        return UserSerializer
 
     def get_queryset(self):
-        if self.request.user.role == 'SUPERADMIN':
-            return User.objects.all()
-        return User.objects.filter(gym=self.request.user.gym)
+        return User.objects.all()

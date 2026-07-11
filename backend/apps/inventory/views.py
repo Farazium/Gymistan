@@ -9,6 +9,7 @@ from .models import Product, StockLog
 from .serializers import ProductSerializer, StockLogSerializer
 from apps.accounts.permissions import IsGymMember
 from apps.expenses.models import Expense
+from django.utils import timezone
 
 
 def _record_stock_expense(product, qty, user, kind):
@@ -24,7 +25,7 @@ def _record_stock_expense(product, qty, user, kind):
         title=f'Stock purchase — {product.name}',
         amount=total,
         category='INVENTORY',
-        date=datetime.date.today(),
+        date=timezone.localdate(),
         description=f'{kind}: {qty} × PKR {cost:,.0f}',
     )
 

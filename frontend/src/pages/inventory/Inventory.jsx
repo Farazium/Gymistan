@@ -92,7 +92,7 @@ function StockModal({ product, action, onSuccess }) {
         <input className="input" type="number" min={action === 'ADJUSTMENT' ? '0' : '1'} onKeyDown={noNeg} {...register('quantity', { required: 'Quantity is required', min: { value: action === 'ADJUSTMENT' ? 0 : 1, message: action === 'ADJUSTMENT' ? 'Cannot be negative' : 'Must be at least 1' } })} />
         {errors.quantity && <p className="text-red-500 text-xs mt-1">{errors.quantity.message}</p>}
         {action === 'SELL' && Number(product.quantity) === 0 && <p className="text-yellow-400 text-xs mt-1">This product is out of stock</p>}
-        {restockCost > 0 && <p className="text-emerald-400 text-xs mt-1">An expense of PKR {restockCost.toLocaleString()} will be recorded (cost {cost.toLocaleString()} × qty)</p>}
+        {restockCost > 0 && <p className="text-emerald-400 text-xs mt-1">An expense of PKR {restockCost.toLocaleString('en-PK')} will be recorded (cost {cost.toLocaleString('en-PK')} × qty)</p>}
         {action === 'RESTOCK' && cost === 0 && <p className="text-gray-500 text-xs mt-1">No cost price set — no expense will be recorded</p>}
       </div>
       <button type="submit" disabled={isSubmitting} className="btn-primary w-full justify-center">
@@ -198,8 +198,8 @@ export default function Inventory() {
 
               <div className="flex items-end justify-between mt-2">
                 <div>
-                  <p className="text-xl font-bold text-primary-400">PKR {Number(p.sell_price).toLocaleString()}</p>
-                  {p.cost_price > 0 && <p className="text-xs text-gray-400">Cost: PKR {Number(p.cost_price).toLocaleString()}</p>}
+                  <p className="text-xl font-bold text-primary-400">PKR {Number(p.sell_price).toLocaleString('en-PK')}</p>
+                  {p.cost_price > 0 && <p className="text-xs text-gray-400">Cost: PKR {Number(p.cost_price).toLocaleString('en-PK')}</p>}
                 </div>
                 <div className="text-right">
                   <p className={`text-2xl font-bold ${p.is_low_stock ? 'text-yellow-400' : 'text-gray-100'}`}>{p.quantity}</p>

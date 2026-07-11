@@ -180,7 +180,7 @@ export default function Gyms() {
                     {!g.tier && <span className="text-gray-500">—</span>}
                   </Td>
                   <Td className="text-primary-400 font-medium">
-                    {g.subscription_amount ? `PKR ${Number(g.subscription_amount).toLocaleString()}` : <span className="text-gray-500">—</span>}
+                    {g.subscription_amount ? `PKR ${Number(g.subscription_amount).toLocaleString('en-PK')}` : <span className="text-gray-500">—</span>}
                   </Td>
                   <Td>
                     <button

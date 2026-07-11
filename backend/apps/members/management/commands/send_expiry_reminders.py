@@ -13,6 +13,7 @@ import datetime
 from django.core.management.base import BaseCommand
 from apps.members.models import Member
 from apps.payments.utils import send_whatsapp_expiry_reminder
+from django.utils import timezone
 
 # Only these tiers include WhatsApp messaging.
 WA_TIERS = ('TIER2_WA', 'TIER3')
@@ -28,7 +29,7 @@ class Command(BaseCommand):
                             help='List targets without sending.')
 
     def handle(self, *args, **opts):
-        target = datetime.date.today() + datetime.timedelta(days=opts['days'])
+        target = timezone.localdate() + datetime.timedelta(days=opts['days'])
         dry = opts['dry_run']
 
         members = (Member.objects

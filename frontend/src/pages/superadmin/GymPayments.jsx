@@ -71,7 +71,7 @@ function PaymentForm({ gyms, onSuccess }) {
                 <button key={g.id} type="button" onMouseDown={() => selectGym(g)}
                   className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-gray-700 transition flex items-center justify-between">
                   <span>{g.name}</span>
-                  {g.subscription_amount && <span className="text-xs text-primary-400">PKR {Number(g.subscription_amount).toLocaleString()}</span>}
+                  {g.subscription_amount && <span className="text-xs text-primary-400">PKR {Number(g.subscription_amount).toLocaleString('en-PK')}</span>}
                 </button>
               ))}
             </div>

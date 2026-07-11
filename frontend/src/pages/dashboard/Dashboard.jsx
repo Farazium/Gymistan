@@ -7,8 +7,8 @@ import api from '../../api/axios'
 import StatCard from '../../components/ui/StatCard'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
 import useAuthStore from '../../store/authStore'
+import { fmtCurrency as fmt } from '../../utils/format'
 
-const fmt = (n) => `PKR ${Number(n).toLocaleString('en-PK')}`
 
 function SuperAdminDashboard() {
   const navigate = useNavigate()

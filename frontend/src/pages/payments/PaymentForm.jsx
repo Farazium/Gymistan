@@ -193,7 +193,7 @@ export default function PaymentForm({ onSuccess }) {
         <div className="bg-gray-700 border border-gray-600 rounded-lg p-3 text-sm">
           <p className="text-gray-400 text-xs mb-0.5">Package</p>
           <p className="text-gray-100 font-medium">{selectedPkg.name}</p>
-          <p className="text-gray-400">PKR {Number(selectedPkg.price).toLocaleString()}</p>
+          <p className="text-gray-400">PKR {Number(selectedPkg.price).toLocaleString('en-PK')}</p>
         </div>
       )}
 

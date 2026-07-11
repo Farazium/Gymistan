@@ -262,7 +262,7 @@ export default function GymProfile() {
           <div>
             <p className="label">Subscription Charges</p>
             <p className="text-lg font-semibold text-primary-400 mt-1">
-              {gym.subscription_amount ? `PKR ${Number(gym.subscription_amount).toLocaleString()}` : <span className="text-gray-500 text-sm">Not set</span>}
+              {gym.subscription_amount ? `PKR ${Number(gym.subscription_amount).toLocaleString('en-PK')}` : <span className="text-gray-500 text-sm">Not set</span>}
             </p>
             <p className="text-xs text-gray-500 mt-0.5">Edit in Gym Details</p>
           </div>

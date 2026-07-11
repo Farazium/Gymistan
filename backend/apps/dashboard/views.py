@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.utils.timezone import localdate
 from datetime import timedelta
 from apps.members.models import Member
+from apps.members.queries import active_q, expired_q, expiring_soon_q
 from apps.payments.models import Payment
 from apps.expenses.models import Expense
 from apps.inventory.models import Product, StockLog
@@ -25,11 +26,9 @@ class DashboardView(APIView):
 
         EXPIRY_WINDOW = 3  # days ahead considered "expiring soon"
         members = Member.objects.filter(gym=gym, is_deleted=False)
-        active_members = members.filter(status='ACTIVE').count()
-        expired_members = members.filter(status='EXPIRED').count()
-        expiring_soon = members.filter(
-            status='ACTIVE', expiry_date__lte=today + timedelta(days=EXPIRY_WINDOW), expiry_date__gte=today
-        ).count()
+        active_members = members.filter(active_q(today)).count()
+        expired_members = members.filter(expired_q(today)).count()
+        expiring_soon = members.filter(expiring_soon_q(EXPIRY_WINDOW, today)).count()
         new_members_this_month = members.filter(join_date__gte=month_start).count()
 
         payments = Payment.objects.filter(gym=gym)
@@ -58,7 +57,7 @@ class DashboardView(APIView):
         ]
 
         expiring_qs = members.filter(
-            status='ACTIVE', expiry_date__lte=today + timedelta(days=EXPIRY_WINDOW), expiry_date__gte=today
+            expiring_soon_q(EXPIRY_WINDOW, today)
         ).order_by('expiry_date')[:10]
         members_expiring = [
             {
@@ -190,7 +189,7 @@ class FinanceLedgerView(APIView):
 
     def get(self, request):
         gym = request.user.gym
-        today = datetime.date.today()
+        today = timezone.localdate()
         five_years_ago = today.replace(year=today.year - 5)
 
         start_str = request.query_params.get('start')
@@ -257,7 +256,7 @@ class FinanceIncomeStatementView(APIView):
 
     def get(self, request):
         gym = request.user.gym
-        today = datetime.date.today()
+        today = timezone.localdate()
 
         try:
             year = int(request.query_params.get('year', today.year))
@@ -317,7 +316,7 @@ class FinanceExpenseCategoriesView(APIView):
 
     def get(self, request):
         gym = request.user.gym
-        today = datetime.date.today()
+        today = timezone.localdate()
         five_years_ago = today.replace(year=today.year - 5)
 
         start_str = request.query_params.get('start')
@@ -361,7 +360,7 @@ class DailyCollectionView(APIView):
 
     def get(self, request):
         gym = request.user.gym
-        today = datetime.date.today()
+        today = timezone.localdate()
         five_years_ago = today.replace(year=today.year - 5)
 
         date_str = request.query_params.get('date')

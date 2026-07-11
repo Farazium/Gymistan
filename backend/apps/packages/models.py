@@ -7,7 +7,7 @@ class Package(models.Model):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    duration_days = models.PositiveIntegerField(help_text='Duration in days')
+    duration_months = models.PositiveIntegerField(default=1, help_text='Duration in months')
     features = models.JSONField(default=list, blank=True)
     has_trainer = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)

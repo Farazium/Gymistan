@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from apps.accounts.permissions import IsGymMember
+from apps.accounts.permissions import IsGymMember, HasAttendance
 from apps.members.models import Member
 from apps.trainers.models import Trainer
 from .models import Attendance, DeviceConfig
@@ -17,7 +17,7 @@ def _parse_date(s):
     try:
         return datetime.datetime.strptime(s, '%Y-%m-%d').date()
     except (TypeError, ValueError):
-        return datetime.date.today()
+        return timezone.localdate()
 
 
 def _range_for(scope, date):
@@ -48,7 +48,7 @@ def _people(gym, kind):
 
 
 class AttendanceView(APIView):
-    permission_classes = [IsAuthenticated, IsGymMember]
+    permission_classes = [IsAuthenticated, IsGymMember, HasAttendance]
 
     def get(self, request):
         gym = request.user.gym
@@ -57,7 +57,7 @@ class AttendanceView(APIView):
         if scope not in ('daily', 'weekly', 'monthly'):
             scope = 'daily'
         date = _parse_date(request.query_params.get('date'))
-        today = datetime.date.today()
+        today = timezone.localdate()
 
         start, end, days = _range_for(scope, date)
         people = _people(gym, kind)
@@ -137,7 +137,7 @@ class AttendanceView(APIView):
 class MarkAttendanceView(APIView):
     """Manually mark or clear a person's attendance for a day (source=MANUAL).
     Useful when there is no device, or to fix a missed punch."""
-    permission_classes = [IsAuthenticated, IsGymMember]
+    permission_classes = [IsAuthenticated, IsGymMember, HasAttendance]
 
     def post(self, request):
         gym = request.user.gym
@@ -157,8 +157,8 @@ class MarkAttendanceView(APIView):
 
         field = 'trainer' if kind == 'trainer' else 'member'
         if present:
-            now = datetime.datetime.now()
-            dt = datetime.datetime.combine(date, now.time() if date == datetime.date.today()
+            now = timezone.localtime()
+            dt = datetime.datetime.combine(date, now.time() if date == timezone.localdate()
                                            else datetime.time(9, 0))
             record_punch(gym, kind, obj, dt, source=Attendance.Source.MANUAL)
         else:
@@ -168,7 +168,7 @@ class MarkAttendanceView(APIView):
 
 class DeviceConfigView(APIView):
     """Read or update this gym's ZKTeco device settings."""
-    permission_classes = [IsAuthenticated, IsGymMember]
+    permission_classes = [IsAuthenticated, IsGymMember, HasAttendance]
 
     def get(self, request):
         cfg, _ = DeviceConfig.objects.get_or_create(gym=request.user.gym)
@@ -185,7 +185,7 @@ class DeviceConfigView(APIView):
 class DeviceSyncView(APIView):
     """Pull the latest punches from the device now. Records status on the config so
     the UI can show what happened (works gracefully with no device / no pyzk)."""
-    permission_classes = [IsAuthenticated, IsGymMember]
+    permission_classes = [IsAuthenticated, IsGymMember, HasAttendance]
 
     def post(self, request):
         gym = request.user.gym
@@ -214,7 +214,7 @@ class DeviceSyncView(APIView):
 class DeviceUsersView(APIView):
     """List users enrolled on the device and whether each is mapped to a member/trainer.
     Powers the enrollment helper so admins don't hand-copy ids."""
-    permission_classes = [IsAuthenticated, IsGymMember]
+    permission_classes = [IsAuthenticated, IsGymMember, HasAttendance]
 
     def get(self, request):
         gym = request.user.gym

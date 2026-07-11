@@ -15,6 +15,7 @@ from apps.members.models import Member
 from apps.trainers.models import Trainer
 from apps.attendance.models import Attendance
 from apps.attendance.services import record_punch
+from django.utils import timezone
 
 
 class Command(BaseCommand):
@@ -27,7 +28,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **o):
         gyms = Gym.objects.filter(pk=o['gym']) if o['gym'] else Gym.objects.all()
-        today = datetime.date.today()
+        today = timezone.localdate()
         rows = 0
 
         for gym in gyms:
