@@ -2,9 +2,10 @@ from django.db import models
 from apps.gyms.models import Gym
 from apps.members.models import Member
 from apps.packages.models import Package
+from apps.common.models import SoftDeleteModel
 
 
-class Payment(models.Model):
+class Payment(SoftDeleteModel):
     class Status(models.TextChoices):
         PAID = 'PAID', 'Paid'
         PENDING = 'PENDING', 'Pending'

@@ -47,6 +47,18 @@ class PaymentDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         return Payment.objects.filter(gym=self.request.user.gym)
 
+    def destroy(self, request, *args, **kwargs):
+        payment = self.get_object()
+        # Cashflow records lock into the books after their grace window: deletable
+        # (soft) within 24h of entry, permanent after that.
+        if not payment.within_delete_window():
+            return Response(
+                {'detail': 'This payment is more than 24 hours old and is now a permanent record; it can no longer be deleted.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        payment.soft_delete(request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class DownloadSlipView(APIView):
     permission_classes = [IsAuthenticated, IsGymMember]

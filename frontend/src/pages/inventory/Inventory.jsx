@@ -1,13 +1,15 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
-import { Plus, Package, Pencil, Trash2, AlertTriangle, TrendingDown, TrendingUp, SlidersHorizontal, Download } from 'lucide-react'
+import { Plus, Package, Pencil, Trash2, AlertTriangle, TrendingDown, TrendingUp, SlidersHorizontal, Download, Receipt, X } from 'lucide-react'
 import { exportToExcel } from '../../utils/exportExcel'
 import api from '../../api/axios'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
 import { apiErrorMessage } from '../../utils/apiError'
 import { invalidateFinance } from '../../utils/invalidateFinance'
+import { fmtCurrency as fmt } from '../../utils/format'
 
 const noNeg = e => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault() }
 
@@ -102,11 +104,122 @@ function StockModal({ product, action, onSuccess }) {
   )
 }
 
+function SalesDrawer({ open, onClose }) {
+  const queryClient = useQueryClient()
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['sales'],
+    queryFn: async () => { const { data } = await api.get('/inventory/sales/'); return data },
+    enabled: open,
+  })
+
+  const del = useMutation({
+    mutationFn: (id) => api.delete(`/inventory/sales/${id}/`),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['sales'])
+      queryClient.invalidateQueries(['inventory']) // stock is restored
+      invalidateFinance(queryClient)               // sale removed from cashflow
+      toast.success('Sale deleted · stock restored')
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Failed to delete sale')),
+  })
+
+  const sales = data || []
+  const total = sales.reduce((s, x) => s + Number(x.amount), 0)
+
+  // Group into months (sales already arrive newest-first, so order is preserved).
+  const months = []
+  const monthIdx = {}
+  for (const s of sales) {
+    const d = new Date(s.date)
+    const key = `${d.getFullYear()}-${d.getMonth()}`
+    if (!(key in monthIdx)) {
+      monthIdx[key] = months.length
+      months.push({ key, label: d.toLocaleDateString('en-PK', { month: 'long', year: 'numeric' }), items: [], total: 0 })
+    }
+    const g = months[monthIdx[key]]
+    g.items.push(s)
+    g.total += Number(s.amount)
+  }
+
+  return createPortal(
+    <>
+      <div
+        onClick={onClose}
+        className={`fixed inset-0 z-[60] bg-black/60 backdrop-blur-md transition-opacity duration-200 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+      />
+      <div className={`fixed top-0 right-0 z-[70] h-full w-full max-w-md surface border-l border-gray-700 shadow-2xl flex flex-col transition-transform duration-300 ease-out ${open ? 'translate-x-0' : 'translate-x-full'}`}>
+        <div className="flex items-center justify-between p-4 border-b border-gray-700 shrink-0">
+          <div>
+            <h2 className="text-lg font-bold text-primary-400 flex items-center gap-2"><Receipt size={18} /> Sales</h2>
+            <p className="text-xs text-gray-400 mt-0.5">{sales.length} sales · {fmt(total)}</p>
+          </div>
+          <div className="flex items-center gap-1">
+            {sales.length > 0 && (
+              <button
+                onClick={() => exportToExcel(sales.map((s) => ({
+                  Date: new Date(s.date).toLocaleString('en-PK', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                  Month: new Date(s.date).toLocaleDateString('en-PK', { month: 'long', year: 'numeric' }),
+                  Product: s.product,
+                  Quantity: s.quantity,
+                  'Unit Price (PKR)': s.unit_price,
+                  'Amount (PKR)': s.amount,
+                })), 'Sales')}
+                title="Export to Excel"
+                className="p-1.5 text-gray-400 hover:text-white hover:bg-primary-500 rounded-lg transition"
+              >
+                <Download size={18} />
+              </button>
+            )}
+            <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition"><X size={18} /></button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-5">
+          {isLoading ? (
+            <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-primary-500 border-t-transparent rounded-full" /></div>
+          ) : months.length ? months.map((m) => (
+            <div key={m.key} className="space-y-2">
+              <div className="flex items-center justify-between sticky top-0 surface py-1.5 z-10">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-primary-400">{m.label}</h3>
+                <span className="text-xs font-semibold text-green-400">{fmt(m.total)}</span>
+              </div>
+              {m.items.map((s) => (
+                <div key={s.id} className="flex items-center gap-3 p-3 rounded-lg bg-primary-500/5 border border-primary-500/10">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-gray-100 font-medium truncate">{s.product}</p>
+                    <p className="text-xs text-gray-400">
+                      {s.quantity} × {fmt(s.unit_price)} · {new Date(s.date).toLocaleString('en-PK', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                  <span className="font-semibold text-green-400 shrink-0">{fmt(s.amount)}</span>
+                  {s.deletable && (
+                    <button
+                      onClick={() => { if (confirm('Delete this sale? The stock will be restored.')) del.mutate(s.id) }}
+                      title="Delete sale"
+                      className="p-1.5 text-gray-400 hover:text-white hover:bg-red-500 rounded-lg transition shrink-0"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )) : (
+            <p className="text-center text-gray-500 py-16">No sales recorded yet</p>
+          )}
+        </div>
+      </div>
+    </>,
+    document.body,
+  )
+}
+
 export default function Inventory() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [editProduct, setEditProduct] = useState(null)
   const [stockAction, setStockAction] = useState(null)
   const [categoryFilter, setCategoryFilter] = useState('')
+  const [showSales, setShowSales] = useState(false)
   const queryClient = useQueryClient()
 
   const { data, isLoading } = useQuery({
@@ -132,6 +245,7 @@ export default function Inventory() {
     setEditProduct(null)
     setStockAction(null)
     queryClient.invalidateQueries(['inventory'])
+    queryClient.invalidateQueries(['sales'])
     invalidateFinance(queryClient) // restock records an expense
   }
 
@@ -159,6 +273,12 @@ export default function Inventory() {
             title="Export"
           >
             <Download size={18} />
+          </button>
+          <button
+            onClick={() => setShowSales(true)}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 transition"
+          >
+            <Receipt size={16} /> Sales
           </button>
           <button onClick={() => setShowAddModal(true)} className="btn-primary">
             <Plus size={16} /> Add Product
@@ -243,6 +363,8 @@ export default function Inventory() {
       <Modal isOpen={!!stockAction} onClose={() => setStockAction(null)} title={stockAction?.action === 'SELL' ? 'Record Sale' : stockAction?.action === 'RESTOCK' ? 'Restock Product' : 'Adjust Stock'}>
         {stockAction && <StockModal product={stockAction.product} action={stockAction.action} onSuccess={refresh} />}
       </Modal>
+
+      <SalesDrawer open={showSales} onClose={() => setShowSales(false)} />
     </div>
   )
 }

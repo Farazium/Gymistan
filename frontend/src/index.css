@@ -76,3 +76,30 @@
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-400;
   }
 }
+
+/* System-wide sober scrollbar. Transparent track so it blends with whatever's
+   behind it (page background or a card's surface color), with a soft inset pill
+   thumb — no heavy OS-gray bar anywhere in the app. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.12) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: rgb(255 255 255 / 0.10);
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(255 255 255 / 0.18);
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}

@@ -108,3 +108,51 @@ class StockLogListView(generics.ListAPIView):
             product__gym=self.request.user.gym,
             product_id=self.kwargs['pk']
         )
+
+
+class SalesListView(APIView):
+    """All inventory sales for the gym (newest first) — feeds the Sales drawer.
+    Each row carries `deletable` so the UI shows delete only within the 24h window."""
+    permission_classes = [IsAuthenticated, IsGymMember]
+
+    def get(self, request):
+        logs = StockLog.objects.filter(
+            product__gym=request.user.gym, action='SELL'
+        ).select_related('product').order_by('-created_at')
+        return Response([
+            {
+                'id': s.id,
+                'product': s.product.name,
+                'quantity': s.quantity,
+                'unit_price': float(s.product.sell_price),
+                'amount': round(float(s.quantity * s.product.sell_price), 2),
+                # created_at is UTC; show local date+time (Asia/Karachi).
+                'date': timezone.localtime(s.created_at).isoformat(),
+                'deletable': s.within_delete_window(),
+            }
+            for s in logs
+        ])
+
+
+class SaleDeleteView(APIView):
+    permission_classes = [IsAuthenticated, IsGymMember]
+
+    def delete(self, request, pk):
+        try:
+            log = StockLog.objects.select_related('product').get(
+                pk=pk, action='SELL', product__gym=request.user.gym
+            )
+        except StockLog.DoesNotExist:
+            return Response({'detail': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+        # Deletable (soft) only within 24h; permanent afterwards.
+        if not log.within_delete_window():
+            return Response(
+                {'detail': 'This sale is more than 24 hours old and is now a permanent record; it can no longer be deleted.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        # Undoing the sale puts the units back into stock.
+        product = log.product
+        product.quantity += log.quantity
+        product.save(update_fields=['quantity'])
+        log.soft_delete(request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)

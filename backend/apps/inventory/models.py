@@ -1,5 +1,6 @@
 from django.db import models
 from apps.gyms.models import Gym
+from apps.common.models import SoftDeleteModel
 
 
 class Product(models.Model):
@@ -35,7 +36,7 @@ class Product(models.Model):
         return self.quantity <= self.low_stock_alert
 
 
-class StockLog(models.Model):
+class StockLog(SoftDeleteModel):
     class Action(models.TextChoices):
         RESTOCK = 'RESTOCK', 'Restock'
         SELL = 'SELL', 'Sell'

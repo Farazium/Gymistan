@@ -8,6 +8,7 @@ import useAuthStore from '../../store/authStore'
 import { apiErrorMessage } from '../../utils/apiError'
 import { isPrintingEnabled, printThermalReceipt } from '../../utils/printReceipt'
 import { invalidateFinance } from '../../utils/invalidateFinance'
+import { packagePalette } from '../../utils/packageColors'
 
 function MemberSearch({ members, onChange, onSelect }) {
   const [query, setQuery] = useState('')
@@ -65,14 +66,14 @@ function MemberSearch({ members, onChange, onSelect }) {
         </select>
       </div>
       {open && (
-        <div className="absolute z-50 w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+        <div className="absolute z-50 w-full mt-1 surface border border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
           {filtered.length ? filtered.map(m => (
             <div
               key={m.id}
               onClick={() => select(m)}
-              className="px-3 py-2 text-sm text-gray-100 hover:bg-gray-600 cursor-pointer flex items-center gap-2"
+              className="px-3 py-2 text-sm text-gray-100 hover:bg-primary-500/10 cursor-pointer flex items-center gap-2"
             >
-              {m.member_id && <span className="font-mono text-xs text-gray-400 bg-gray-600 px-1.5 py-0.5 rounded">{m.member_id}</span>}
+              {m.member_id && <span className="font-mono text-xs text-primary-300 bg-primary-500/15 px-1.5 py-0.5 rounded">{m.member_id}</span>}
               {m.name} <span className="text-gray-400 text-xs">— {m.phone}</span>
             </div>
           )) : (
@@ -190,10 +191,10 @@ export default function PaymentForm({ onSuccess }) {
       <input type="hidden" {...register('package')} />
 
       {selectedPkg && (
-        <div className="bg-gray-700 border border-gray-600 rounded-lg p-3 text-sm">
+        <div className={`surface border rounded-lg p-3 text-sm ${packagePalette(selectedPkg).border}`}>
           <p className="text-gray-400 text-xs mb-0.5">Package</p>
           <p className="text-gray-100 font-medium">{selectedPkg.name}</p>
-          <p className="text-gray-400">PKR {Number(selectedPkg.price).toLocaleString('en-PK')}</p>
+          <p className={`font-semibold ${packagePalette(selectedPkg).price}`}>PKR {Number(selectedPkg.price).toLocaleString('en-PK')}</p>
         </div>
       )}
 

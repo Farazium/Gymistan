@@ -1,4 +1,5 @@
-from rest_framework import generics, filters
+from rest_framework import generics, filters, status
+from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Expense
@@ -35,3 +36,14 @@ class ExpenseDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         return Expense.objects.filter(gym=self.request.user.gym)
+
+    def destroy(self, request, *args, **kwargs):
+        expense = self.get_object()
+        # Deletable (soft) only within 24h of entry; permanent afterwards.
+        if not expense.within_delete_window():
+            return Response(
+                {'detail': 'This expense is more than 24 hours old and is now a permanent record; it can no longer be deleted.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        expense.soft_delete(request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)

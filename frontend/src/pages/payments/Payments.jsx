@@ -8,6 +8,7 @@ import Modal from '../../components/ui/Modal'
 import PaymentForm from './PaymentForm'
 import toast from 'react-hot-toast'
 import { invalidateFinance } from '../../utils/invalidateFinance'
+import { apiErrorMessage } from '../../utils/apiError'
 import { fmtCurrency as fmt } from '../../utils/format'
 
 
@@ -56,7 +57,7 @@ export default function Payments() {
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/payments/${id}/`),
     onSuccess: () => { queryClient.invalidateQueries(['payments']); invalidateFinance(queryClient); toast.success('Payment deleted') },
-    onError: () => toast.error('Failed to delete payment'),
+    onError: (err) => toast.error(apiErrorMessage(err, 'Failed to delete payment')),
   })
 
   const sendWhatsApp = useMutation({
@@ -194,9 +195,11 @@ export default function Payments() {
                             </button>
                           )
                         )}
-                        <button onClick={() => { if (confirm('Delete this payment record?')) deleteMutation.mutate(p.id) }} title="Delete" className="p-1.5 text-gray-400 hover:text-white hover:bg-red-500 rounded-lg transition">
-                          <Trash2 size={14} />
-                        </button>
+                        {p.deletable && (
+                          <button onClick={() => { if (confirm('Delete this payment record?')) deleteMutation.mutate(p.id) }} title="Delete" className="p-1.5 text-gray-400 hover:text-white hover:bg-red-500 rounded-lg transition">
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}

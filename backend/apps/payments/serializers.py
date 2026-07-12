@@ -7,11 +7,16 @@ class PaymentSerializer(serializers.ModelSerializer):
     member_phone = serializers.CharField(source='member.phone', read_only=True)
     package_name = serializers.CharField(source='package.name', read_only=True)
     collected_by_name = serializers.CharField(source='collected_by.name', read_only=True)
+    # True only within the 24h grace window; the UI hides delete once it's permanent.
+    deletable = serializers.SerializerMethodField()
 
     class Meta:
         model = Payment
         fields = '__all__'
         read_only_fields = ['gym', 'collected_by']
+
+    def get_deletable(self, obj):
+        return obj.within_delete_window()
 
     def validate(self, data):
         amount = data.get('amount', getattr(self.instance, 'amount', 0)) or 0

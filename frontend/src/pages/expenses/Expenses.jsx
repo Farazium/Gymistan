@@ -15,15 +15,15 @@ const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${Stri
 const CATEGORIES = ['RENT', 'UTILITIES', 'BILLS', 'SALARIES', 'EQUIPMENT', 'MAINTENANCE', 'MARKETING', 'INVENTORY', 'OTHER']
 
 const categoryColors = {
-  RENT: 'bg-gray-700 text-primary-400',
-  UTILITIES: 'bg-gray-700 text-yellow-400',
-  BILLS: 'bg-gray-700 text-cyan-400',
-  SALARIES: 'bg-gray-700 text-green-400',
-  EQUIPMENT: 'bg-gray-700 text-purple-400',
-  MAINTENANCE: 'bg-gray-700 text-orange-400',
-  MARKETING: 'bg-gray-700 text-pink-400',
-  INVENTORY: 'bg-gray-700 text-emerald-400',
-  OTHER: 'bg-gray-700 text-gray-300',
+  RENT: 'bg-primary-500/20 text-primary-300',
+  UTILITIES: 'bg-yellow-500/20 text-yellow-400',
+  BILLS: 'bg-cyan-500/20 text-cyan-400',
+  SALARIES: 'bg-green-500/20 text-green-400',
+  EQUIPMENT: 'bg-purple-500/20 text-purple-400',
+  MAINTENANCE: 'bg-orange-500/20 text-orange-400',
+  MARKETING: 'bg-pink-500/20 text-pink-400',
+  INVENTORY: 'bg-emerald-500/20 text-emerald-400',
+  OTHER: 'bg-gray-600/40 text-gray-300',
 }
 
 
@@ -203,19 +203,25 @@ export default function Expenses() {
                         <p className="font-medium text-gray-100 truncate">{e.title}</p>
                         {e.description && <p className="text-xs text-gray-400 truncate">{e.description}</p>}
                       </div>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 w-24 text-center ${categoryColors[e.category]}`}>
-                        {e.category}
-                      </span>
+                      <div className="shrink-0 w-24">
+                        <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium ${categoryColors[e.category]}`}>
+                          {e.category}
+                        </span>
+                      </div>
                       <span className="font-semibold text-red-500 shrink-0 w-28 text-right">{fmt(e.amount)}</span>
                       <span className="text-gray-400 text-sm shrink-0 w-24 text-right">
                         {new Date(e.date).toLocaleDateString('en-PK', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                       </span>
-                      <button
-                        onClick={() => { if (confirm('Delete expense?')) deleteMutation.mutate(e.id) }}
-                        className="p-1.5 text-gray-500 hover:text-white hover:bg-red-500 rounded-lg transition shrink-0"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <div className="shrink-0 w-7 flex justify-center">
+                        {e.deletable && (
+                          <button
+                            onClick={() => { if (confirm('Delete expense?')) deleteMutation.mutate(e.id) }}
+                            className="p-1.5 text-gray-500 hover:text-white hover:bg-red-500 rounded-lg transition"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

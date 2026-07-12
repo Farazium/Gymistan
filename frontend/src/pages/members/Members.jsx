@@ -291,16 +291,16 @@ export default function Members() {
               <MoreVertical size={18} />
             </button>
             {showMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-20 overflow-hidden">
+              <div className="absolute right-0 mt-2 w-48 surface border border-gray-700 rounded-lg shadow-xl z-20 overflow-hidden">
                 <button
                   onClick={() => { setShowMenu(false); setShowDeleted(true) }}
-                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:bg-gray-700/70 transition text-left"
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:bg-primary-500/10 transition text-left"
                 >
                   <Trash2 size={15} className="text-red-400" /> Deleted Members
                 </button>
                 <button
                   onClick={() => { setShowMenu(false); setShowBlacklist(true) }}
-                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:bg-gray-700/70 transition text-left border-t border-gray-700"
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:bg-primary-500/10 transition text-left border-t border-gray-700"
                 >
                   <Ban size={15} className="text-amber-400" /> Blacklist
                 </button>
@@ -383,7 +383,7 @@ export default function Members() {
               {members.map((m) => (
                 <Tr key={m.id}>
                   <Td>
-                    <span className="font-mono text-xs text-gray-400 bg-gray-700/50 px-1.5 py-0.5 rounded">
+                    <span className="font-mono text-xs text-primary-300 bg-primary-500/15 px-1.5 py-0.5 rounded">
                       {m.member_id ? String(m.member_id).padStart(5, '0') : '—'}
                     </span>
                   </Td>
@@ -482,9 +482,9 @@ export default function Members() {
               })
               if (!filtered.length) return <p className="text-center text-gray-400 py-8">No deleted members found.</p>
               return filtered.map((m) => (
-                <div key={m.id} className="flex items-center gap-3 px-4 py-3 bg-gray-700/40 rounded-lg">
+                <div key={m.id} className="flex items-center gap-3 px-4 py-3 bg-primary-500/5 border border-primary-500/10 rounded-lg">
                   {m.member_id && (
-                    <span className="font-mono text-xs text-gray-400 bg-gray-700 px-1.5 py-0.5 rounded shrink-0">{String(m.member_id).padStart(5, '0')}</span>
+                    <span className="font-mono text-xs text-primary-300 bg-primary-500/15 px-1.5 py-0.5 rounded shrink-0">{String(m.member_id).padStart(5, '0')}</span>
                   )}
                   <div className="flex-1 min-w-0">
                     <button
@@ -524,9 +524,9 @@ export default function Members() {
             <p className="text-center text-gray-400 py-8">No blacklisted members.</p>
           ) : (
             blacklistedMembers.map((m) => (
-              <div key={m.id} className="flex items-center gap-3 px-4 py-3 bg-gray-700/40 rounded-lg">
+              <div key={m.id} className="flex items-center gap-3 px-4 py-3 bg-primary-500/5 border border-primary-500/10 rounded-lg">
                 {m.member_id && (
-                  <span className="font-mono text-xs text-gray-400 bg-gray-700 px-1.5 py-0.5 rounded shrink-0">{String(m.member_id).padStart(5, '0')}</span>
+                  <span className="font-mono text-xs text-primary-300 bg-primary-500/15 px-1.5 py-0.5 rounded shrink-0">{String(m.member_id).padStart(5, '0')}</span>
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -534,7 +534,7 @@ export default function Members() {
                       {m.name}
                     </button>
                     {!m.blacklist_active && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-600/50 text-gray-300 shrink-0">Ban expired</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 shrink-0">Ban expired</span>
                     )}
                   </div>
                   <p className="text-xs text-gray-400 truncate">
@@ -563,7 +563,7 @@ export default function Members() {
                 ) : (
                   <button
                     onClick={() => setBlMenuId(m.id)}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition shrink-0"
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-primary-500/20 transition shrink-0"
                   >
                     <MoreVertical size={16} />
                   </button>

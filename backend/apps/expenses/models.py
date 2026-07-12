@@ -1,8 +1,9 @@
 from django.db import models
 from apps.gyms.models import Gym
+from apps.common.models import SoftDeleteModel
 
 
-class Expense(models.Model):
+class Expense(SoftDeleteModel):
     class Category(models.TextChoices):
         RENT = 'RENT', 'Rent'
         UTILITIES = 'UTILITIES', 'Utilities'

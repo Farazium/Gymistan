@@ -7,6 +7,7 @@ import api from '../../api/axios'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
 import { apiErrorMessage } from '../../utils/apiError'
+import { packagePalette } from '../../utils/packageColors'
 
 const fetchPackages = async () => {
   const { data } = await api.get('/packages/')
@@ -132,16 +133,8 @@ export default function Packages() {
         <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-primary-500 border-t-transparent rounded-full" /></div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {packages.map((pkg, idx) => {
-            const palettes = [
-              { border: 'border-primary-500/40', bar: 'bg-primary-500', icon: 'bg-primary-500/20 text-primary-400', price: 'text-primary-400', tag: 'bg-primary-500/15 text-primary-300 border border-primary-500/25' },
-              { border: 'border-violet-500/40', bar: 'bg-violet-500', icon: 'bg-violet-500/20 text-violet-400', price: 'text-violet-400', tag: 'bg-violet-500/15 text-violet-300 border border-violet-500/25' },
-              { border: 'border-emerald-500/40', bar: 'bg-emerald-500', icon: 'bg-emerald-500/20 text-emerald-400', price: 'text-emerald-400', tag: 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/25' },
-              { border: 'border-orange-500/40', bar: 'bg-orange-500', icon: 'bg-orange-500/20 text-orange-400', price: 'text-orange-400', tag: 'bg-orange-500/15 text-orange-300 border border-orange-500/25' },
-              { border: 'border-pink-500/40', bar: 'bg-pink-500', icon: 'bg-pink-500/20 text-pink-400', price: 'text-pink-400', tag: 'bg-pink-500/15 text-pink-300 border border-pink-500/25' },
-              { border: 'border-cyan-500/40', bar: 'bg-cyan-500', icon: 'bg-cyan-500/20 text-cyan-400', price: 'text-cyan-400', tag: 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/25' },
-            ]
-            const p = palettes[idx % palettes.length]
+          {packages.map((pkg) => {
+            const p = packagePalette(pkg)
             const months = pkg.duration_months
             return (
             <div key={pkg.id} className={`card p-0 overflow-hidden border ${p.border} ${!pkg.is_active ? 'opacity-50' : ''}`}>
