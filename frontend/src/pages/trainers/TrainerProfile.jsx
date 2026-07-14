@@ -8,6 +8,7 @@ import StatCard from '../../components/ui/StatCard'
 import Modal from '../../components/ui/Modal'
 import AttendanceCalendar from '../../components/ui/AttendanceCalendar'
 import PhotoViewer from '../../components/ui/PhotoViewer'
+import PhotoCropper from '../../components/ui/PhotoCropper'
 import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
 import { isNotFound, retryUnlessNotFound } from '../../utils/queryRetry'
@@ -158,6 +159,7 @@ export default function TrainerProfile() {
   const photoMenuRef = useRef(null)
   const [showPhotoMenu, setShowPhotoMenu] = useState(false)
   const [viewPhoto, setViewPhoto] = useState(false)
+  const [cropFile, setCropFile] = useState(null)
   useEffect(() => {
     if (!showPhotoMenu) return
     const onClick = (e) => { if (photoMenuRef.current && !photoMenuRef.current.contains(e.target)) setShowPhotoMenu(false) }
@@ -287,25 +289,25 @@ export default function TrainerProfile() {
                   }
                 </button>
                 {showPhotoMenu && (
-                  <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 w-36 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-20 overflow-hidden">
+                  <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 w-36 surface border border-primary-500/30 rounded-lg shadow-xl z-20 overflow-hidden">
                     {photoUrl && (
                       <button
                         onClick={() => { setShowPhotoMenu(false); setViewPhoto(true) }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-gray-200 hover:bg-gray-700/70 transition text-left"
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-gray-200 hover:bg-primary-500/10 hover:text-primary-300 transition text-left"
                       >
                         <Eye size={14} className="text-primary-400" /> View
                       </button>
                     )}
                     <button
                       onClick={() => { setShowPhotoMenu(false); photoRef.current.click() }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-gray-200 hover:bg-gray-700/70 transition text-left border-t border-gray-700 first:border-t-0"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-gray-200 hover:bg-primary-500/10 hover:text-primary-300 transition text-left border-t border-primary-500/20 first:border-t-0"
                     >
                       <ImageUp size={14} className="text-primary-400" /> Update
                     </button>
                     {photoUrl && (
                       <button
                         onClick={() => { setShowPhotoMenu(false); if (confirm('Remove this photo?')) removePhotoMutation.mutate() }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-red-400 hover:bg-gray-700/70 transition text-left border-t border-gray-700"
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300 transition text-left border-t border-primary-500/20"
                       >
                         <Trash2 size={14} /> Remove
                       </button>
@@ -318,8 +320,9 @@ export default function TrainerProfile() {
                   const file = e.target.files[0]
                   if (!file) return
                   if (!file.type.startsWith('image/')) { toast.error('Please choose an image file'); e.target.value = ''; return }
-                  if (file.size > 2 * 1024 * 1024) { toast.error('Image must be under 2 MB'); e.target.value = ''; return }
-                  photoMutation.mutate(file)
+                  if (file.size > 15 * 1024 * 1024) { toast.error('Image must be under 15 MB'); e.target.value = ''; return }
+                  setCropFile(file)
+                  e.target.value = ''
                 }} />
             </div>
             <div>
@@ -395,6 +398,13 @@ export default function TrainerProfile() {
       </Modal>
 
       {viewPhoto && photoUrl && <PhotoViewer src={photoUrl} alt={t.name} onClose={() => setViewPhoto(false)} />}
+      {cropFile && (
+        <PhotoCropper
+          file={cropFile}
+          onCancel={() => setCropFile(null)}
+          onCropped={(f) => { setCropFile(null); photoMutation.mutate(f) }}
+        />
+      )}
     </div>
   )
 }

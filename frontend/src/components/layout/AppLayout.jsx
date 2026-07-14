@@ -1,11 +1,12 @@
 import { useEffect } from 'react'
-import { Outlet, Navigate } from 'react-router-dom'
+import { Outlet, Navigate, useLocation } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import useAuthStore from '../../store/authStore'
 import { applyTheme, applySurface } from '../../utils/theme'
 
 export default function AppLayout() {
   const { isAuthenticated, refreshUser, user } = useAuthStore()
+  const location = useLocation()
 
   useEffect(() => {
     if (isAuthenticated) refreshUser()
@@ -23,7 +24,7 @@ export default function AppLayout() {
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
       <main className="flex-1 overflow-y-auto bg-cover bg-center bg-no-repeat" style={{ backgroundImage: "url('/Gym_BG.jpg')" }}>
-        <div className="p-6 max-w-7xl mx-auto">
+        <div key={location.pathname} className="page-enter p-6 max-w-7xl mx-auto">
           <Outlet />
         </div>
       </main>

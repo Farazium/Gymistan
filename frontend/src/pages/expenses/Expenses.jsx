@@ -198,7 +198,7 @@ export default function Expenses() {
                     <span className="shrink-0 w-7" />
                   </div>
                   {group.items.map((e) => (
-                    <div key={e.id} className="flex items-center gap-4 px-4 py-3 hover:bg-gray-700/30 transition">
+                    <div key={e.id} className="flex items-center gap-4 px-4 py-3 hover:bg-primary-500/10 transition-colors">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-100 truncate">{e.title}</p>
                         {e.description && <p className="text-xs text-gray-400 truncate">{e.description}</p>}
