@@ -154,11 +154,18 @@ class SuperAdminDashboardView(APIView):
         ).aggregate(t=Sum('amount'))['t'] or 0
         subscription_revenue_total = GymPayment.objects.aggregate(t=Sum('amount'))['t'] or 0
 
-        gyms_expiring_soon = gyms.filter(
-            is_active=True,
-            expiry_date__lte=today + timedelta(days=7),
-            expiry_date__gte=today,
-        ).count()
+        # Same active/expired rule as members: expiry <= today = expired,
+        # expiry within the next 7 days (and still future) = expiring soon.
+        gyms_expiring_soon = gyms.filter(is_active=True).filter(expiring_soon_q(7, today)).count()
+
+        expired_gyms_qs = gyms.filter(expired_q(today))
+        expired_gyms_count = expired_gyms_qs.count()
+        expired_gyms = list(
+            expired_gyms_qs
+            .annotate(member_count=Count('members', filter=Q(members__is_deleted=False)))
+            .order_by('expiry_date')
+            .values('id', 'name', 'expiry_date', 'is_active', 'member_count')[:10]
+        )
 
         top_gyms = (
             gyms.annotate(member_count=Count('members', filter=Q(members__is_deleted=False)))
@@ -175,11 +182,12 @@ class SuperAdminDashboardView(APIView):
         return Response({
             'gyms': {
                 'total': total_gyms, 'active': active_gyms, 'inactive': inactive_gyms,
-                'expiring_soon': gyms_expiring_soon,
+                'expiring_soon': gyms_expiring_soon, 'expired': expired_gyms_count,
             },
             'subscription_revenue_month': float(subscription_revenue_month),
             'subscription_revenue_total': float(subscription_revenue_total),
             'top_gyms': list(top_gyms),
+            'expired_gyms': expired_gyms,
             'recent_gym_payments': recent_gym_payments,
         })
 

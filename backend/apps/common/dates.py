@@ -28,3 +28,20 @@ def renew_from(current_expiry, months, today=None):
     today = today or localdate()
     base = current_expiry if current_expiry and current_expiry >= today else today
     return add_months(base, months)
+
+
+def renew_gym_from(current_expiry, months, today=None):
+    """Gym-subscription renewal: extend from the CURRENT expiry, even if it has
+    already lapsed, so a gym that pays a few days late loses those days instead of
+    getting a fresh full month from the payment date.
+
+    Guard: if extending from a long-lapsed expiry would still land on or before
+    today, fall back to starting from today (otherwise the gym would remain expired
+    even after paying). Members keep the more lenient `renew_from` behaviour."""
+    today = today or localdate()
+    if not current_expiry:
+        return add_months(today, months)
+    new_expiry = add_months(current_expiry, months)
+    if new_expiry <= today:
+        new_expiry = add_months(today, months)
+    return new_expiry

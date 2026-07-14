@@ -8,7 +8,7 @@ from .models import Gym, GymPayment, WhatsAppBill
 from .serializers import GymSerializer, CreateGymSerializer, GymPaymentSerializer, WhatsAppBillSerializer
 from . import billing
 from apps.members.queries import active_q, expired_q, expiring_soon_q
-from apps.common.dates import renew_from
+from apps.common.dates import renew_gym_from
 from apps.accounts.permissions import IsSuperAdmin
 from apps.members.models import Member
 from apps.payments.models import Payment
@@ -111,7 +111,7 @@ class RenewGymView(APIView):
     def post(self, request, pk):
         gym = Gym.objects.get(pk=pk)
         months = int(request.data.get('months', 1))
-        gym.expiry_date = renew_from(gym.expiry_date, months)
+        gym.expiry_date = renew_gym_from(gym.expiry_date, months)
         gym.save(update_fields=['expiry_date'])
         return Response({'expiry_date': gym.expiry_date})
 
@@ -133,7 +133,7 @@ class GymPaymentListCreateView(APIView):
         payment = serializer.save()
 
         gym = payment.gym
-        gym.expiry_date = renew_from(gym.expiry_date, payment.months)
+        gym.expiry_date = renew_gym_from(gym.expiry_date, payment.months)
         gym.save(update_fields=['expiry_date'])
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)

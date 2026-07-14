@@ -27,9 +27,10 @@ function SuperAdminDashboard() {
         <p className="text-gray-500 text-sm mt-1">Platform-wide overview</p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard title="Total Gyms" value={data.gyms.total} subtitle={`${data.gyms.active} active · ${data.gyms.inactive} inactive`} icon={Building2} color="primary" />
         <StatCard title="Active Gyms" value={data.gyms.active} subtitle={`${data.gyms.inactive} inactive`} icon={Building2} color="green" />
+        <StatCard title="Expired Gyms" value={data.gyms.expired} subtitle="Past expiry date" icon={AlertTriangle} color="red" />
         <StatCard title="Expiring Soon" value={data.gyms.expiring_soon} subtitle="Within 7 days" icon={AlertTriangle} color="yellow" />
         <StatCard title="Subscription (Month)" value={fmt(data.subscription_revenue_month)} subtitle="Collected this month" icon={Wallet} color="green" />
       </div>
@@ -89,6 +90,45 @@ function SuperAdminDashboard() {
             </Tbody>
           </Table>
         </div>
+      </div>
+
+      {/* Expired gyms — subscription lapsed, need renewal */}
+      <div className="card">
+        <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+          <h3 className="font-semibold text-gray-100 flex items-center gap-2">
+            <AlertTriangle size={16} className="text-red-400" /> Expired Gyms
+          </h3>
+          <span className="text-xs text-gray-500">{data.gyms.expired} expired</span>
+        </div>
+        <Table>
+          <Thead>
+            <Th>Gym</Th>
+            <Th>Members</Th>
+            <Th>Expired On</Th>
+            <Th>Status</Th>
+          </Thead>
+          <Tbody>
+            {(data.expired_gyms || []).map((g) => (
+              <Tr key={g.id}>
+                <Td>
+                  <button onClick={() => navigate(`/admin/gyms/${g.id}`)} className="font-medium text-gray-100 hover:text-primary-400 transition">
+                    {g.name}
+                  </button>
+                </Td>
+                <Td>{g.member_count}</Td>
+                <Td className="text-red-400 font-medium">{new Date(g.expiry_date).toLocaleDateString('en-PK')}</Td>
+                <Td>
+                  <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${g.is_active ? 'bg-red-500/10 text-red-400 border-red-500/30' : 'bg-gray-500/10 text-gray-400 border-gray-500/30'}`}>
+                    {g.is_active ? 'Expired' : 'Inactive'}
+                  </span>
+                </Td>
+              </Tr>
+            ))}
+            {!(data.expired_gyms || []).length && (
+              <Tr><Td colSpan={4} className="text-center py-10 text-gray-400">No expired gyms 🎉</Td></Tr>
+            )}
+          </Tbody>
+        </Table>
       </div>
     </div>
   )
