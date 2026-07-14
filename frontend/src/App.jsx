@@ -12,6 +12,7 @@ import Gyms from './pages/superadmin/Gyms'
 import GymProfile from './pages/superadmin/GymProfile'
 import Tiers from './pages/superadmin/Tiers'
 import GymPayments from './pages/superadmin/GymPayments'
+import WhatsAppBills from './pages/superadmin/WhatsAppBills'
 import Inventory from './pages/inventory/Inventory'
 import MemberProfile from './pages/members/MemberProfile'
 import Finance from './pages/finance/Finance'
@@ -46,6 +47,7 @@ export default function App() {
             <Route path="/admin/gyms" element={<Gyms />} />
             <Route path="/admin/gyms/:id" element={<GymProfile />} />
             <Route path="/admin/subscriptions" element={<GymPayments />} />
+            <Route path="/admin/whatsapp-bills" element={<WhatsAppBills />} />
             <Route path="/admin/tiers" element={<Tiers />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

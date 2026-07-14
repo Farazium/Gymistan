@@ -1,7 +1,7 @@
 from decimal import Decimal
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Gym, GymPayment
+from .models import Gym, GymPayment, WhatsAppBill
 from django.utils import timezone
 
 User = get_user_model()
@@ -27,13 +27,23 @@ class GymPaymentSerializer(serializers.ModelSerializer):
         return value
 
 
+class WhatsAppBillSerializer(serializers.ModelSerializer):
+    gym_name = serializers.CharField(source='gym.name', read_only=True)
+
+    class Meta:
+        model = WhatsAppBill
+        fields = ['id', 'gym', 'gym_name', 'period_start', 'period_end',
+                  'message_count', 'rate', 'amount', 'status', 'created_at', 'paid_at']
+        read_only_fields = fields
+
+
 class GymSerializer(serializers.ModelSerializer):
     member_count = serializers.SerializerMethodField()
     user_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Gym
-        fields = ['id', 'name', 'address', 'phone', 'logo', 'is_active', 'joining_date', 'expiry_date', 'subscription_amount', 'tier', 'theme_color', 'card_color', 'created_at', 'updated_at', 'member_count', 'user_count']
+        fields = ['id', 'name', 'address', 'phone', 'logo', 'is_active', 'joining_date', 'expiry_date', 'subscription_amount', 'tier', 'whatsapp_rate', 'theme_color', 'card_color', 'created_at', 'updated_at', 'member_count', 'user_count']
 
     def get_member_count(self, obj):
         return obj.members.filter(is_deleted=False).count()

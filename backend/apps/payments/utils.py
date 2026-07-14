@@ -365,6 +365,17 @@ def generate_member_welcome_slip(member, welcome_back=False):
     return buffer
 
 
+def record_wa_usage(gym, category):
+    """Log a successfully-sent WhatsApp message for monthly usage billing. Never
+    raises — billing must not break message delivery."""
+    try:
+        from apps.gyms.models import WhatsAppUsage
+        if gym:
+            WhatsAppUsage.objects.create(gym=gym, category=category)
+    except Exception:
+        pass
+
+
 def _normalize_pk_phone(phone):
     """Turn a locally-typed Pakistani number into WhatsApp's international format."""
     phone = (phone or '').replace(' ', '').replace('-', '').replace('+', '')
@@ -443,6 +454,7 @@ def send_whatsapp_slip(payment):
     except Exception as e:
         return False, str(e)
     if r.status_code == 200:
+        record_wa_usage(payment.gym, 'RECEIPT')
         return True, 'sent'
     return False, r.text
 
@@ -497,7 +509,10 @@ def send_whatsapp_welcome(member, welcome_back=False):
             ],
         },
     }
-    return _send_wa_message(payload)
+    ok, detail = _send_wa_message(payload)
+    if ok:
+        record_wa_usage(member.gym, 'WELCOME')
+    return ok, detail
 
 
 def send_whatsapp_expiry_reminder(member):
@@ -520,4 +535,7 @@ def send_whatsapp_expiry_reminder(member):
             ],
         },
     }
-    return _send_wa_message(payload)
+    ok, detail = _send_wa_message(payload)
+    if ok:
+        record_wa_usage(member.gym, 'REMINDER')
+    return ok, detail

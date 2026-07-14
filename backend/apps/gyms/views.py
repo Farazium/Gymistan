@@ -4,8 +4,9 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Sum
 from django.utils import timezone
-from .models import Gym, GymPayment
-from .serializers import GymSerializer, CreateGymSerializer, GymPaymentSerializer
+from .models import Gym, GymPayment, WhatsAppBill
+from .serializers import GymSerializer, CreateGymSerializer, GymPaymentSerializer, WhatsAppBillSerializer
+from . import billing
 from apps.members.queries import active_q, expired_q, expiring_soon_q
 from apps.common.dates import renew_from
 from apps.accounts.permissions import IsSuperAdmin
@@ -145,6 +146,76 @@ class GymPaymentDetailView(APIView):
         payment = GymPayment.objects.get(pk=pk)
         payment.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+def _serialize_period(gym, period):
+    """Shape a live current-period dict for the API (mirrors WhatsAppBillSerializer)."""
+    return {
+        'gym': gym.id,
+        'gym_name': gym.name,
+        'period_start': period['period_start'],
+        'period_end': period['period_end'],
+        'message_count': period['message_count'],
+        'rate': period['rate'],
+        'amount': period['amount'],
+    }
+
+
+class WhatsAppBillingView(APIView):
+    """Gym admin: their own WhatsApp usage — live current period + past bills."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        gym = request.user.gym
+        if not gym:
+            return Response({'current_period': None, 'bills': []})
+        billing.ensure_bills(gym)
+        bills = WhatsAppBill.objects.filter(gym=gym)
+        return Response({
+            'current_period': _serialize_period(gym, billing.current_period(gym)),
+            'bills': WhatsAppBillSerializer(bills, many=True).data,
+        })
+
+
+class WhatsAppBillListView(APIView):
+    """Superadmin: all gyms' WhatsApp bills + live current-period running totals."""
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+
+    def get(self, request):
+        gym_id = request.query_params.get('gym')
+        gyms = Gym.objects.all()
+        if gym_id:
+            gyms = gyms.filter(id=gym_id)
+        current = []
+        for gym in gyms:
+            billing.ensure_bills(gym)
+            period = billing.current_period(gym)
+            if period['message_count']:
+                current.append(_serialize_period(gym, period))
+        bills = WhatsAppBill.objects.select_related('gym')
+        if gym_id:
+            bills = bills.filter(gym_id=gym_id)
+        return Response({
+            'bills': WhatsAppBillSerializer(bills, many=True).data,
+            'current': current,
+        })
+
+
+class WhatsAppBillMarkPaidView(APIView):
+    """Superadmin: toggle a bill between PENDING and PAID."""
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+
+    def post(self, request, pk):
+        bill = WhatsAppBill.objects.get(pk=pk)
+        target = request.data.get('status')
+        if target not in (WhatsAppBill.Status.PAID, WhatsAppBill.Status.PENDING):
+            # No explicit target -> toggle
+            target = (WhatsAppBill.Status.PAID if bill.status == WhatsAppBill.Status.PENDING
+                      else WhatsAppBill.Status.PENDING)
+        bill.status = target
+        bill.paid_at = timezone.now() if target == WhatsAppBill.Status.PAID else None
+        bill.save(update_fields=['status', 'paid_at'])
+        return Response(WhatsAppBillSerializer(bill).data)
 
 
 class ResetGymAdminPasswordView(APIView):

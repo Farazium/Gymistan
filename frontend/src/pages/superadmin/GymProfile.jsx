@@ -34,6 +34,7 @@ export default function GymProfile() {
   const [editingGym, setEditingGym] = useState(false)
   const [editingAdmin, setEditingAdmin] = useState(false)
   const [gymSubscription, setGymSubscription] = useState('')
+  const [waRate, setWaRate] = useState('')
   const [gymName, setGymName] = useState('')
   const [gymPhone, setGymPhone] = useState('')
   const [gymAddress, setGymAddress] = useState('')
@@ -50,13 +51,14 @@ export default function GymProfile() {
       setGymPhone(data.gym.phone || '')
       setGymAddress(data.gym.address || '')
       setGymSubscription(data.gym.subscription_amount || '')
+      setWaRate(data.gym.whatsapp_rate || '')
       setAdminName(data.admin?.name || '')
       return data
     },
   })
 
   const editMutation = useMutation({
-    mutationFn: () => api.patch(`/gyms/${id}/`, { name: gymName, phone: gymPhone, address: gymAddress, subscription_amount: gymSubscription || null }),
+    mutationFn: () => api.patch(`/gyms/${id}/`, { name: gymName, phone: gymPhone, address: gymAddress, subscription_amount: gymSubscription || null, whatsapp_rate: waRate || null }),
     onSuccess: () => {
       queryClient.invalidateQueries(['gym-stats', id])
       queryClient.invalidateQueries(['gyms'])
@@ -165,6 +167,10 @@ export default function GymProfile() {
               <div>
                 <label className="label">Subscription Amount (PKR)</label>
                 <input className="input" type="text" inputMode="numeric" placeholder="e.g. 5000" value={gymSubscription} onChange={(e) => setGymSubscription(e.target.value.replace(/[^\d.]/g, ''))} />
+              </div>
+              <div>
+                <label className="label">WhatsApp Rate (PKR / message)</label>
+                <input className="input" type="text" inputMode="decimal" placeholder="e.g. 4.60" value={waRate} onChange={(e) => setWaRate(e.target.value.replace(/[^\d.]/g, ''))} />
               </div>
               <button onClick={() => editMutation.mutate()} disabled={editMutation.isPending} className="btn-primary w-full justify-center">
                 <Save size={14} /> {editMutation.isPending ? 'Saving...' : 'Save Changes'}

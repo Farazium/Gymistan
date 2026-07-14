@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Package, CreditCard, Receipt,
-  Building2, LogOut, Dumbbell, Boxes, Settings, Fingerprint, Wallet, BarChart2, UserCog
+  Building2, LogOut, Dumbbell, Boxes, Settings, Fingerprint, Wallet, BarChart2, UserCog, MessageCircle
 } from 'lucide-react'
 import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
@@ -21,6 +21,7 @@ const superAdminItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/admin/gyms', icon: Building2, label: 'Gyms' },
   { to: '/admin/subscriptions', icon: Wallet, label: 'Subscriptions' },
+  { to: '/admin/whatsapp-bills', icon: MessageCircle, label: 'WhatsApp Bills' },
   { to: '/admin/tiers', icon: Package, label: 'Tiers' },
 ]
 

@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
-import { useMutation } from '@tanstack/react-query'
-import { Building2, Camera, Image as ImageIcon, Check, ChevronRight } from 'lucide-react'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { Building2, Camera, Image as ImageIcon, Check, ChevronRight, MessageCircle, MoreVertical } from 'lucide-react'
 import api from '../../api/axios'
 import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
@@ -79,6 +79,113 @@ function Section({ title, description, children, as = 'div', ...props }) {
       </div>
       <div className="card p-5 divide-y divide-gray-700/60">{children}</div>
     </Tag>
+  )
+}
+
+const fmtMoney = (n) => `PKR ${Number(n).toLocaleString('en-PK', { maximumFractionDigits: 0 })}`
+const fmtDay = (d) => d ? new Date(d).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' }) : '—'
+
+const fmtFull = (d) => d ? new Date(d).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
+
+// WhatsApp usage billing summary shown at the top of Settings for WhatsApp-tier gyms.
+function WhatsAppBillingCard() {
+  const [showHistory, setShowHistory] = useState(false)
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['wa-billing'],
+    queryFn: async () => { const { data } = await api.get('/gyms/whatsapp-billing/'); return data },
+  })
+
+  if (isLoading || !data) return null
+
+  const cur = data.current_period
+  const bills = data.bills || []
+  const pendingTotal = bills.filter(b => b.status === 'PENDING').reduce((s, b) => s + Number(b.amount), 0)
+
+  // History: bills from the last 2 years, newest first (API already orders -period_start).
+  const twoYearsAgo = new Date()
+  twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2)
+  const historyBills = bills.filter(b => new Date(b.period_start) >= twoYearsAgo)
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center gap-2">
+        <MessageCircle size={15} className="text-primary-400" />
+        <h2 className="text-sm font-semibold text-gray-100 uppercase tracking-wide">WhatsApp Billing</h2>
+      </div>
+      <div className="card p-5 space-y-4 relative">
+        {/* Top summary: current running period + pending dues */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="rounded-xl bg-primary-500/10 border border-primary-400/25 p-4">
+            <p className="text-xs text-gray-400">This month (in progress)</p>
+            <p className="text-2xl font-bold text-primary-300 mt-1">{fmtMoney(cur?.amount || 0)}</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {cur?.message_count || 0} messages · {fmtDay(cur?.period_start)}–{fmtDay(cur?.period_end)} · @ PKR {Number(cur?.rate || 0)}/msg
+            </p>
+          </div>
+          <div className={`rounded-xl p-4 border ${pendingTotal > 0 ? 'bg-amber-500/10 border-amber-400/25' : 'bg-primary-500/5 border-primary-400/20'}`}>
+            <p className="text-xs text-gray-400">Pending dues</p>
+            <p className={`text-2xl font-bold mt-1 ${pendingTotal > 0 ? 'text-amber-300' : 'text-primary-300'}`}>{fmtMoney(pendingTotal)}</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {pendingTotal > 0 ? 'Payable to Gymistan' : 'All settled — nothing due'}
+            </p>
+          </div>
+        </div>
+
+        {/* Footer: past-bill count on the left, history menu (3 dots) on the right */}
+        <div className="flex items-center justify-between pt-1">
+          {bills.length > 0 ? (
+            <p className="text-xs text-primary-400/70">
+              {bills.length} past {bills.length === 1 ? 'bill' : 'bills'} on record
+            </p>
+          ) : <span />}
+          <button
+            onClick={() => setShowHistory(true)}
+            className="p-1.5 rounded-lg text-primary-400/70 hover:text-primary-200 hover:bg-primary-500/20 transition"
+            title="View billing history"
+            aria-label="View billing history"
+          >
+            <MoreVertical size={18} />
+          </button>
+        </div>
+      </div>
+
+      <Modal isOpen={showHistory} onClose={() => setShowHistory(false)} title="Billing History" size="xl">
+        {historyBills.length > 0 ? (
+          <div className="overflow-x-auto -mx-1">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-gray-500 border-b border-gray-700">
+                  <th className="py-2 pr-3 font-medium">Period</th>
+                  <th className="py-2 px-3 font-medium text-right">Messages</th>
+                  <th className="py-2 px-3 font-medium text-right">Rate/msg</th>
+                  <th className="py-2 px-3 font-medium text-right">Amount</th>
+                  <th className="py-2 pl-3 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historyBills.map((b) => (
+                  <tr key={b.id} className="border-b border-gray-700/50 last:border-0">
+                    <td className="py-2.5 pr-3 text-gray-200 whitespace-nowrap">{fmtFull(b.period_start)} – {fmtFull(b.period_end)}</td>
+                    <td className="py-2.5 px-3 text-gray-300 text-right">{b.message_count}</td>
+                    <td className="py-2.5 px-3 text-gray-400 text-right">PKR {Number(b.rate)}</td>
+                    <td className="py-2.5 px-3 font-semibold text-gray-100 text-right">{fmtMoney(b.amount)}</td>
+                    <td className="py-2.5 pl-3">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${b.status === 'PAID' ? 'bg-green-500/20 text-green-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                        {b.status === 'PAID' ? 'Paid' : 'Pending'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-[11px] text-gray-600 mt-3">Showing bills from the last 2 years.</p>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400 py-6 text-center">No bills yet — your first monthly bill appears once your billing cycle completes.</p>
+        )}
+      </Modal>
+    </div>
   )
 }
 
@@ -194,6 +301,9 @@ export default function Settings() {
         <h1 className="text-2xl font-bold text-primary-400">Settings</h1>
         <p className="text-gray-500 text-sm mt-1">Manage your account and gym preferences</p>
       </div>
+
+      {/* WhatsApp usage billing — only for WhatsApp-enabled gyms */}
+      {['TIER2_WA', 'TIER3'].includes(user?.gym_tier) && <WhatsAppBillingCard />}
 
       {/* Details */}
       <Section title="Details" description="Your account and gym information">

@@ -1,4 +1,6 @@
+from decimal import Decimal
 from django.db import models
+from django.utils import timezone
 
 
 class Tier(models.TextChoices):
@@ -54,6 +56,9 @@ class Gym(models.Model):
     expiry_date = models.DateField(null=True, blank=True)
     subscription_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     tier = models.CharField(max_length=20, choices=Tier.choices, default=Tier.TIER1)
+    # What this gym is billed per delivered WhatsApp message (PKR). Meta charges us
+    # ~2.8; the margin is the SaaS markup. Editable per gym from the superadmin side.
+    whatsapp_rate = models.DecimalField(max_digits=6, decimal_places=2, default=Decimal('4.60'))
     theme_color = models.CharField(max_length=20, choices=ThemeColor.choices, default=ThemeColor.BLUE)
     card_color = models.CharField(max_length=20, choices=CardColor.choices, default=CardColor.SLATE)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -83,3 +88,54 @@ class GymPayment(models.Model):
 
     def __str__(self):
         return f'{self.gym.name} – {self.amount}'
+
+
+class WhatsAppUsage(models.Model):
+    """One row per WhatsApp message we successfully sent on a gym's behalf.
+    Rolled up into a monthly WhatsAppBill; `bill` is set once billed."""
+
+    class Category(models.TextChoices):
+        RECEIPT  = 'RECEIPT',  'Receipt'
+        WELCOME  = 'WELCOME',  'Welcome'
+        REMINDER = 'REMINDER', 'Reminder'
+
+    gym = models.ForeignKey(Gym, on_delete=models.CASCADE, related_name='wa_usages')
+    category = models.CharField(max_length=20, choices=Category.choices)
+    sent_at = models.DateTimeField(default=timezone.now)
+    bill = models.ForeignKey('WhatsAppBill', on_delete=models.SET_NULL,
+                             null=True, blank=True, related_name='usages')
+
+    class Meta:
+        db_table = 'whatsapp_usages'
+        ordering = ['-sent_at']
+        indexes = [models.Index(fields=['gym', 'sent_at'])]
+
+    def __str__(self):
+        return f'{self.gym.name} · {self.category} · {self.sent_at:%Y-%m-%d}'
+
+
+class WhatsAppBill(models.Model):
+    """A gym's monthly WhatsApp usage bill. One per gym per billing cycle; the
+    cycle is anchored to the gym's creation day-of-month."""
+
+    class Status(models.TextChoices):
+        PENDING = 'PENDING', 'Pending'
+        PAID    = 'PAID',    'Paid'
+
+    gym = models.ForeignKey(Gym, on_delete=models.CASCADE, related_name='wa_bills')
+    period_start = models.DateField()
+    period_end = models.DateField()  # inclusive last day of the cycle
+    message_count = models.PositiveIntegerField(default=0)
+    rate = models.DecimalField(max_digits=6, decimal_places=2)   # snapshot at generation
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'whatsapp_bills'
+        ordering = ['-period_start']
+        unique_together = ('gym', 'period_start')
+
+    def __str__(self):
+        return f'{self.gym.name} · {self.period_start:%b %Y} · PKR {self.amount}'
