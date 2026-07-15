@@ -176,8 +176,8 @@ def _status_badge(payment):
 
 def generate_payment_slip(payment):
     """Admission-fee payments get a warm welcome slip; everything else a receipt."""
-    if _is_admission(payment):
-        return _generate_welcome_slip(payment)
+    if _is_admission(payment) and payment.member:
+        return generate_welcome_slip(payment.member, admission_payment=payment)
     return _generate_receipt_slip(payment)
 
 
@@ -259,80 +259,28 @@ def _welcome_greeting(name, gym_name, welcome_back):
     )
 
 
-def _generate_welcome_slip(payment):
-    buffer = io.BytesIO()
-    doc = _new_doc(buffer, f'Welcome #{payment.id:05d}')
-    gym = payment.gym
-    member = payment.member
-    name = member.name if member else 'Member'
-    pkg = payment.package or (member.package if member else None)
+def generate_welcome_slip(member, admission_payment=None, welcome_back=False):
+    """The welcome PDF a member gets when they join or rejoin.
 
-    greet = ParagraphStyle('greet', fontSize=15, alignment=TA_CENTER, fontName='Helvetica-Bold',
-                           textColor=INK, leading=19, spaceBefore=2)
-    msg = ParagraphStyle('msg', fontSize=9.5, alignment=TA_CENTER, textColor=MUTED,
-                         leading=14, spaceBefore=2)
-
-    banner, line1, line2 = _welcome_greeting(name, gym.name, payment.is_rejoin)
-
-    e = _header_elements(gym)
-    e.append(_band('', center_text=banner))
-    e.append(Spacer(1, 5 * mm))
-
-    e.append(Paragraph(line1, greet))
-    e.append(Spacer(1, 2 * mm))
-    e.append(Paragraph(line2, msg))
-    e.append(Spacer(1, 5 * mm))
-
-    # No expiry here — see generate_member_welcome_slip.
-    e.append(_details_table([
-        ('Member ID', (member.member_id or '—') if member else '—',
-         'Name', name),
-        ('Phone', member.phone if member else '—',
-         'Join Date', _fmt_date(member.join_date if member else None)),
-        ('Package', pkg.name if pkg else '—'),
-    ]))
-    e.append(Spacer(1, 4 * mm))
-
-    # ---- Admission fee box (single highlighted row) ----
-    fee_lbl = ParagraphStyle('fl', fontSize=11, textColor=colors.white, fontName='Helvetica-Bold')
-    fee_val = ParagraphStyle('fv', fontSize=13, textColor=colors.white, alignment=TA_RIGHT, fontName='Helvetica-Bold')
-    feebox = Table([[Paragraph('ADMISSION FEE PAID', fee_lbl),
-                     Paragraph(_money(payment.amount_paid), fee_val)]],
-                   colWidths=[CONTENT_W * 0.6, CONTENT_W * 0.4])
-    feebox.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), BRAND),
-        ('LEFTPADDING', (0, 0), (-1, -1), 10),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-        ('TOPPADDING', (0, 0), (-1, -1), 9),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 9),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-    ]))
-    e.append(feebox)
-    e.append(Spacer(1, 6 * mm))
-
-    e += _footer_elements([
-        'Your fitness journey starts now. See you at the gym!',
-    ])
-
-    doc.build(e)
-    buffer.seek(0)
-    return buffer
-
-
-def generate_member_welcome_slip(member, welcome_back=False):
-    """Welcome PDF built straight from a Member (no payment needed) — used when a
-    member is added or restored. `welcome_back=True` tweaks the wording for restores."""
+    One document for both routes: WhatsApp sends it, and downloading the admission
+    payment's slip produces the very same page. Pass `admission_payment` when a fee
+    was taken — that only adds the fee box, so the member and the gym are never
+    looking at two different slips for the same event."""
     buffer = io.BytesIO()
     doc = _new_doc(buffer, f'Welcome {member.name}')
     gym = member.gym
     pkg = member.package
+    if admission_payment is None:
+        rejoin = welcome_back
+    else:
+        rejoin = admission_payment.is_rejoin
 
     greet = ParagraphStyle('greet', fontSize=15, alignment=TA_CENTER, fontName='Helvetica-Bold',
                            textColor=INK, leading=19, spaceBefore=2)
     msg = ParagraphStyle('msg', fontSize=9.5, alignment=TA_CENTER, textColor=MUTED,
                          leading=14, spaceBefore=2)
 
-    banner, line1, line2 = _welcome_greeting(member.name, gym.name, welcome_back)
+    banner, line1, line2 = _welcome_greeting(member.name, gym.name, rejoin)
 
     e = _header_elements(gym)
     e.append(_band('', center_text=banner))
@@ -345,11 +293,15 @@ def generate_member_welcome_slip(member, welcome_back=False):
 
     # No expiry here: a member is registered with an expired status until their
     # first fee is paid, so "valid till" would just repeat the join date.
-    e.append(_details_table([
+    rows = [
         ('Member ID', member.member_id or '—', 'Name', member.name),
         ('Phone', member.phone or '—', 'Join Date', _fmt_date(member.join_date)),
         ('Package', pkg.name if pkg else '—'),
-    ]))
+    ]
+    if admission_payment is not None:
+        rows[2] = ('Package', pkg.name if pkg else '—',
+                   'Admission Fee', _money(admission_payment.amount_paid))
+    e.append(_details_table(rows))
     e.append(Spacer(1, 4 * mm))
 
     e.append(_band('', center_text='Your fitness journey starts now'))
@@ -498,8 +450,10 @@ def _send_wa_message(payload):
     return (True, 'sent') if r.status_code == 200 else (False, r.text)
 
 
-def send_whatsapp_welcome(member, welcome_back=False):
-    """Send the branded welcome PDF to a member via the `member_welcome` template."""
+def send_whatsapp_welcome(member, welcome_back=False, admission_payment=None):
+    """Send the branded welcome PDF to a member via the `member_welcome` template.
+    Pass the admission payment, if one was taken, so the member receives the same
+    slip the gym can download rather than a fee-less variant of it."""
     token = settings.WHATSAPP_TOKEN
     phone_number_id = settings.WHATSAPP_PHONE_NUMBER_ID
     if not token or not phone_number_id:
@@ -512,7 +466,8 @@ def send_whatsapp_welcome(member, welcome_back=False):
     phone = _normalize_pk_phone(member.phone)
     filename = f'welcome_{member.member_id or member.id}.pdf'
 
-    pdf_buffer = generate_member_welcome_slip(member, welcome_back=welcome_back)
+    pdf_buffer = generate_welcome_slip(member, admission_payment=admission_payment,
+                                       welcome_back=welcome_back)
     media_id, err = _upload_pdf_media(pdf_buffer, filename, token, phone_number_id)
     if not media_id:
         _refund_credit(member.gym)

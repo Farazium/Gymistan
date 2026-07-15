@@ -48,15 +48,16 @@ def _maybe_send_welcome(request, member, welcome_back=False, admission_payment=N
     """Fire a WhatsApp welcome if the caller asked for it and the gym tier allows it.
     Best-effort: never blocks the add/restore response on a messaging failure.
 
-    A delivered welcome also marks the admission payment's receipt as sent: an admission
-    receipt renders as the same welcome slip (see generate_payment_slip), so the UI must
-    not offer to send that identical PDF a second time."""
+    The admission payment rides along so the member is sent the same slip the gym can
+    download. A delivered welcome then marks that payment's receipt as sent, since it
+    IS the receipt — the UI must not offer to send the identical PDF a second time."""
     if not _truthy(request.data.get('send_welcome')):
         return
     if member.gym.tier not in WA_TIERS:
         return
     try:
-        sent, _ = send_whatsapp_welcome(member, welcome_back=welcome_back)
+        sent, _ = send_whatsapp_welcome(member, welcome_back=welcome_back,
+                                        admission_payment=admission_payment)
     except Exception:
         return
     if sent and admission_payment:
