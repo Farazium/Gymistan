@@ -120,7 +120,12 @@ export default function PaymentForm({ onSuccess }) {
 
   const whatsAppMutation = useMutation({
     mutationFn: (id) => api.post(`/payments/${id}/whatsapp/`),
-    onSuccess: () => toast.success('Receipt sent via WhatsApp!'),
+    // The list is refreshed on save, while this send is still in flight — refresh
+    // again so the row picks up slip_sent and stops offering to send twice.
+    onSuccess: () => {
+      toast.success('Receipt sent via WhatsApp!')
+      queryClient.invalidateQueries(['payments'])
+    },
     onError: () => toast.error('Payment saved but WhatsApp failed'),
   })
 

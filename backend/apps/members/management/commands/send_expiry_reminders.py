@@ -13,10 +13,8 @@ import datetime
 from django.core.management.base import BaseCommand
 from apps.members.models import Member
 from apps.payments.utils import send_whatsapp_expiry_reminder
+from apps.gyms.models import WA_TIERS
 from django.utils import timezone
-
-# Only these tiers include WhatsApp messaging.
-WA_TIERS = ('TIER2_WA', 'TIER3')
 
 
 class Command(BaseCommand):

@@ -12,28 +12,53 @@ from .serializers import MemberSerializer, MemberListSerializer
 from apps.accounts.permissions import IsGymMember
 from apps.payments.models import Payment
 from apps.payments.utils import send_whatsapp_welcome, send_whatsapp_expiry_reminder
+from apps.gyms.models import WA_TIERS
 import calendar
 import datetime
-
-# Tiers that include WhatsApp messaging.
-WA_TIERS = ('TIER2_WA', 'TIER3')
 
 
 def _truthy(v):
     return str(v).lower() in ('1', 'true', 'yes', 'on')
 
 
-def _maybe_send_welcome(request, member, welcome_back=False):
+def _create_admission_payment(request, member):
+    """Record the one-off admission fee as its own payment. Returns it, or None when
+    no usable fee was given."""
+    try:
+        fee = float(request.data.get('admission_fee') or 0)
+    except (ValueError, TypeError):
+        return None
+    if fee <= 0:
+        return None
+    return Payment.objects.create(
+        gym=request.user.gym,
+        member=member,
+        collected_by=request.user,
+        amount=fee,
+        amount_paid=fee,
+        status='PAID',
+        notes='Admission fee',
+    )
+
+
+def _maybe_send_welcome(request, member, welcome_back=False, admission_payment=None):
     """Fire a WhatsApp welcome if the caller asked for it and the gym tier allows it.
-    Best-effort: never blocks the add/restore response on a messaging failure."""
+    Best-effort: never blocks the add/restore response on a messaging failure.
+
+    A delivered welcome also marks the admission payment's receipt as sent: an admission
+    receipt renders as the same welcome slip (see generate_payment_slip), so the UI must
+    not offer to send that identical PDF a second time."""
     if not _truthy(request.data.get('send_welcome')):
         return
     if member.gym.tier not in WA_TIERS:
         return
     try:
-        send_whatsapp_welcome(member, welcome_back=welcome_back)
+        sent, _ = send_whatsapp_welcome(member, welcome_back=welcome_back)
     except Exception:
-        pass
+        return
+    if sent and admission_payment:
+        admission_payment.slip_sent = True
+        admission_payment.save(update_fields=['slip_sent'])
 
 
 class MemberNextIdView(APIView):
@@ -108,23 +133,9 @@ class MemberListCreateView(generics.ListCreateAPIView):
             if 'device' in err:
                 raise serializers.ValidationError({'device_user_id': 'This Device ID is already mapped to another member'})
             raise serializers.ValidationError({'member_id': 'This Member ID is already occupied'})
-        admission_fee = self.request.data.get('admission_fee')
-        if admission_fee:
-            try:
-                fee = float(admission_fee)
-                if fee > 0:
-                    Payment.objects.create(
-                        gym=self.request.user.gym,
-                        member=member,
-                        collected_by=self.request.user,
-                        amount=fee,
-                        amount_paid=fee,
-                        status='PAID',
-                        notes='Admission fee',
-                    )
-            except (ValueError, TypeError):
-                pass
-        _maybe_send_welcome(self.request, member, welcome_back=False)
+        admission = _create_admission_payment(self.request, member)
+        _maybe_send_welcome(self.request, member, welcome_back=False,
+                            admission_payment=admission)
 
 
 class MemberDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -181,23 +192,9 @@ class RestoreMemberView(APIView):
         if request.data.get('expiry_date'):
             member.expiry_date = request.data['expiry_date']
         member.save()
-        admission_fee = request.data.get('admission_fee')
-        if admission_fee:
-            try:
-                fee = float(admission_fee)
-                if fee > 0:
-                    Payment.objects.create(
-                        gym=request.user.gym,
-                        member=member,
-                        collected_by=request.user,
-                        amount=fee,
-                        amount_paid=fee,
-                        status='PAID',
-                        notes='Admission fee',
-                    )
-            except (ValueError, TypeError):
-                pass
-        _maybe_send_welcome(request, member, welcome_back=True)
+        admission = _create_admission_payment(request, member)
+        _maybe_send_welcome(request, member, welcome_back=True,
+                            admission_payment=admission)
         return Response({'detail': 'Member restored'})
 
 

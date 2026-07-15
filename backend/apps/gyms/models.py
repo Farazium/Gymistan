@@ -12,6 +12,10 @@ class Tier(models.TextChoices):
     TIER3    = 'TIER3',    'Elite'
 
 
+# Tiers that include WhatsApp messaging. Mirrored by the frontend tier checks.
+WA_TIERS = (Tier.TIER2_WA, Tier.TIER3)
+
+
 class ThemeColor(models.TextChoices):
     ROSE    = 'rose',    'Rose'
     RED     = 'red',     'Red'

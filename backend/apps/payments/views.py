@@ -8,6 +8,7 @@ from .models import Payment
 from .serializers import PaymentSerializer
 from .utils import generate_payment_slip, send_whatsapp_slip
 from apps.accounts.permissions import IsGymMember
+from apps.gyms.models import WA_TIERS
 from apps.common.dates import renew_from
 import datetime
 from django.utils import timezone
@@ -87,6 +88,10 @@ class SendWhatsAppSlipView(APIView):
             )
         except Payment.DoesNotExist:
             return Response({'message': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if payment.gym.tier not in WA_TIERS:
+            return Response({'message': 'WhatsApp is not enabled for your plan'},
+                            status=status.HTTP_403_FORBIDDEN)
 
         # A receipt for a payment is sent exactly once — no resends.
         if payment.slip_sent:

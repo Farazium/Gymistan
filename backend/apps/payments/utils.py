@@ -516,7 +516,7 @@ def send_whatsapp_welcome(member, welcome_back=False):
 
 
 def send_whatsapp_expiry_reminder(member):
-    """Send a text-only renewal reminder via the `expiry_reminder` template."""
+    """Send a text-only renewal reminder via the `membership_expiry_notice` template."""
     if not member or not member.phone:
         return False, 'Member has no phone number'
     payload = {
