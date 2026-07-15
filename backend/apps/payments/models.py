@@ -32,6 +32,10 @@ class Payment(SoftDeleteModel):
     new_expiry = models.DateField(null=True, blank=True)
     month = models.CharField(max_length=20, blank=True)
     notes = models.TextField(blank=True)
+    # Set on an admission fee taken when a member rejoins, so their slip greets them
+    # back instead of welcoming them as new. Restoring clears the member's own
+    # deleted_at, so the payment is the only thing left that remembers.
+    is_rejoin = models.BooleanField(default=False)
     slip_sent = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

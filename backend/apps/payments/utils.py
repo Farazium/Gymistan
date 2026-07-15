@@ -240,6 +240,25 @@ def _generate_receipt_slip(payment):
     return buffer
 
 
+def _welcome_greeting(name, gym_name, welcome_back):
+    """Banner + the two opening lines of a welcome slip. Shared by the member-based
+    and payment-based slips so their wording can't drift apart.
+
+    Neither version claims the membership is active: a member is registered with an
+    expired status until their first fee is paid."""
+    if welcome_back:
+        return (
+            'WELCOME BACK',
+            f'Great to have you back, {name}!',
+            f"Let's pick up right where you left off at {gym_name}. Here are your details:",
+        )
+    return (
+        'WELCOME TO THE FAMILY',
+        f'Welcome aboard, {name}!',
+        f"We're thrilled to have you join {gym_name}. Here are your details:",
+    )
+
+
 def _generate_welcome_slip(payment):
     buffer = io.BytesIO()
     doc = _new_doc(buffer, f'Welcome #{payment.id:05d}')
@@ -253,26 +272,24 @@ def _generate_welcome_slip(payment):
     msg = ParagraphStyle('msg', fontSize=9.5, alignment=TA_CENTER, textColor=MUTED,
                          leading=14, spaceBefore=2)
 
+    banner, line1, line2 = _welcome_greeting(name, gym.name, payment.is_rejoin)
+
     e = _header_elements(gym)
-    e.append(_band('', center_text='WELCOME TO THE FAMILY'))
+    e.append(_band('', center_text=banner))
     e.append(Spacer(1, 5 * mm))
 
-    e.append(Paragraph(f'Welcome aboard, {name}!', greet))
+    e.append(Paragraph(line1, greet))
     e.append(Spacer(1, 2 * mm))
-    e.append(Paragraph(
-        f"We're thrilled to have you join {gym.name}. Your membership is now active — "
-        "let's make every session count. Here are your details:",
-        msg,
-    ))
+    e.append(Paragraph(line2, msg))
     e.append(Spacer(1, 5 * mm))
 
+    # No expiry here — see generate_member_welcome_slip.
     e.append(_details_table([
         ('Member ID', (member.member_id or '—') if member else '—',
          'Name', name),
         ('Phone', member.phone if member else '—',
          'Join Date', _fmt_date(member.join_date if member else None)),
-        ('Package', pkg.name if pkg else '—',
-         'Valid Till', _fmt_date(member.expiry_date if member else None)),
+        ('Package', pkg.name if pkg else '—'),
     ]))
     e.append(Spacer(1, 4 * mm))
 
@@ -315,49 +332,31 @@ def generate_member_welcome_slip(member, welcome_back=False):
     msg = ParagraphStyle('msg', fontSize=9.5, alignment=TA_CENTER, textColor=MUTED,
                          leading=14, spaceBefore=2)
 
+    banner, line1, line2 = _welcome_greeting(member.name, gym.name, welcome_back)
+
     e = _header_elements(gym)
-    e.append(_band('', center_text='WELCOME BACK' if welcome_back else 'WELCOME TO THE FAMILY'))
+    e.append(_band('', center_text=banner))
     e.append(Spacer(1, 5 * mm))
 
-    if welcome_back:
-        line1 = f'Great to have you back, {member.name}!'
-        line2 = (f"Your membership at {gym.name} is active again. "
-                 "Let's pick up right where you left off.")
-    else:
-        line1 = f'Welcome aboard, {member.name}!'
-        line2 = (f"We're thrilled to have you join {gym.name}. Your membership is now active — "
-                 "let's make every session count. Here are your details:")
     e.append(Paragraph(line1, greet))
     e.append(Spacer(1, 2 * mm))
     e.append(Paragraph(line2, msg))
     e.append(Spacer(1, 5 * mm))
 
+    # No expiry here: a member is registered with an expired status until their
+    # first fee is paid, so "valid till" would just repeat the join date.
     e.append(_details_table([
         ('Member ID', member.member_id or '—', 'Name', member.name),
         ('Phone', member.phone or '—', 'Join Date', _fmt_date(member.join_date)),
-        ('Package', pkg.name if pkg else '—', 'Valid Till', _fmt_date(member.expiry_date)),
+        ('Package', pkg.name if pkg else '—'),
     ]))
     e.append(Spacer(1, 4 * mm))
 
-    # Membership-active highlight box (in place of the admission-fee box)
-    box_lbl = ParagraphStyle('bxl', fontSize=11, textColor=colors.white, fontName='Helvetica-Bold')
-    box_val = ParagraphStyle('bxv', fontSize=12, textColor=colors.white, alignment=TA_RIGHT, fontName='Helvetica-Bold')
-    box = Table([[Paragraph('MEMBERSHIP ACTIVE', box_lbl),
-                  Paragraph(f'Valid Till {_fmt_date(member.expiry_date)}', box_val)]],
-                colWidths=[CONTENT_W * 0.5, CONTENT_W * 0.5])
-    box.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), BRAND),
-        ('LEFTPADDING', (0, 0), (-1, -1), 10),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-        ('TOPPADDING', (0, 0), (-1, -1), 9),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 9),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-    ]))
-    e.append(box)
+    e.append(_band('', center_text='Your fitness journey starts now'))
     e.append(Spacer(1, 6 * mm))
 
     e += _footer_elements([
-        'Your fitness journey starts now. See you at the gym!',
+        'See you at the gym!',
     ])
 
     doc.build(e)

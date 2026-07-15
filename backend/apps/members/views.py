@@ -23,7 +23,7 @@ def _truthy(v):
     return str(v).lower() in ('1', 'true', 'yes', 'on')
 
 
-def _create_admission_payment(request, member):
+def _create_admission_payment(request, member, rejoin=False):
     """Record the one-off admission fee as its own payment. Returns it, or None when
     no usable fee was given."""
     try:
@@ -40,6 +40,7 @@ def _create_admission_payment(request, member):
         amount_paid=fee,
         status='PAID',
         notes='Admission fee',
+        is_rejoin=rejoin,
     )
 
 
@@ -194,7 +195,7 @@ class RestoreMemberView(APIView):
         if request.data.get('expiry_date'):
             member.expiry_date = request.data['expiry_date']
         member.save()
-        admission = _create_admission_payment(request, member)
+        admission = _create_admission_payment(request, member, rejoin=True)
         _maybe_send_welcome(request, member, welcome_back=True,
                             admission_payment=admission)
         return Response({'detail': 'Member restored'})
