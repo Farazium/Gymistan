@@ -21,7 +21,7 @@ const superAdminItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/admin/gyms', icon: Building2, label: 'Gyms' },
   { to: '/admin/subscriptions', icon: Wallet, label: 'Subscriptions' },
-  { to: '/admin/whatsapp-bills', icon: MessageCircle, label: 'WhatsApp Bills' },
+  { to: '/admin/whatsapp-credits', icon: MessageCircle, label: 'WhatsApp Credits' },
   { to: '/admin/tiers', icon: Package, label: 'Tiers' },
 ]
 

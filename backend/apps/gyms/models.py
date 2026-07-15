@@ -63,6 +63,13 @@ class Gym(models.Model):
     # What this gym is billed per delivered WhatsApp message (PKR). Meta charges us
     # ~2.8; the margin is the SaaS markup. Editable per gym from the superadmin side.
     whatsapp_rate = models.DecimalField(max_digits=6, decimal_places=2, default=Decimal('4.60'))
+    # Prepaid WhatsApp credits. Messages are bought up front: a top-up sets
+    # wa_allowance to (whatever was left + what was bought) and resets wa_used to 0,
+    # so the gym reads its balance as wa_used/wa_allowance. Sending is blocked once
+    # they meet. Never write these directly — go through topup()/reserve_wa_credit()
+    # so the counters stay consistent with the WhatsAppTopup ledger.
+    wa_allowance = models.PositiveIntegerField(default=0)
+    wa_used = models.PositiveIntegerField(default=0)
     theme_color = models.CharField(max_length=20, choices=ThemeColor.choices, default=ThemeColor.BLUE)
     card_color = models.CharField(max_length=20, choices=CardColor.choices, default=CardColor.SLATE)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -73,6 +80,21 @@ class Gym(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def wa_remaining(self):
+        return max(self.wa_allowance - self.wa_used, 0)
+
+    @property
+    def wa_percent_used(self):
+        """0–100. A gym with no credits at all reads as 100% (fully exhausted)."""
+        if not self.wa_allowance:
+            return 100
+        return min(round(self.wa_used * 100 / self.wa_allowance), 100)
+
+    @property
+    def wa_exhausted(self):
+        return self.wa_remaining <= 0
 
 
 class GymPayment(models.Model):
@@ -95,8 +117,8 @@ class GymPayment(models.Model):
 
 
 class WhatsAppUsage(models.Model):
-    """One row per WhatsApp message we successfully sent on a gym's behalf.
-    Rolled up into a monthly WhatsAppBill; `bill` is set once billed."""
+    """One row per WhatsApp message we successfully sent on a gym's behalf — the
+    audit trail behind Gym.wa_used."""
 
     class Category(models.TextChoices):
         RECEIPT  = 'RECEIPT',  'Receipt'
@@ -106,8 +128,6 @@ class WhatsAppUsage(models.Model):
     gym = models.ForeignKey(Gym, on_delete=models.CASCADE, related_name='wa_usages')
     category = models.CharField(max_length=20, choices=Category.choices)
     sent_at = models.DateTimeField(default=timezone.now)
-    bill = models.ForeignKey('WhatsAppBill', on_delete=models.SET_NULL,
-                             null=True, blank=True, related_name='usages')
 
     class Meta:
         db_table = 'whatsapp_usages'
@@ -118,28 +138,26 @@ class WhatsAppUsage(models.Model):
         return f'{self.gym.name} · {self.category} · {self.sent_at:%Y-%m-%d}'
 
 
-class WhatsAppBill(models.Model):
-    """A gym's monthly WhatsApp usage bill. One per gym per billing cycle; the
-    cycle is anchored to the gym's creation day-of-month."""
+class WhatsAppTopup(models.Model):
+    """One row per prepaid message pack a gym bought. Also the audit trail for
+    Gym.wa_allowance / wa_used: each row snapshots what the balance became, so a
+    disputed balance can be replayed from history."""
 
-    class Status(models.TextChoices):
-        PENDING = 'PENDING', 'Pending'
-        PAID    = 'PAID',    'Paid'
-
-    gym = models.ForeignKey(Gym, on_delete=models.CASCADE, related_name='wa_bills')
-    period_start = models.DateField()
-    period_end = models.DateField()  # inclusive last day of the cycle
-    message_count = models.PositiveIntegerField(default=0)
-    rate = models.DecimalField(max_digits=6, decimal_places=2)   # snapshot at generation
+    gym = models.ForeignKey(Gym, on_delete=models.CASCADE, related_name='wa_topups')
+    messages = models.PositiveIntegerField()          # bought this time
+    carried_over = models.PositiveIntegerField(default=0)   # unused credits rolled in
+    allowance_after = models.PositiveIntegerField()    # = carried_over + messages
+    rate = models.DecimalField(max_digits=6, decimal_places=2)   # snapshot at purchase
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey('accounts.User', on_delete=models.SET_NULL,
+                                   null=True, blank=True, related_name='wa_topups')
     created_at = models.DateTimeField(auto_now_add=True)
-    paid_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        db_table = 'whatsapp_bills'
-        ordering = ['-period_start']
-        unique_together = ('gym', 'period_start')
+        db_table = 'whatsapp_topups'
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['gym', '-created_at'])]
 
     def __str__(self):
-        return f'{self.gym.name} · {self.period_start:%b %Y} · PKR {self.amount}'
+        return f'{self.gym.name} · +{self.messages} msgs · PKR {self.amount}'

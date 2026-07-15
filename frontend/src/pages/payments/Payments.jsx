@@ -10,6 +10,7 @@ import toast from 'react-hot-toast'
 import { invalidateFinance } from '../../utils/invalidateFinance'
 import { apiErrorMessage } from '../../utils/apiError'
 import { fmtCurrency as fmt } from '../../utils/format'
+import { useWaCredits } from '../../utils/waCredits'
 
 
 function monthKey(dateStr) {
@@ -24,6 +25,8 @@ function monthLabel(yyyymm) {
 export default function Payments() {
   const { user } = useAuthStore()
   const hasWhatsApp = ['TIER2_WA', 'TIER3'].includes(user?.gym_tier)
+  const waCredits = useWaCredits(hasWhatsApp)
+  const outOfCredits = !!waCredits?.exhausted
 
   const [search, setSearch] = useState('')
   const [packageFilter, setPackageFilter] = useState('')
@@ -62,7 +65,11 @@ export default function Payments() {
 
   const sendWhatsApp = useMutation({
     mutationFn: (id) => api.post(`/payments/${id}/whatsapp/`),
-    onSuccess: () => { toast.success('Slip sent via WhatsApp!'); queryClient.invalidateQueries(['payments']) },
+    onSuccess: () => {
+      toast.success('Slip sent via WhatsApp!')
+      queryClient.invalidateQueries(['payments'])
+      queryClient.invalidateQueries(['wa-billing'])   // one credit just went
+    },
     onError: (err) => toast.error(err.response?.data?.message || 'Failed to send'),
   })
 
@@ -190,7 +197,12 @@ export default function Payments() {
                               <CheckCircle2 size={14} />
                             </span>
                           ) : (
-                            <button onClick={() => sendWhatsApp.mutate(p.id)} title="Send via WhatsApp" className="p-1.5 text-gray-400 hover:text-white hover:bg-green-500 rounded-lg transition">
+                            <button
+                              onClick={() => sendWhatsApp.mutate(p.id)}
+                              disabled={outOfCredits}
+                              title={outOfCredits ? 'Out of WhatsApp messages — top up to send' : 'Send via WhatsApp'}
+                              className="p-1.5 text-gray-400 rounded-lg transition enabled:hover:text-white enabled:hover:bg-green-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
                               <MessageCircle size={14} />
                             </button>
                           )

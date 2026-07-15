@@ -7,6 +7,7 @@ import toast from 'react-hot-toast'
 import Modal from '../../components/ui/Modal'
 import { applyTheme, applySurface, PRESETS, SURFACE_PRESETS, DEFAULT_THEME, DEFAULT_SURFACE } from '../../utils/theme'
 import { isPrintingEnabled, setPrintingEnabled, getPaperWidth, setPaperWidth } from '../../utils/printReceipt'
+import { CREDIT_TONES } from '../../utils/waCredits'
 
 // Small "not wired yet" tag for placeholder settings.
 const SoonBadge = () => (
@@ -83,11 +84,11 @@ function Section({ title, description, children, as = 'div', ...props }) {
 }
 
 const fmtMoney = (n) => `PKR ${Number(n).toLocaleString('en-PK', { maximumFractionDigits: 0 })}`
-const fmtDay = (d) => d ? new Date(d).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' }) : '—'
 
 const fmtFull = (d) => d ? new Date(d).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
 
-// WhatsApp usage billing summary shown at the top of Settings for WhatsApp-tier gyms.
+// Prepaid message balance + top-up history, shown at the top of Settings for
+// WhatsApp-tier gyms.
 function WhatsAppBillingCard() {
   const [showHistory, setShowHistory] = useState(false)
 
@@ -96,16 +97,11 @@ function WhatsAppBillingCard() {
     queryFn: async () => { const { data } = await api.get('/gyms/whatsapp-billing/'); return data },
   })
 
-  if (isLoading || !data) return null
+  if (isLoading || !data?.credits) return null
 
-  const cur = data.current_period
-  const bills = data.bills || []
-  const pendingTotal = bills.filter(b => b.status === 'PENDING').reduce((s, b) => s + Number(b.amount), 0)
-
-  // History: bills from the last 2 years, newest first (API already orders -period_start).
-  const twoYearsAgo = new Date()
-  twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2)
-  const historyBills = bills.filter(b => new Date(b.period_start) >= twoYearsAgo)
+  const c = data.credits
+  const topups = data.topups || []
+  const tone = CREDIT_TONES[c.alert_level] || CREDIT_TONES.ok
 
   return (
     <div>
@@ -114,75 +110,84 @@ function WhatsAppBillingCard() {
         <h2 className="text-sm font-semibold text-gray-100 uppercase tracking-wide">WhatsApp Billing</h2>
       </div>
       <div className="card p-5 space-y-4 relative">
-        {/* Top summary: current running period + pending dues */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="rounded-xl bg-primary-500/10 border border-primary-400/25 p-4">
-            <p className="text-xs text-gray-400">This month (in progress)</p>
-            <p className="text-2xl font-bold text-primary-300 mt-1">{fmtMoney(cur?.amount || 0)}</p>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {cur?.message_count || 0} messages · {fmtDay(cur?.period_start)}–{fmtDay(cur?.period_end)} · @ PKR {Number(cur?.rate || 0)}/msg
+        {/* Balance: used out of the current pack, with the bar carrying the warning tone */}
+        <div className={`rounded-xl border p-4 ${tone.bg} ${tone.border}`}>
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <p className="text-xs text-gray-400">Messages used</p>
+              <p className={`text-2xl font-bold mt-1 ${tone.text}`}>
+                {c.used.toLocaleString('en-PK')}
+                <span className="text-gray-500 font-semibold text-lg"> / {c.allowance.toLocaleString('en-PK')}</span>
+              </p>
+            </div>
+            <p className={`text-sm font-semibold ${tone.text}`}>
+              {c.remaining.toLocaleString('en-PK')} left
             </p>
           </div>
-          <div className={`rounded-xl p-4 border ${pendingTotal > 0 ? 'bg-amber-500/10 border-amber-400/25' : 'bg-primary-500/5 border-primary-400/20'}`}>
-            <p className="text-xs text-gray-400">Pending dues</p>
-            <p className={`text-2xl font-bold mt-1 ${pendingTotal > 0 ? 'text-amber-300' : 'text-primary-300'}`}>{fmtMoney(pendingTotal)}</p>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {pendingTotal > 0 ? 'Payable to Gymistan' : 'All settled — nothing due'}
-            </p>
+          <div className="mt-3 h-2 rounded-full bg-gray-700/60 overflow-hidden">
+            <div className={`h-full rounded-full transition-all ${tone.bar}`}
+                 style={{ width: `${c.allowance ? c.percent_used : 100}%` }} />
           </div>
+          <p className="text-xs text-gray-500 mt-2">
+            {c.allowance === 0
+              ? 'No messages bought yet — contact Gymistan to buy a pack.'
+              : c.exhausted
+                ? 'Pack finished — WhatsApp messaging is paused until you top up.'
+                : `@ PKR ${Number(c.rate)}/msg · unused messages carry over to your next top-up`}
+          </p>
         </div>
 
-        {/* Footer: past-bill count on the left, history menu (3 dots) on the right */}
+        {/* Footer: top-up count on the left, history menu (3 dots) on the right */}
         <div className="flex items-center justify-between pt-1">
-          {bills.length > 0 ? (
+          {topups.length > 0 ? (
             <p className="text-xs text-primary-400/70">
-              {bills.length} past {bills.length === 1 ? 'bill' : 'bills'} on record
+              {topups.length} {topups.length === 1 ? 'top-up' : 'top-ups'} on record
             </p>
           ) : <span />}
           <button
             onClick={() => setShowHistory(true)}
             className="p-1.5 rounded-lg text-primary-400/70 hover:text-primary-200 hover:bg-primary-500/20 transition"
-            title="View billing history"
-            aria-label="View billing history"
+            title="View top-up history"
+            aria-label="View top-up history"
           >
             <MoreVertical size={18} />
           </button>
         </div>
       </div>
 
-      <Modal isOpen={showHistory} onClose={() => setShowHistory(false)} title="Billing History" size="xl">
-        {historyBills.length > 0 ? (
+      <Modal isOpen={showHistory} onClose={() => setShowHistory(false)} title="Top-up History" size="xl">
+        {topups.length > 0 ? (
           <div className="overflow-x-auto -mx-1">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-gray-500 border-b border-gray-700">
-                  <th className="py-2 pr-3 font-medium">Period</th>
-                  <th className="py-2 px-3 font-medium text-right">Messages</th>
+                  <th className="py-2 pr-3 font-medium">Date</th>
+                  <th className="py-2 px-3 font-medium text-right">Bought</th>
+                  <th className="py-2 px-3 font-medium text-right">Carried over</th>
+                  <th className="py-2 px-3 font-medium text-right">New balance</th>
                   <th className="py-2 px-3 font-medium text-right">Rate/msg</th>
-                  <th className="py-2 px-3 font-medium text-right">Amount</th>
-                  <th className="py-2 pl-3 font-medium">Status</th>
+                  <th className="py-2 pl-3 font-medium text-right">Amount</th>
                 </tr>
               </thead>
               <tbody>
-                {historyBills.map((b) => (
-                  <tr key={b.id} className="border-b border-gray-700/50 last:border-0">
-                    <td className="py-2.5 pr-3 text-gray-200 whitespace-nowrap">{fmtFull(b.period_start)} – {fmtFull(b.period_end)}</td>
-                    <td className="py-2.5 px-3 text-gray-300 text-right">{b.message_count}</td>
-                    <td className="py-2.5 px-3 text-gray-400 text-right">PKR {Number(b.rate)}</td>
-                    <td className="py-2.5 px-3 font-semibold text-gray-100 text-right">{fmtMoney(b.amount)}</td>
-                    <td className="py-2.5 pl-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${b.status === 'PAID' ? 'bg-green-500/20 text-green-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                        {b.status === 'PAID' ? 'Paid' : 'Pending'}
-                      </span>
-                    </td>
+                {topups.map((t) => (
+                  <tr key={t.id} className="border-b border-gray-700/50 last:border-0">
+                    <td className="py-2.5 pr-3 text-gray-200 whitespace-nowrap">{fmtFull(t.created_at)}</td>
+                    <td className="py-2.5 px-3 text-gray-300 text-right">+{t.messages}</td>
+                    <td className="py-2.5 px-3 text-gray-400 text-right">{t.carried_over || '—'}</td>
+                    <td className="py-2.5 px-3 text-gray-300 text-right">{t.allowance_after}</td>
+                    <td className="py-2.5 px-3 text-gray-400 text-right">PKR {Number(t.rate)}</td>
+                    <td className="py-2.5 pl-3 font-semibold text-gray-100 text-right">{fmtMoney(t.amount)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <p className="text-[11px] text-gray-600 mt-3">Showing bills from the last 2 years.</p>
+            <p className="text-[11px] text-gray-600 mt-3">
+              Unused messages from your previous pack are added to each new top-up.
+            </p>
           </div>
         ) : (
-          <p className="text-sm text-gray-400 py-6 text-center">No bills yet — your first monthly bill appears once your billing cycle completes.</p>
+          <p className="text-sm text-gray-400 py-6 text-center">No top-ups yet — contact Gymistan to buy a message pack.</p>
         )}
       </Modal>
     </div>

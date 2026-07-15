@@ -3,7 +3,7 @@ from .views import (
     GymListCreateView, GymDetailView, ToggleGymStatusView, GymStatsView,
     ResetGymAdminPasswordView, RenewGymView,
     GymPaymentListCreateView, GymPaymentDetailView,
-    WhatsAppBillingView, WhatsAppBillListView, WhatsAppBillMarkPaidView,
+    WhatsAppBillingView, WhatsAppCreditListView, WhatsAppTopupView,
 )
 
 urlpatterns = [
@@ -16,6 +16,6 @@ urlpatterns = [
     path('gym-payments/', GymPaymentListCreateView.as_view(), name='gym_payment_list_create'),
     path('gym-payments/<int:pk>/', GymPaymentDetailView.as_view(), name='gym_payment_detail'),
     path('whatsapp-billing/', WhatsAppBillingView.as_view(), name='wa_billing'),
-    path('whatsapp-bills/', WhatsAppBillListView.as_view(), name='wa_bill_list'),
-    path('whatsapp-bills/<int:pk>/mark-paid/', WhatsAppBillMarkPaidView.as_view(), name='wa_bill_mark_paid'),
+    path('whatsapp-credits/', WhatsAppCreditListView.as_view(), name='wa_credit_list'),
+    path('<int:pk>/whatsapp-topup/', WhatsAppTopupView.as_view(), name='wa_topup'),
 ]

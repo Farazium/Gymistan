@@ -4,6 +4,7 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import api from '../../api/axios'
 import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
+import { useWaCredits } from '../../utils/waCredits'
 
 function calcExpiryISO(isoDate, status, pkgMonths) {
   if (!isoDate || isoDate.length < 10) return ''
@@ -42,6 +43,7 @@ function calcExpiryDisplay(isoDate, status, pkgMonths) {
 export default function MemberForm({ member, onSuccess, defaultMemberId }) {
   const { user } = useAuthStore()
   const hasWhatsApp = ['TIER2_WA', 'TIER3'].includes(user?.gym_tier)
+  const outOfCredits = !!useWaCredits(hasWhatsApp)?.exhausted
   const hasAttendance = ['TIER2_AT', 'TIER3'].includes(user?.gym_tier)
   const todayISO = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
   const { register, handleSubmit, watch, setError, setValue, formState: { errors } } = useForm({
@@ -281,9 +283,17 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
 
         {!member && hasWhatsApp && (
           <div className="col-span-2">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input type="checkbox" className="w-4 h-4 accent-green-500" {...register('send_welcome')} />
-              <span className="text-sm text-gray-300">Send welcome message on WhatsApp</span>
+            <label className={`flex items-center gap-2 select-none ${outOfCredits ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+              <input
+                type="checkbox" disabled={outOfCredits}
+                className="w-4 h-4 accent-green-500 disabled:opacity-40"
+                {...register('send_welcome')}
+              />
+              <span className={`text-sm ${outOfCredits ? 'text-gray-600' : 'text-gray-300'}`}>
+                {outOfCredits
+                  ? 'Out of WhatsApp messages — top up to send a welcome'
+                  : 'Send welcome message on WhatsApp'}
+              </span>
             </label>
           </div>
         )}

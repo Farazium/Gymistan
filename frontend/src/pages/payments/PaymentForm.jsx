@@ -9,6 +9,7 @@ import { apiErrorMessage } from '../../utils/apiError'
 import { isPrintingEnabled, printThermalReceipt } from '../../utils/printReceipt'
 import { invalidateFinance } from '../../utils/invalidateFinance'
 import { packagePalette } from '../../utils/packageColors'
+import { useWaCredits } from '../../utils/waCredits'
 
 function MemberSearch({ members, onChange, onSelect }) {
   const [query, setQuery] = useState('')
@@ -91,6 +92,7 @@ export default function PaymentForm({ onSuccess }) {
   const [sendWhatsApp, setSendWhatsApp] = useState(false)
   const { user } = useAuthStore()
   const hasWhatsApp = ['TIER2_WA', 'TIER3'].includes(user?.gym_tier)
+  const outOfCredits = !!useWaCredits(hasWhatsApp)?.exhausted
   const printingOn = isPrintingEnabled()
   const [printReceipt, setPrintReceipt] = useState(false) // opt-in per payment
   const queryClient = useQueryClient()
@@ -125,8 +127,10 @@ export default function PaymentForm({ onSuccess }) {
     onSuccess: () => {
       toast.success('Receipt sent via WhatsApp!')
       queryClient.invalidateQueries(['payments'])
+      queryClient.invalidateQueries(['wa-billing'])   // one credit just went
     },
-    onError: () => toast.error('Payment saved but WhatsApp failed'),
+    onError: (err) => toast.error(
+      err.response?.data?.message || 'Payment saved but WhatsApp failed'),
   })
 
   const mutation = useMutation({
@@ -134,7 +138,7 @@ export default function PaymentForm({ onSuccess }) {
     onSuccess: (res, variables) => {
       toast.success('Payment recorded')
       invalidateFinance(queryClient)
-      if (sendWhatsApp && hasWhatsApp) whatsAppMutation.mutate(res.data.id)
+      if (sendWhatsApp && hasWhatsApp && !outOfCredits) whatsAppMutation.mutate(res.data.id)
       if (printReceipt && printingOn) {
         printThermalReceipt({
           gymName: user?.gym_name,
@@ -232,15 +236,20 @@ export default function PaymentForm({ onSuccess }) {
       </div>
 
       {hasWhatsApp && (
-        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+        <label className={`flex items-center gap-2.5 select-none ${outOfCredits ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
           <input
             type="checkbox"
-            checked={sendWhatsApp}
+            checked={sendWhatsApp && !outOfCredits}
+            disabled={outOfCredits}
             onChange={(e) => setSendWhatsApp(e.target.checked)}
-            className="w-4 h-4 rounded accent-green-500"
+            className="w-4 h-4 rounded accent-green-500 disabled:opacity-40"
           />
-          <MessageCircle size={14} className="text-green-400" />
-          <span className="text-sm text-gray-300">Send receipt via WhatsApp after recording</span>
+          <MessageCircle size={14} className={outOfCredits ? 'text-gray-600' : 'text-green-400'} />
+          <span className={`text-sm ${outOfCredits ? 'text-gray-600' : 'text-gray-300'}`}>
+            {outOfCredits
+              ? 'Out of WhatsApp messages — top up to send receipts'
+              : 'Send receipt via WhatsApp after recording'}
+          </span>
         </label>
       )}
 

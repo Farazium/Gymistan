@@ -1,7 +1,7 @@
 from decimal import Decimal
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Gym, GymPayment, WhatsAppBill
+from .models import Gym, GymPayment, WhatsAppTopup
 from django.utils import timezone
 
 User = get_user_model()
@@ -27,23 +27,38 @@ class GymPaymentSerializer(serializers.ModelSerializer):
         return value
 
 
-class WhatsAppBillSerializer(serializers.ModelSerializer):
+class WhatsAppTopupSerializer(serializers.ModelSerializer):
     gym_name = serializers.CharField(source='gym.name', read_only=True)
+    created_by_name = serializers.CharField(source='created_by.name', read_only=True)
 
     class Meta:
-        model = WhatsAppBill
-        fields = ['id', 'gym', 'gym_name', 'period_start', 'period_end',
-                  'message_count', 'rate', 'amount', 'status', 'created_at', 'paid_at']
+        model = WhatsAppTopup
+        fields = ['id', 'gym', 'gym_name', 'messages', 'carried_over', 'allowance_after',
+                  'rate', 'amount', 'notes', 'created_by_name', 'created_at']
         read_only_fields = fields
+
+
+class CreateTopupSerializer(serializers.Serializer):
+    """Superadmin input for a top-up. `amount` is optional — it defaults to
+    messages × the gym's rate, but stays editable for discounts/round figures."""
+    messages = serializers.IntegerField(min_value=1, max_value=100000)
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2,
+                                      required=False, allow_null=True,
+                                      min_value=Decimal('0'))
+    notes = serializers.CharField(required=False, allow_blank=True)
 
 
 class GymSerializer(serializers.ModelSerializer):
     member_count = serializers.SerializerMethodField()
     user_count = serializers.SerializerMethodField()
+    wa_remaining = serializers.IntegerField(read_only=True)
+    wa_percent_used = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Gym
-        fields = ['id', 'name', 'address', 'phone', 'logo', 'is_active', 'joining_date', 'expiry_date', 'subscription_amount', 'tier', 'whatsapp_rate', 'theme_color', 'card_color', 'created_at', 'updated_at', 'member_count', 'user_count']
+        fields = ['id', 'name', 'address', 'phone', 'logo', 'is_active', 'joining_date', 'expiry_date', 'subscription_amount', 'tier', 'whatsapp_rate', 'theme_color', 'card_color', 'created_at', 'updated_at', 'member_count', 'user_count', 'wa_allowance', 'wa_used', 'wa_remaining', 'wa_percent_used']
+        # Credits move only through top-ups and sends, never a gym PATCH.
+        read_only_fields = ['wa_allowance', 'wa_used']
 
     def get_member_count(self, obj):
         return obj.members.filter(is_deleted=False).count()

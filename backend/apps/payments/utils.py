@@ -365,9 +365,28 @@ def generate_member_welcome_slip(member, welcome_back=False):
     return buffer
 
 
+OUT_OF_CREDITS = 'WhatsApp message limit reached — top up to send more'
+
+
+def _reserve_credit(gym):
+    """Claim one prepaid credit before we spend anything at Meta. Reserving up front
+    (rather than counting after) is what stops concurrent sends from overshooting a
+    nearly-empty pack. Refund it with _refund_credit if the send doesn't land."""
+    from apps.gyms.credits import reserve_wa_credit
+    return reserve_wa_credit(gym)
+
+
+def _refund_credit(gym):
+    from apps.gyms.credits import refund_wa_credit
+    try:
+        refund_wa_credit(gym)
+    except Exception:
+        pass
+
+
 def record_wa_usage(gym, category):
-    """Log a successfully-sent WhatsApp message for monthly usage billing. Never
-    raises — billing must not break message delivery."""
+    """Log a delivered message against its reserved credit. Never raises — the
+    audit row must not break delivery that already happened."""
     try:
         from apps.gyms.models import WhatsAppUsage
         if gym:
@@ -417,6 +436,9 @@ def send_whatsapp_slip(payment):
     if not member or not member.phone:
         return False, 'Member has no phone number'
 
+    if not _reserve_credit(payment.gym):
+        return False, OUT_OF_CREDITS
+
     phone = _normalize_pk_phone(member.phone)
     filename = f'receipt_{payment.id:05d}.pdf'
 
@@ -426,6 +448,7 @@ def send_whatsapp_slip(payment):
     # 2. Upload it to WhatsApp -> media id
     media_id, err = _upload_pdf_media(pdf_buffer, filename, token, phone_number_id)
     if not media_id:
+        _refund_credit(payment.gym)
         return False, f'PDF upload failed: {err}'
 
     # 3. Send the template with the PDF as the document header
@@ -452,10 +475,12 @@ def send_whatsapp_slip(payment):
         r = requests.post(_wa_url(f'{phone_number_id}/messages'),
                           json=payload, headers=headers, timeout=30)
     except Exception as e:
+        _refund_credit(payment.gym)
         return False, str(e)
     if r.status_code == 200:
         record_wa_usage(payment.gym, 'RECEIPT')
         return True, 'sent'
+    _refund_credit(payment.gym)
     return False, r.text
 
 
@@ -482,6 +507,8 @@ def send_whatsapp_welcome(member, welcome_back=False):
         return False, 'WhatsApp is not configured'
     if not member or not member.phone:
         return False, 'Member has no phone number'
+    if not _reserve_credit(member.gym):
+        return False, OUT_OF_CREDITS
 
     phone = _normalize_pk_phone(member.phone)
     filename = f'welcome_{member.member_id or member.id}.pdf'
@@ -489,6 +516,7 @@ def send_whatsapp_welcome(member, welcome_back=False):
     pdf_buffer = generate_member_welcome_slip(member, welcome_back=welcome_back)
     media_id, err = _upload_pdf_media(pdf_buffer, filename, token, phone_number_id)
     if not media_id:
+        _refund_credit(member.gym)
         return False, f'PDF upload failed: {err}'
 
     payload = {
@@ -512,6 +540,8 @@ def send_whatsapp_welcome(member, welcome_back=False):
     ok, detail = _send_wa_message(payload)
     if ok:
         record_wa_usage(member.gym, 'WELCOME')
+    else:
+        _refund_credit(member.gym)
     return ok, detail
 
 
@@ -519,6 +549,8 @@ def send_whatsapp_expiry_reminder(member):
     """Send a text-only renewal reminder via the `membership_expiry_notice` template."""
     if not member or not member.phone:
         return False, 'Member has no phone number'
+    if not _reserve_credit(member.gym):
+        return False, OUT_OF_CREDITS
     payload = {
         "messaging_product": "whatsapp",
         "to": _normalize_pk_phone(member.phone),
@@ -538,4 +570,6 @@ def send_whatsapp_expiry_reminder(member):
     ok, detail = _send_wa_message(payload)
     if ok:
         record_wa_usage(member.gym, 'REMINDER')
+    else:
+        _refund_credit(member.gym)
     return ok, detail

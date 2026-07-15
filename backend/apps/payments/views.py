@@ -6,7 +6,7 @@ from django.http import HttpResponse
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Payment
 from .serializers import PaymentSerializer
-from .utils import generate_payment_slip, send_whatsapp_slip
+from .utils import generate_payment_slip, send_whatsapp_slip, OUT_OF_CREDITS
 from apps.accounts.permissions import IsGymMember
 from apps.gyms.models import WA_TIERS
 from apps.common.dates import renew_from
@@ -92,6 +92,10 @@ class SendWhatsAppSlipView(APIView):
         if payment.gym.tier not in WA_TIERS:
             return Response({'message': 'WhatsApp is not enabled for your plan'},
                             status=status.HTTP_403_FORBIDDEN)
+
+        if payment.gym.wa_exhausted:
+            return Response({'message': OUT_OF_CREDITS, 'out_of_credits': True},
+                            status=status.HTTP_402_PAYMENT_REQUIRED)
 
         # A receipt for a payment is sent exactly once — no resends.
         if payment.slip_sent:

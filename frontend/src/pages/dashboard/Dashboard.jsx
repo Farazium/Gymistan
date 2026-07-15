@@ -8,6 +8,40 @@ import StatCard from '../../components/ui/StatCard'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
 import useAuthStore from '../../store/authStore'
 import { fmtCurrency as fmt } from '../../utils/format'
+import { CREDIT_TONES, CREDIT_MESSAGES, CREDIT_HINTS, useWaCredits } from '../../utils/waCredits'
+
+
+// Prepaid-message warning, top of the dashboard. Stays hidden until 80% of the
+// pack is spent, then escalates yellow -> orange -> red (levels come from the API).
+function WhatsAppCreditBanner() {
+  const navigate = useNavigate()
+  const { data } = useQuery({
+    queryKey: ['wa-billing'],
+    queryFn: async () => { const { data } = await api.get('/gyms/whatsapp-billing/'); return data },
+  })
+
+  const c = data?.credits
+  if (!c?.alert_level) return null
+
+  const tone = CREDIT_TONES[c.alert_level]
+  const Icon = c.alert_level === 'exhausted' ? Lock : AlertTriangle
+
+  return (
+    <div className={`rounded-xl border p-4 flex items-center gap-3 ${tone.bg} ${tone.border}`}>
+      <Icon size={18} className={`${tone.text} shrink-0`} />
+      <div className="min-w-0 flex-1">
+        <p className={`text-sm font-semibold ${tone.text}`}>{CREDIT_MESSAGES[c.alert_level](c)}</p>
+        <p className="text-xs text-gray-400 mt-0.5">{CREDIT_HINTS[c.alert_level](c)}</p>
+      </div>
+      <button
+        onClick={() => navigate('/settings')}
+        className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg transition ${tone.text} hover:bg-white/5`}
+      >
+        View balance
+      </button>
+    </div>
+  )
+}
 
 
 function SuperAdminDashboard() {
@@ -245,10 +279,15 @@ function GymDashboard() {
   const tierMeta = TIER_META[tier]
   const TierIcon = tierMeta.icon
   const waEnabled = tier === 'TIER2_WA' || tier === 'TIER3'
+  const outOfCredits = !!useWaCredits(waEnabled)?.exhausted
 
   const sendReminder = useMutation({
     mutationFn: (id) => api.post(`/members/${id}/reminder/`),
-    onSuccess: () => { toast.success('Reminder sent via WhatsApp!'); queryClient.invalidateQueries(['dashboard']) },
+    onSuccess: () => {
+      toast.success('Reminder sent via WhatsApp!')
+      queryClient.invalidateQueries(['dashboard'])
+      queryClient.invalidateQueries(['wa-billing'])   // one credit just went
+    },
     onError: (err) => toast.error(err.response?.data?.message || 'Failed to send reminder'),
   })
 
@@ -275,6 +314,8 @@ function GymDashboard() {
         </div>
       </div>
       {showTierInfo && <TierInfoModal tier={tier} onClose={() => setShowTierInfo(false)} />}
+
+      {waEnabled && <WhatsAppCreditBanner />}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Active Members" value={data.members.active} subtitle={`${data.members.total} total`} icon={Users} color="primary" />
@@ -338,8 +379,8 @@ function GymDashboard() {
                       ) : (
                         <button
                           onClick={() => sendReminder.mutate(m.id)}
-                          disabled={sending}
-                          title="Send WhatsApp renewal reminder"
+                          disabled={sending || outOfCredits}
+                          title={outOfCredits ? 'Out of WhatsApp messages — top up to send' : 'Send WhatsApp renewal reminder'}
                           className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg border border-green-500/30 text-green-400 hover:bg-green-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {sending ? <Loader2 size={13} className="animate-spin" /> : <MessageCircle size={13} />}

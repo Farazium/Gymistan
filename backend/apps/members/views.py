@@ -11,7 +11,9 @@ from .queries import active_q, expired_q
 from .serializers import MemberSerializer, MemberListSerializer
 from apps.accounts.permissions import IsGymMember
 from apps.payments.models import Payment
-from apps.payments.utils import send_whatsapp_welcome, send_whatsapp_expiry_reminder
+from apps.payments.utils import (
+    send_whatsapp_welcome, send_whatsapp_expiry_reminder, OUT_OF_CREDITS,
+)
 from apps.gyms.models import WA_TIERS
 import calendar
 import datetime
@@ -295,6 +297,8 @@ class SendReminderView(APIView):
             return Response({'message': 'Member not found'}, status=404)
         if member.gym.tier not in WA_TIERS:
             return Response({'message': 'WhatsApp is not enabled for your plan'}, status=403)
+        if member.gym.wa_exhausted:
+            return Response({'message': OUT_OF_CREDITS, 'out_of_credits': True}, status=402)
         if not member.phone:
             return Response({'message': 'Member has no phone number'}, status=400)
         if member.reminder_sent_for == member.expiry_date:

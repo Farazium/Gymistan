@@ -4,9 +4,12 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Sum
 from django.utils import timezone
-from .models import Gym, GymPayment, WhatsAppBill
-from .serializers import GymSerializer, CreateGymSerializer, GymPaymentSerializer, WhatsAppBillSerializer
-from . import billing
+from .models import Gym, GymPayment, WhatsAppTopup, WA_TIERS
+from .serializers import (
+    GymSerializer, CreateGymSerializer, GymPaymentSerializer,
+    WhatsAppTopupSerializer, CreateTopupSerializer,
+)
+from . import credits
 from apps.members.queries import active_q, expired_q, expiring_soon_q
 from apps.common.dates import renew_gym_from
 from apps.accounts.permissions import IsSuperAdmin
@@ -148,74 +151,79 @@ class GymPaymentDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-def _serialize_period(gym, period):
-    """Shape a live current-period dict for the API (mirrors WhatsAppBillSerializer)."""
+def _credit_state(gym):
+    """The balance shape both the gym's own view and the superadmin's share."""
     return {
         'gym': gym.id,
         'gym_name': gym.name,
-        'period_start': period['period_start'],
-        'period_end': period['period_end'],
-        'message_count': period['message_count'],
-        'rate': period['rate'],
-        'amount': period['amount'],
+        'allowance': gym.wa_allowance,
+        'used': gym.wa_used,
+        'remaining': gym.wa_remaining,
+        'percent_used': gym.wa_percent_used,
+        'alert_level': credits.alert_level(gym),
+        'exhausted': gym.wa_exhausted,
+        'rate': gym.whatsapp_rate,
     }
 
 
 class WhatsAppBillingView(APIView):
-    """Gym admin: their own WhatsApp usage — live current period + past bills."""
+    """Gym admin: their own prepaid message balance + top-up history."""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         gym = request.user.gym
         if not gym:
-            return Response({'current_period': None, 'bills': []})
-        billing.ensure_bills(gym)
-        bills = WhatsAppBill.objects.filter(gym=gym)
+            return Response({'credits': None, 'topups': []})
+        topups = WhatsAppTopup.objects.filter(gym=gym)
         return Response({
-            'current_period': _serialize_period(gym, billing.current_period(gym)),
-            'bills': WhatsAppBillSerializer(bills, many=True).data,
+            'credits': _credit_state(gym),
+            'topups': WhatsAppTopupSerializer(topups, many=True).data,
         })
 
 
-class WhatsAppBillListView(APIView):
-    """Superadmin: all gyms' WhatsApp bills + live current-period running totals."""
+class WhatsAppCreditListView(APIView):
+    """Superadmin: every WhatsApp-tier gym's balance, plus top-up history."""
     permission_classes = [IsAuthenticated, IsSuperAdmin]
 
     def get(self, request):
         gym_id = request.query_params.get('gym')
-        gyms = Gym.objects.all()
+        gyms = Gym.objects.filter(tier__in=WA_TIERS)
+        topups = WhatsAppTopup.objects.select_related('gym', 'created_by')
         if gym_id:
             gyms = gyms.filter(id=gym_id)
-        current = []
-        for gym in gyms:
-            billing.ensure_bills(gym)
-            period = billing.current_period(gym)
-            if period['message_count']:
-                current.append(_serialize_period(gym, period))
-        bills = WhatsAppBill.objects.select_related('gym')
-        if gym_id:
-            bills = bills.filter(gym_id=gym_id)
+            topups = topups.filter(gym_id=gym_id)
         return Response({
-            'bills': WhatsAppBillSerializer(bills, many=True).data,
-            'current': current,
+            'credits': [_credit_state(g) for g in gyms],
+            'topups': WhatsAppTopupSerializer(topups, many=True).data,
         })
 
 
-class WhatsAppBillMarkPaidView(APIView):
-    """Superadmin: toggle a bill between PENDING and PAID."""
+class WhatsAppTopupView(APIView):
+    """Superadmin: sell a gym a pack of messages from its profile."""
     permission_classes = [IsAuthenticated, IsSuperAdmin]
 
     def post(self, request, pk):
-        bill = WhatsAppBill.objects.get(pk=pk)
-        target = request.data.get('status')
-        if target not in (WhatsAppBill.Status.PAID, WhatsAppBill.Status.PENDING):
-            # No explicit target -> toggle
-            target = (WhatsAppBill.Status.PAID if bill.status == WhatsAppBill.Status.PENDING
-                      else WhatsAppBill.Status.PENDING)
-        bill.status = target
-        bill.paid_at = timezone.now() if target == WhatsAppBill.Status.PAID else None
-        bill.save(update_fields=['status', 'paid_at'])
-        return Response(WhatsAppBillSerializer(bill).data)
+        try:
+            gym = Gym.objects.get(pk=pk)
+        except Gym.DoesNotExist:
+            return Response({'message': 'Gym not found'}, status=status.HTTP_404_NOT_FOUND)
+        if gym.tier not in WA_TIERS:
+            return Response({'message': "This gym's plan doesn't include WhatsApp"},
+                            status=status.HTTP_400_BAD_REQUEST)
+        s = CreateTopupSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        topup = credits.topup(
+            gym,
+            messages=s.validated_data['messages'],
+            amount=s.validated_data.get('amount'),
+            notes=s.validated_data.get('notes', ''),
+            user=request.user,
+        )
+        gym.refresh_from_db()
+        return Response({
+            'topup': WhatsAppTopupSerializer(topup).data,
+            'credits': _credit_state(gym),
+        }, status=status.HTTP_201_CREATED)
 
 
 class ResetGymAdminPasswordView(APIView):

@@ -37,11 +37,21 @@ class Command(BaseCommand):
 
         self.stdout.write(f'{members.count()} member(s) expiring on {target}')
         sent = skipped = failed = 0
+        # Gyms that ran dry mid-run — report once instead of failing per member.
+        drained = set()
 
         for m in members:
             # Already reminded for this exact expiry date? Skip (idempotent re-runs).
             if m.reminder_sent_for == m.expiry_date:
                 skipped += 1
+                continue
+            m.gym.refresh_from_db(fields=['wa_allowance', 'wa_used'])
+            if m.gym.wa_exhausted:
+                skipped += 1
+                if m.gym_id not in drained:
+                    drained.add(m.gym_id)
+                    self.stdout.write(self.style.WARNING(
+                        f'  {m.gym.name}: out of WhatsApp credits — skipping its members'))
                 continue
             if dry:
                 self.stdout.write(f'  would remind: {m.name} ({m.phone})')
