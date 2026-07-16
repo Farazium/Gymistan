@@ -241,8 +241,9 @@ def _generate_receipt_slip(payment):
 
 
 def _welcome_greeting(name, gym_name, welcome_back):
-    """Banner + the two opening lines of a welcome slip. Shared by the member-based
-    and payment-based slips so their wording can't drift apart.
+    """Every word that differs between a first-time welcome and a rejoin: the banner,
+    the two opening lines, and the closing tagline. Kept in one place so the two can't
+    drift apart.
 
     Neither version claims the membership is active: a member is registered with an
     expired status until their first fee is paid."""
@@ -251,11 +252,13 @@ def _welcome_greeting(name, gym_name, welcome_back):
             'WELCOME BACK',
             f'Great to have you back, {name}!',
             f"Let's pick up right where you left off at {gym_name}. Here are your details:",
+            'Your fitness journey continues',
         )
     return (
         'WELCOME TO THE FAMILY',
         f'Welcome aboard, {name}!',
         f"We're thrilled to have you join {gym_name}. Here are your details:",
+        'Your fitness journey starts now',
     )
 
 
@@ -280,7 +283,7 @@ def generate_welcome_slip(member, admission_payment=None, welcome_back=False):
     msg = ParagraphStyle('msg', fontSize=9.5, alignment=TA_CENTER, textColor=MUTED,
                          leading=14, spaceBefore=2)
 
-    banner, line1, line2 = _welcome_greeting(member.name, gym.name, rejoin)
+    banner, line1, line2, tagline = _welcome_greeting(member.name, gym.name, rejoin)
 
     e = _header_elements(gym)
     e.append(_band('', center_text=banner))
@@ -304,7 +307,7 @@ def generate_welcome_slip(member, admission_payment=None, welcome_back=False):
     e.append(_details_table(rows))
     e.append(Spacer(1, 4 * mm))
 
-    e.append(_band('', center_text='Your fitness journey starts now'))
+    e.append(_band('', center_text=tagline))
     e.append(Spacer(1, 6 * mm))
 
     e += _footer_elements([
