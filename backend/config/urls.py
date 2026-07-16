@@ -3,8 +3,13 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
+from apps.gyms.webhooks import whatsapp_webhook
+
 urlpatterns = [
     path('admin/', admin.site.urls),
+    # Public and unauthenticated by necessity — Meta calls it, not our frontend.
+    # It sits outside /api/ so it is never touched by the API's auth defaults.
+    path('webhooks/whatsapp/', whatsapp_webhook, name='whatsapp_webhook'),
     path('api/auth/', include('apps.accounts.urls')),
     path('api/gyms/', include('apps.gyms.urls')),
     path('api/members/', include('apps.members.urls')),

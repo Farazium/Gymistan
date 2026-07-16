@@ -118,24 +118,67 @@ class GymPayment(models.Model):
 
 class WhatsAppUsage(models.Model):
     """One row per WhatsApp message we successfully sent on a gym's behalf — the
-    audit trail behind Gym.wa_used."""
+    audit trail behind Gym.wa_used, and where each message's delivery outcome lands.
+
+    Accepting a message (HTTP 200) only means Meta queued it. What actually happened
+    arrives later on the status webhook, which is why `status` starts at SENT and is
+    moved forward by apps.gyms.webhooks."""
 
     class Category(models.TextChoices):
         RECEIPT  = 'RECEIPT',  'Receipt'
         WELCOME  = 'WELCOME',  'Welcome'
         REMINDER = 'REMINDER', 'Reminder'
 
+    class Status(models.TextChoices):
+        SENT      = 'SENT',      'Sent'
+        DELIVERED = 'DELIVERED', 'Delivered'
+        READ      = 'READ',      'Read'
+        FAILED    = 'FAILED',    'Failed'
+
+    # Meta gives no signal for "this person blocked you" — a block looks exactly like
+    # a phone that is off. So the only read on it is a recipient whose messages keep
+    # stopping at SENT and never reach DELIVERED. That inference needs history, which
+    # is what these rows are for.
+    STATUS_RANK = {Status.SENT: 0, Status.DELIVERED: 1, Status.READ: 2, Status.FAILED: 3}
+
     gym = models.ForeignKey(Gym, on_delete=models.CASCADE, related_name='wa_usages')
     category = models.CharField(max_length=20, choices=Category.choices)
     sent_at = models.DateTimeField(default=timezone.now)
+    # Meta's message id (wamid.*), the only handle the status webhook gives us back.
+    # Null on rows written before delivery tracking existed, and on any send whose
+    # response we couldn't parse — those simply stay at SENT forever.
+    wamid = models.CharField(max_length=128, blank=True, null=True, unique=True)
+    # Normalised recipient (92XXXXXXXXXX). Kept flat rather than as a Member FK: the
+    # gyms app must not depend on members, and the number is what Meta echoes back.
+    recipient = models.CharField(max_length=20, blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.SENT)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    failed_at = models.DateTimeField(null=True, blank=True)
+    error_code = models.CharField(max_length=20, blank=True)
+    error_detail = models.TextField(blank=True)
 
     class Meta:
         db_table = 'whatsapp_usages'
         ordering = ['-sent_at']
-        indexes = [models.Index(fields=['gym', 'sent_at'])]
+        indexes = [
+            models.Index(fields=['gym', 'sent_at']),
+            models.Index(fields=['gym', 'recipient', 'status']),
+        ]
 
     def __str__(self):
         return f'{self.gym.name} · {self.category} · {self.sent_at:%Y-%m-%d}'
+
+    def advance_to(self, status):
+        """Move the row forward to `status`, ignoring anything that would walk it
+        backwards. Meta does not promise ordering — a read receipt can overtake the
+        delivery that caused it — so rank decides, not arrival."""
+        current = self.STATUS_RANK.get(self.status, 0)
+        incoming = self.STATUS_RANK.get(status, 0)
+        if incoming <= current:
+            return False
+        self.status = status
+        return True
 
 
 class WhatsAppTopup(models.Model):

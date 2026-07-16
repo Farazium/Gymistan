@@ -134,3 +134,8 @@ WHATSAPP_WELCOME_TEMPLATE_NAME = os.getenv('WHATSAPP_WELCOME_TEMPLATE_NAME', 'me
 WHATSAPP_REMINDER_TEMPLATE_NAME = os.getenv('WHATSAPP_REMINDER_TEMPLATE_NAME', 'membership_expiry_notice')
 WHATSAPP_TEMPLATE_LANG = os.getenv('WHATSAPP_TEMPLATE_LANG', 'en_US')
 WHATSAPP_API_VERSION = os.getenv('WHATSAPP_API_VERSION', 'v22.0')
+# Status webhook. VERIFY_TOKEN is any string we choose — Meta echoes it back on the
+# one-time GET handshake. APP_SECRET is the Meta app's secret and signs every POST;
+# without it the endpoint accepts unsigned payloads, so it must be set in production.
+WHATSAPP_VERIFY_TOKEN = os.getenv('WHATSAPP_VERIFY_TOKEN', '')
+WHATSAPP_APP_SECRET = os.getenv('WHATSAPP_APP_SECRET', '')

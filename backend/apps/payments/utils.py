@@ -338,13 +338,18 @@ def _refund_credit(gym):
         pass
 
 
-def record_wa_usage(gym, category):
-    """Log a delivered message against its reserved credit. Never raises — the
-    audit row must not break delivery that already happened."""
+def record_wa_usage(gym, category, wamid=None, recipient=''):
+    """Log an accepted message against its reserved credit. Never raises — the audit
+    row must not break a send that already happened.
+
+    `wamid` is what the status webhook later matches on, so a row without one can
+    never be told apart from a message that vanished. That only happens if Meta's
+    response shape surprises us; the row is still written for billing."""
     try:
         from apps.gyms.models import WhatsAppUsage
         if gym:
-            WhatsAppUsage.objects.create(gym=gym, category=category)
+            WhatsAppUsage.objects.create(gym=gym, category=category,
+                                         wamid=wamid or None, recipient=recipient)
     except Exception:
         pass
 
@@ -424,33 +429,42 @@ def send_whatsapp_slip(payment):
             ],
         },
     }
-    headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
-    try:
-        r = requests.post(_wa_url(f'{phone_number_id}/messages'),
-                          json=payload, headers=headers, timeout=30)
-    except Exception as e:
+    ok, detail, wamid = _send_wa_message(payload)
+    if ok:
+        record_wa_usage(payment.gym, 'RECEIPT', wamid=wamid, recipient=phone)
+    else:
         _refund_credit(payment.gym)
-        return False, str(e)
-    if r.status_code == 200:
-        record_wa_usage(payment.gym, 'RECEIPT')
-        return True, 'sent'
-    _refund_credit(payment.gym)
-    return False, r.text
+    return ok, detail
+
+
+def _wamid_of(response):
+    """Pull Meta's message id out of a send response. Never raises: a send that
+    worked must not be reported as failed just because the body read oddly."""
+    try:
+        return response.json()['messages'][0]['id']
+    except Exception:
+        return None
 
 
 def _send_wa_message(payload):
-    """POST a ready-built message payload to WhatsApp. Returns (success, detail)."""
+    """POST a ready-built message payload to WhatsApp.
+
+    Returns (success, detail, wamid). Success here only means Meta accepted the
+    message — whether it reached the phone arrives later on the status webhook,
+    keyed by the returned wamid."""
     token = settings.WHATSAPP_TOKEN
     phone_number_id = settings.WHATSAPP_PHONE_NUMBER_ID
     if not token or not phone_number_id:
-        return False, 'WhatsApp is not configured'
+        return False, 'WhatsApp is not configured', None
     headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
     try:
         r = requests.post(_wa_url(f'{phone_number_id}/messages'),
                           json=payload, headers=headers, timeout=30)
     except Exception as e:
-        return False, str(e)
-    return (True, 'sent') if r.status_code == 200 else (False, r.text)
+        return False, str(e), None
+    if r.status_code != 200:
+        return False, r.text, None
+    return True, 'sent', _wamid_of(r)
 
 
 def send_whatsapp_welcome(member, welcome_back=False, admission_payment=None):
@@ -494,9 +508,9 @@ def send_whatsapp_welcome(member, welcome_back=False, admission_payment=None):
             ],
         },
     }
-    ok, detail = _send_wa_message(payload)
+    ok, detail, wamid = _send_wa_message(payload)
     if ok:
-        record_wa_usage(member.gym, 'WELCOME')
+        record_wa_usage(member.gym, 'WELCOME', wamid=wamid, recipient=phone)
     else:
         _refund_credit(member.gym)
     return ok, detail
@@ -508,9 +522,10 @@ def send_whatsapp_expiry_reminder(member):
         return False, 'Member has no phone number'
     if not _reserve_credit(member.gym):
         return False, OUT_OF_CREDITS
+    phone = _normalize_pk_phone(member.phone)
     payload = {
         "messaging_product": "whatsapp",
-        "to": _normalize_pk_phone(member.phone),
+        "to": phone,
         "type": "template",
         "template": {
             "name": settings.WHATSAPP_REMINDER_TEMPLATE_NAME,
@@ -524,9 +539,9 @@ def send_whatsapp_expiry_reminder(member):
             ],
         },
     }
-    ok, detail = _send_wa_message(payload)
+    ok, detail, wamid = _send_wa_message(payload)
     if ok:
-        record_wa_usage(member.gym, 'REMINDER')
+        record_wa_usage(member.gym, 'REMINDER', wamid=wamid, recipient=phone)
     else:
         _refund_credit(member.gym)
     return ok, detail
