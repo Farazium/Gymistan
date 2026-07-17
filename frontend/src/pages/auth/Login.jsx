@@ -13,6 +13,19 @@ const PREFERS_REDUCED_MOTION =
   window.matchMedia &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
+// The login page is universal — it must not inherit the last gym's accent that
+// theme.js left on :root. Pin the brand default (Blue) on the page's own root so
+// every primary/accent token underneath resolves to it, whatever theme is stored.
+const BRAND_ACCENT = {
+  '--p200': '191 219 254',
+  '--p300': '147 197 253',
+  '--p400': '96 165 250',
+  '--p500': '59 130 246',
+  '--p600': '37 99 235',
+  '--p700': '29 78 216',
+  '--surface': '31 41 55',
+}
+
 /* ----------------------------------------------------------------------------
    Starfield — a canvas of twinkling stars that drift a little with the cursor.
    Canvas (not DOM) so a few hundred points stay cheap.
@@ -547,6 +560,7 @@ export default function Login() {
   return (
     <div
       className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden bg-slate-950"
+      style={BRAND_ACCENT}
       onPointerDown={spawnRipple}
     >
       {/* Deep-space backdrop */}
@@ -638,9 +652,9 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full justify-center py-2.5 mt-2 relative overflow-hidden group"
+              className="btn-primary w-full justify-center py-2.5 mt-2 relative overflow-hidden"
             >
-              <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+              <span className="btn-shimmer-sweep absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent" />
               <span className="relative inline-flex items-center gap-2">
                 {loading
                   ? <><Loader2 size={16} className="animate-spin" /> Signing in...</>

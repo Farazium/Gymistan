@@ -163,3 +163,17 @@ input:-webkit-autofill:active {
   box-shadow: 0 0 0 1000px rgb(15 23 42) inset;
   transition: background-color 9999s ease-in-out 0s;
 }
+
+/* A light that keeps sweeping across a button — sweeps, then rests, on a loop.
+   The element it's on should be position:relative + overflow:hidden. */
+@keyframes btn-shimmer {
+  0%       { transform: translateX(-160%) skewX(-16deg); }
+  55%      { transform: translateX(160%) skewX(-16deg); }
+  100%     { transform: translateX(160%) skewX(-16deg); }
+}
+.btn-shimmer-sweep {
+  animation: btn-shimmer 2.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn-shimmer-sweep { animation: none; }
+}
