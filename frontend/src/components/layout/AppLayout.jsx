@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Outlet, Navigate, useLocation } from 'react-router-dom'
 import Sidebar from './Sidebar'
+import LiveEntrance from '../LiveEntrance'
 import useAuthStore from '../../store/authStore'
 import { applyTheme, applySurface } from '../../utils/theme'
 
@@ -28,6 +29,8 @@ export default function AppLayout() {
           <Outlet />
         </div>
       </main>
+      {/* Global entrance feed — keeps running (and sounding) across page changes. */}
+      <LiveEntrance />
     </div>
   )
 }

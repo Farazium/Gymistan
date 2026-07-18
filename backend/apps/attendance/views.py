@@ -7,10 +7,12 @@ from rest_framework.permissions import IsAuthenticated
 from apps.accounts.permissions import IsGymMember, HasAttendance
 from apps.members.models import Member
 from apps.trainers.models import Trainer
+from apps.members.serializers import compute_status
 from .models import Attendance, DeviceConfig
 from .serializers import DeviceConfigSerializer
 from .services import record_punch, resolve_person
 from .zk_service import sync_device, pull_device_users
+from .live import get_monitor, _HAS_ZK
 
 
 def _parse_date(s):
@@ -209,6 +211,63 @@ class DeviceSyncView(APIView):
                                 f"({summary['skipped_unknown']} unknown ids)")
         cfg.save()
         return Response({'message': cfg.last_sync_status, 'summary': summary})
+
+
+class DeviceLiveView(APIView):
+    """Real-time entrance feed for the Live screen. Each call keeps the device's
+    live capture alive and returns any punches newer than `after` (a seq number),
+    each resolved to the person and their current status so the UI can play the
+    right sound (ting for active, buzzer for expired)."""
+    permission_classes = [IsAuthenticated, IsGymMember, HasAttendance]
+
+    def get(self, request):
+        gym = request.user.gym
+        cfg, _ = DeviceConfig.objects.get_or_create(gym=gym)
+        if not cfg.ip or not _HAS_ZK:
+            return Response({'enabled': False, 'seq': 0, 'events': [],
+                             'error': None if cfg.ip else 'No device configured'})
+
+        mon = get_monitor(gym.id, cfg.ip, cfg.port, cfg.password)
+        mon.touch()
+        mon.ensure_running()
+
+        # Persist any punches the monitor captured but hasn't written yet, so the
+        # Live feed also keeps the attendance sheet current (record_punch is
+        # idempotent, so a later Sync Now over the same logs won't duplicate).
+        for e in [x for x in mon.events if x['seq'] > mon.recorded_seq]:
+            person = resolve_person(gym, e['device_user_id'])
+            if person:
+                kind, obj = person
+                try:
+                    record_punch(gym, kind, obj, e['dt'])
+                except Exception:
+                    pass
+        mon.recorded_seq = mon.seq
+
+        try:
+            after = int(request.query_params.get('after', 0))
+        except (TypeError, ValueError):
+            after = 0
+
+        events = []
+        for e in [x for x in mon.events if x['seq'] > after]:
+            person = resolve_person(gym, e['device_user_id'])
+            if person is None:
+                events.append({'seq': e['seq'], 'time': e['time'], 'kind': 'unknown',
+                               'name': f"ID {e['device_user_id']}", 'status': 'unknown'})
+                continue
+            kind, obj = person
+            if kind == 'member':
+                status_ = 'expired' if compute_status(obj) == 'EXPIRED' else 'active'
+                expiry = obj.expiry_date.isoformat() if obj.expiry_date else None
+            else:  # trainer — no membership to expire
+                status_ = 'trainer'
+                expiry = None
+            events.append({'seq': e['seq'], 'time': e['time'], 'kind': kind,
+                           'name': obj.name, 'status': status_, 'expiry': expiry})
+
+        return Response({'enabled': True, 'seq': mon.seq, 'events': events,
+                         'error': mon.error})
 
 
 class DeviceUsersView(APIView):

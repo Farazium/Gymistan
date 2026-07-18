@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
-import { Users, Dumbbell, ChevronLeft, ChevronRight, Check, X, Settings, Download, CalendarDays } from 'lucide-react'
+import { Users, Dumbbell, ChevronLeft, ChevronRight, Check, X, Settings, Download, CalendarDays, Radio, RefreshCw } from 'lucide-react'
 import api from '../../api/axios'
 import { exportToExcel } from '../../utils/exportExcel'
+import { initAudio } from '../../utils/entranceSound'
+import useLiveStore from '../../store/liveStore'
 import Modal from '../../components/ui/Modal'
 import DevicePanel from './DevicePanel'
 import toast from 'react-hot-toast'
@@ -56,6 +58,9 @@ export default function Attendance() {
   const [scope, setScope] = useState('daily')
   const [date, setDate] = useState(iso(new Date()))
   const [showDevice, setShowDevice] = useState(false)
+  // Live runs app-wide (see LiveEntrance in AppLayout) so it survives page changes;
+  // this page just toggles it.
+  const { live, setLive } = useLiveStore()
 
   const { data, isLoading } = useQuery({
     queryKey: ['attendance', type, scope, date],
@@ -70,6 +75,16 @@ export default function Attendance() {
     mutationFn: (body) => api.post('/attendance/mark/', body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['attendance'] }),
     onError: () => toast.error('Could not update attendance'),
+  })
+
+  const sync = useMutation({
+    mutationFn: () => api.post('/attendance/device/sync/'),
+    onSuccess: (r) => {
+      toast.success(r.data.message || 'Synced')
+      qc.invalidateQueries({ queryKey: ['attendance'] })
+      qc.invalidateQueries({ queryKey: ['device-config'] })
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Sync failed'),
   })
 
   const stats = data?.stats || {}
@@ -110,6 +125,19 @@ export default function Attendance() {
           <button onClick={exportSheet} disabled={!rows.length}
             className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 disabled:opacity-40 transition" title="Export">
             <Download size={18} />
+          </button>
+          <button onClick={() => sync.mutate()} disabled={sync.isPending}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 disabled:opacity-40 transition text-sm"
+            title="Pull the latest punches from the device now">
+            <RefreshCw size={16} className={sync.isPending ? 'animate-spin' : ''} /> {sync.isPending ? 'Syncing…' : 'Sync'}
+          </button>
+          <button onClick={() => { const nv = !live; if (nv) initAudio(); setLive(nv) }}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition text-sm ${
+              live
+                ? 'bg-green-500/20 text-green-300 border-green-400/40 hover:bg-green-500/30'
+                : 'bg-primary-500/20 text-primary-300 border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500'}`}
+            title="Play a sound on each entrance scan — ting for active, buzzer for expired">
+            <Radio size={16} className={live ? 'animate-pulse' : ''} /> {live ? 'Live · On' : 'Live'}
           </button>
           <button onClick={() => setShowDevice(true)}
             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 transition text-sm">
