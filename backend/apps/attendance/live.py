@@ -42,6 +42,8 @@ class _Monitor:
         self.running = False
         self.error = None
         self._thread = None
+        self._conn = None
+        self._stop = False
 
     def touch(self):
         self.last_poll = time.time()
@@ -52,8 +54,19 @@ class _Monitor:
                 return
             self.running = True
             self.error = None
+            self._stop = False
             self._thread = threading.Thread(target=self._run, daemon=True)
             self._thread.start()
+
+    def stop(self):
+        """Ask the capture loop to break and release the device connection —
+        used so a fingerprint enrollment can take the device over."""
+        self._stop = True
+        try:
+            if self._conn:
+                self._conn.end_live_capture = True
+        except Exception:
+            pass
 
     def _run(self):
         conn = None
@@ -61,8 +74,9 @@ class _Monitor:
             zk = ZK(self.ip, port=self.port, password=self.password,
                     timeout=5, ommit_ping=False)
             conn = zk.connect()
+            self._conn = conn
             for att in conn.live_capture(new_timeout=CAPTURE_TIMEOUT):
-                if time.time() - self.last_poll > IDLE_STOP_SECONDS:
+                if self._stop or time.time() - self.last_poll > IDLE_STOP_SECONDS:
                     conn.end_live_capture = True
                     break
                 if att is None:  # capture timed out with no punch — just re-check idle
@@ -83,6 +97,7 @@ class _Monitor:
                     conn.disconnect()
                 except Exception:
                     pass
+            self._conn = None
             self.running = False
 
 
@@ -95,3 +110,22 @@ def get_monitor(gym_id, ip, port, password):
             mon = _Monitor(gym_id, ip, port, password)
             _monitors[gym_id] = mon
         return mon
+
+
+def stop_monitor(gym_id):
+    """Stop a gym's live monitor if one is running, freeing the device."""
+    mon = _monitors.get(gym_id)
+    if mon:
+        mon.stop()
+
+
+def current_seq(gym_id):
+    """The monitor's current punch counter without starting it (0 if none)."""
+    mon = _monitors.get(gym_id)
+    return mon.seq if mon else 0
+
+
+def monitor_running(gym_id):
+    """True if a live monitor is currently holding the device connection."""
+    mon = _monitors.get(gym_id)
+    return bool(mon and mon.running)

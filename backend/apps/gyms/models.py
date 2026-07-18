@@ -15,6 +15,9 @@ class Tier(models.TextChoices):
 # Tiers that include WhatsApp messaging. Mirrored by the frontend tier checks.
 WA_TIERS = (Tier.TIER2_WA, Tier.TIER3)
 
+# Tiers that include biometric attendance. Mirrors HasAttendance.ATTENDANCE_TIERS.
+AT_TIERS = (Tier.TIER2_AT, Tier.TIER3)
+
 
 class ThemeColor(models.TextChoices):
     ROSE    = 'rose',    'Rose'

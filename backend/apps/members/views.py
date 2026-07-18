@@ -14,7 +14,7 @@ from apps.payments.models import Payment
 from apps.payments.utils import (
     send_whatsapp_welcome, send_whatsapp_expiry_reminder, OUT_OF_CREDITS,
 )
-from apps.gyms.models import WA_TIERS
+from apps.gyms.models import WA_TIERS, AT_TIERS
 import calendar
 import datetime
 
@@ -63,6 +63,24 @@ def _maybe_send_welcome(request, member, welcome_back=False, admission_payment=N
     if sent and admission_payment:
         admission_payment.slip_sent = True
         admission_payment.save(update_fields=['slip_sent'])
+
+
+def _maybe_add_to_device(request, member):
+    """Push a newly-added member onto the biometric device when the form asks for
+    it and the plan includes attendance. Best-effort: a device that's offline or
+    unset never blocks adding the member."""
+    if not _truthy(request.data.get('add_to_device')):
+        return
+    if member.gym.tier not in AT_TIERS:
+        return
+    from apps.attendance.models import DeviceConfig
+    from apps.attendance.device_actions import push_member
+    try:
+        cfg = DeviceConfig.objects.filter(gym=member.gym).first()
+        if cfg and cfg.ip:
+            push_member(cfg, member)
+    except Exception:
+        pass
 
 
 class MemberNextIdView(APIView):
@@ -140,6 +158,7 @@ class MemberListCreateView(generics.ListCreateAPIView):
         admission = _create_admission_payment(self.request, member)
         _maybe_send_welcome(self.request, member, welcome_back=False,
                             admission_payment=admission)
+        _maybe_add_to_device(self.request, member)
 
 
 class MemberDetailView(generics.RetrieveUpdateDestroyAPIView):

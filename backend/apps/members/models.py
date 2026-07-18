@@ -36,6 +36,9 @@ class Member(models.Model):
     blacklisted_at = models.DateTimeField(null=True, blank=True)
     # Maps this member to their user id on the ZKTeco biometric device.
     device_user_id = models.CharField(max_length=32, blank=True)
+    # Whether a fingerprint has been enrolled for them via the app (mirrors the
+    # app's own enroll/remove actions; drives the Fingerprint panel's status).
+    has_fingerprint = models.BooleanField(default=False)
     # Expiry-date value we last sent a WhatsApp renewal reminder for, so a member is
     # reminded only once per membership cycle (reset naturally when expiry changes).
     reminder_sent_for = models.DateField(null=True, blank=True)

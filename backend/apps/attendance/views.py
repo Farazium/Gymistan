@@ -1,4 +1,5 @@
 import datetime
+import time
 from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -11,8 +12,11 @@ from apps.members.serializers import compute_status
 from .models import Attendance, DeviceConfig
 from .serializers import DeviceConfigSerializer
 from .services import record_punch, resolve_person
-from .zk_service import sync_device, pull_device_users
-from .live import get_monitor, _HAS_ZK
+from .zk_service import (sync_device, pull_device_users, push_users,
+                         delete_fingerprint, device_has_fingerprint)
+from .live import get_monitor, current_seq, stop_monitor, monitor_running, _HAS_ZK
+from .enroll import start_enroll, enroll_status
+from .device_actions import ensure_member_id
 
 
 def _parse_date(s):
@@ -213,6 +217,139 @@ class DeviceSyncView(APIView):
         return Response({'message': cfg.last_sync_status, 'summary': summary})
 
 
+class DevicePushView(APIView):
+    """Push members onto the device from the app so no one types names/ids on the
+    keypad. Members without a device id get the smallest free numeric one first
+    (kept unique across members and trainers so device ids never collide). The
+    person then only places a finger on the sensor to enroll — no typing."""
+    permission_classes = [IsAuthenticated, IsGymMember, HasAttendance]
+
+    def post(self, request):
+        gym = request.user.gym
+        cfg, _ = DeviceConfig.objects.get_or_create(gym=gym)
+        if not cfg.ip:
+            return Response({'message': 'No device IP configured'}, status=status.HTTP_400_BAD_REQUEST)
+
+        members = list(Member.objects.filter(gym=gym, is_deleted=False).order_by('name'))
+
+        used = set()
+        for m in members:
+            if m.device_user_id and m.device_user_id.isdigit():
+                used.add(int(m.device_user_id))
+        for t in Trainer.objects.filter(gym=gym):
+            if t.device_user_id and t.device_user_id.isdigit():
+                used.add(int(t.device_user_id))
+
+        nxt = 1
+        assigned = 0
+        for m in members:
+            if not m.device_user_id:
+                while nxt in used:
+                    nxt += 1
+                m.device_user_id = str(nxt)
+                used.add(nxt)
+                m.save(update_fields=['device_user_id'])
+                assigned += 1
+
+        people = [(m.device_user_id, m.name) for m in members if m.device_user_id]
+        if not people:
+            return Response({'message': 'No members to push'})
+        try:
+            pushed, errors = push_users(cfg.ip, cfg.port, cfg.password, people)
+        except Exception as e:
+            return Response({'message': f'Failed: {e}'}, status=status.HTTP_502_BAD_GATEWAY)
+
+        msg = f'Pushed {pushed} members to the device'
+        if assigned:
+            msg += f' — {assigned} got a new device ID'
+        return Response({'message': msg, 'pushed': pushed, 'assigned': assigned,
+                         'errors': errors[:10]})
+
+
+class DeviceFingerprintStatusView(APIView):
+    """Whether a member actually has a fingerprint on the device right now. Reads
+    the device (the DB flag alone can drift), and reconciles the flag while here."""
+    permission_classes = [IsAuthenticated, IsGymMember, HasAttendance]
+
+    def get(self, request):
+        gym = request.user.gym
+        cfg, _ = DeviceConfig.objects.get_or_create(gym=gym)
+        member = Member.objects.filter(gym=gym, pk=request.query_params.get('member_id'),
+                                       is_deleted=False).first()
+        if not member:
+            return Response({'message': 'Member not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Can't ask the device — fall back to what we last recorded.
+        if not member.device_user_id or not cfg.ip or not _HAS_ZK:
+            return Response({'enrolled': bool(member.has_fingerprint), 'checked': False})
+
+        if monitor_running(gym.id):
+            stop_monitor(gym.id)
+            time.sleep(3.5)
+        try:
+            enrolled = device_has_fingerprint(cfg.ip, cfg.port, cfg.password, member.device_user_id)
+        except Exception:
+            return Response({'enrolled': bool(member.has_fingerprint), 'checked': False})
+
+        if enrolled != member.has_fingerprint:
+            member.has_fingerprint = enrolled
+            member.save(update_fields=['has_fingerprint'])
+        return Response({'enrolled': enrolled, 'checked': True})
+
+
+class DeviceEnrollView(APIView):
+    """Start a remote fingerprint enrollment for a member (POST), or poll the
+    running job's state (GET). The member is added to the device first if needed,
+    then the device prompts them to place their finger — no keypad, no menus."""
+    permission_classes = [IsAuthenticated, IsGymMember, HasAttendance]
+
+    def post(self, request):
+        gym = request.user.gym
+        cfg, _ = DeviceConfig.objects.get_or_create(gym=gym)
+        if not cfg.ip:
+            return Response({'message': 'No device IP configured'}, status=status.HTTP_400_BAD_REQUEST)
+        member = Member.objects.filter(gym=gym, pk=request.data.get('member_id'),
+                                       is_deleted=False).first()
+        if not member:
+            return Response({'message': 'Member not found'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            finger = int(request.data.get('finger') or 0)
+        except (TypeError, ValueError):
+            finger = 0
+
+        uid = ensure_member_id(member)
+        started, detail = start_enroll(gym.id, cfg.ip, cfg.port, cfg.password,
+                                       uid, member.name, finger, member_id=member.id)
+        if not started:
+            return Response({'message': detail, 'started': False}, status=status.HTTP_409_CONFLICT)
+        return Response({'message': 'Ask the member to place their finger on the sensor',
+                         'started': True, 'device_user_id': uid})
+
+    def get(self, request):
+        return Response(enroll_status(request.user.gym.id))
+
+    def delete(self, request):
+        """Remove a member's fingerprint from the device."""
+        gym = request.user.gym
+        cfg, _ = DeviceConfig.objects.get_or_create(gym=gym)
+        if not cfg.ip:
+            return Response({'message': 'No device IP configured'}, status=status.HTTP_400_BAD_REQUEST)
+        mid = request.data.get('member_id') or request.query_params.get('member_id')
+        member = Member.objects.filter(gym=gym, pk=mid, is_deleted=False).first()
+        if not member or not member.device_user_id:
+            return Response({'message': 'Member is not on the device'}, status=status.HTTP_404_NOT_FOUND)
+        # Free the device from the live monitor before we touch it.
+        stop_monitor(gym.id)
+        time.sleep(3.5)
+        try:
+            delete_fingerprint(cfg.ip, cfg.port, cfg.password, member.device_user_id, finger=0)
+        except Exception as e:
+            return Response({'message': f'Failed: {e}'}, status=status.HTTP_502_BAD_GATEWAY)
+        member.has_fingerprint = False
+        member.save(update_fields=['has_fingerprint'])
+        return Response({'message': 'Fingerprint removed', 'removed': True})
+
+
 class DeviceLiveView(APIView):
     """Real-time entrance feed for the Live screen. Each call keeps the device's
     live capture alive and returns any punches newer than `after` (a seq number),
@@ -226,6 +363,12 @@ class DeviceLiveView(APIView):
         if not cfg.ip or not _HAS_ZK:
             return Response({'enabled': False, 'seq': 0, 'events': [],
                              'error': None if cfg.ip else 'No device configured'})
+
+        # A fingerprint enrollment is using the device — don't grab it back, or
+        # we'd break the enrollment and log its scans as attendance.
+        if enroll_status(gym.id).get('state') == 'running':
+            return Response({'enabled': True, 'seq': current_seq(gym.id), 'events': [],
+                             'error': None, 'busy': 'enrolling'})
 
         mon = get_monitor(gym.id, cfg.ip, cfg.port, cfg.password)
         mon.touch()

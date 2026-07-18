@@ -59,6 +59,91 @@ def pull_device_users(ip, port=4370, timeout=10, password=0):
                 pass
 
 
+def push_users(ip, port, password, people, timeout=20):
+    """Create/update users on the device from the PC, so nobody has to type names
+    or ids on the keypad. `people` is a list of (user_id, name). Fingerprints are
+    NOT set here — those must still be scanned on the sensor (or a card tapped).
+    Returns (pushed_count, errors[])."""
+    if not _HAS_ZK:
+        raise RuntimeError('pyzk is not installed. Run: pip install pyzk')
+
+    zk = ZK(ip, port=port, password=password, timeout=timeout, ommit_ping=False)
+    conn = None
+    pushed = 0
+    errors = []
+    try:
+        conn = zk.connect()
+        conn.disable_device()  # freeze while we write, then re-enable
+        for user_id, name in people:
+            sid = str(user_id)
+            if not sid.isdigit():
+                errors.append(f'{sid}: skipped (device id must be numeric)')
+                continue
+            if int(sid) > 65535:
+                # The device stores its internal slot as a 16-bit number.
+                errors.append(f'{sid}: skipped (device id must be 65535 or less)')
+                continue
+            try:
+                # The device's internal uid mirrors the user id we track, so a
+                # re-push updates the same record (and keeps any fingerprint).
+                conn.set_user(uid=int(sid), user_id=sid, name=(name or '')[:24], privilege=0)
+                pushed += 1
+            except Exception as e:
+                errors.append(f'{sid}: {e}')
+    finally:
+        if conn:
+            try:
+                conn.enable_device()
+            except Exception:
+                pass
+            try:
+                conn.disconnect()
+            except Exception:
+                pass
+    return pushed, errors
+
+
+def device_has_fingerprint(ip, port, password, uid, timeout=10):
+    """True if the device holds any fingerprint template for this user (any
+    finger). One `get_templates` call rather than probing each finger."""
+    if not _HAS_ZK:
+        raise RuntimeError('pyzk is not installed. Run: pip install pyzk')
+    zk = ZK(ip, port=port, password=password, timeout=timeout, ommit_ping=False)
+    conn = None
+    try:
+        conn = zk.connect()
+        uid = int(uid)
+        for t in (conn.get_templates() or []):
+            if t.uid == uid and getattr(t, 'size', 0) and getattr(t, 'valid', 1):
+                return True
+        return False
+    finally:
+        if conn:
+            try:
+                conn.disconnect()
+            except Exception:
+                pass
+
+
+def delete_fingerprint(ip, port, password, uid, finger=0, timeout=10):
+    """Remove a user's fingerprint template from the device. Returns True on
+    success. The user record (name/id) is left in place."""
+    if not _HAS_ZK:
+        raise RuntimeError('pyzk is not installed. Run: pip install pyzk')
+    zk = ZK(ip, port=port, password=password, timeout=timeout, ommit_ping=False)
+    conn = None
+    try:
+        conn = zk.connect()
+        conn.delete_user_template(uid=int(uid), temp_id=finger)
+        return True
+    finally:
+        if conn:
+            try:
+                conn.disconnect()
+            except Exception:
+                pass
+
+
 def sync_device(gym, ip, port=4370, timeout=10, password=0, since=None):
     """Pull punches from a device and record them for `gym`, applying only those
     newer than `since` (incremental). Returns a summary dict with `latest` watermark."""

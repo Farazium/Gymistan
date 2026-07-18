@@ -1,12 +1,13 @@
 import { useRef, useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, MoreVertical, Eye, ImageUp, Trash2, Phone, User, Package, Calendar, MapPin, FileText, Ban } from 'lucide-react'
+import { ArrowLeft, MoreVertical, Eye, ImageUp, Trash2, Phone, User, Package, Calendar, MapPin, FileText, Ban, Fingerprint } from 'lucide-react'
 import api from '../../api/axios'
 import toast from 'react-hot-toast'
 import useAuthStore from '../../store/authStore'
 import AttendanceCalendar from '../../components/ui/AttendanceCalendar'
 import Modal from '../../components/ui/Modal'
+import EnrollModal from '../../components/EnrollModal'
 import PhotoViewer from '../../components/ui/PhotoViewer'
 import PhotoCropper from '../../components/ui/PhotoCropper'
 import { apiErrorMessage } from '../../utils/apiError'
@@ -128,6 +129,7 @@ export default function MemberProfile() {
   const [viewPhoto, setViewPhoto] = useState(false)
   const [cropFile, setCropFile] = useState(null)
   const [showBlacklist, setShowBlacklist] = useState(false)
+  const [showEnroll, setShowEnroll] = useState(false)
 
   const blacklistMutation = useMutation({
     mutationFn: (body) => api.post(`/members/${id}/blacklist/`, body),
@@ -270,6 +272,15 @@ export default function MemberProfile() {
                 {member.expiry_date ? new Date(member.expiry_date).toLocaleDateString('en-PK') : '—'}
               </p>
             </div>
+            {hasAttendance && (
+              <button
+                onClick={() => setShowEnroll(true)}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-500/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 hover:shadow-lg hover:shadow-primary-500/20 transition-all"
+                title="Enroll this member's fingerprint on the device"
+              >
+                <Fingerprint size={14} /> Fingerprint
+              </button>
+            )}
             {!member.blacklist_active && (
               <button
                 onClick={() => setShowBlacklist(true)}
@@ -340,6 +351,8 @@ export default function MemberProfile() {
       <Modal isOpen={showBlacklist} onClose={() => setShowBlacklist(false)} title={`Blacklist ${member.name}`}>
         <BlacklistForm onSubmit={(body) => blacklistMutation.mutate(body)} isPending={blacklistMutation.isPending} />
       </Modal>
+
+      {showEnroll && <EnrollModal member={member} isOpen onClose={() => setShowEnroll(false)} />}
 
       {viewPhoto && photoUrl && <PhotoViewer src={photoUrl} alt={member.name} onClose={() => setViewPhoto(false)} />}
       {cropFile && (

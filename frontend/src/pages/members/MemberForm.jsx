@@ -1,10 +1,12 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useQuery, useMutation } from '@tanstack/react-query'
+import { Fingerprint } from 'lucide-react'
 import api from '../../api/axios'
 import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
 import { useWaCredits } from '../../utils/waCredits'
+import EnrollModal from '../../components/EnrollModal'
 
 function calcExpiryISO(isoDate, status, pkgMonths) {
   if (!isoDate || isoDate.length < 10) return ''
@@ -50,6 +52,7 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
     defaultValues: member ? { ...member } : { member_id: defaultMemberId || '', status: 'EXPIRED', join_date: todayISO },
   })
 
+  const [enrollTarget, setEnrollTarget] = useState(null)
   const joinDate = watch('join_date')
   const selectedPkgId = watch('package')
   const status = watch('status')
@@ -92,9 +95,15 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
         ? api.patch(`/members/${member.id}/`, body)
         : api.post('/members/', body)
     },
-    onSuccess: () => {
+    onSuccess: (res, variables) => {
       toast.success(member ? 'Member updated' : 'Member added')
-      onSuccess()
+      // Just added, box ticked, plan has attendance: they've been pushed to the
+      // device — offer to enroll the fingerprint right away.
+      if (!member && hasAttendance && variables?.add_to_device && res?.data?.id) {
+        setEnrollTarget(res.data)
+      } else {
+        onSuccess()
+      }
     },
     onError: (err) => {
       const data = err.response?.data
@@ -126,6 +135,7 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
   })
 
   return (
+    <>
     <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -277,7 +287,18 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
         {hasAttendance && (
           <div>
             <label className="label">Device ID <span className="text-gray-400 text-xs">(biometric)</span></label>
-            <input className="input" placeholder="ZKTeco user id" {...register('device_user_id')} />
+            <input className="input" placeholder="Auto if left blank" {...register('device_user_id')} />
+          </div>
+        )}
+
+        {!member && hasAttendance && (
+          <div className="col-span-2">
+            <label className="flex items-center gap-2 select-none cursor-pointer">
+              <input type="checkbox" className="w-4 h-4 accent-green-500" {...register('add_to_device')} />
+              <span className="text-sm text-gray-300 flex items-center gap-1.5">
+                <Fingerprint size={14} className="text-primary-400" /> Add to device &amp; enroll fingerprint
+              </span>
+            </label>
           </div>
         )}
 
@@ -315,5 +336,14 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
         </button>
       </div>
     </form>
+    {enrollTarget && (
+      <EnrollModal
+        member={enrollTarget}
+        isOpen={!!enrollTarget}
+        autoStart
+        onClose={() => { setEnrollTarget(null); onSuccess() }}
+      />
+    )}
+    </>
   )
 }

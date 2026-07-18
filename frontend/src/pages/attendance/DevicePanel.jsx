@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { RefreshCw, Wifi, Users, Check } from 'lucide-react'
+import { RefreshCw, Wifi, Users, Check, UserPlus, Search } from 'lucide-react'
 import api from '../../api/axios'
 import toast from 'react-hot-toast'
 
@@ -51,6 +51,24 @@ export default function DevicePanel() {
     mutationFn: () => api.post('/attendance/device/sync/'),
     onSuccess: (r) => { toast.success(r.data.message || 'Synced'); qc.invalidateQueries({ queryKey: ['device-config'] }); qc.invalidateQueries({ queryKey: ['attendance'] }) },
     onError: (e) => toast.error(e.response?.data?.message || 'Sync failed'),
+  })
+
+  const { data: allMembers = [] } = useQuery({
+    queryKey: ['members-for-map'],
+    queryFn: async () => (await api.get('/members/')).data?.results || (await api.get('/members/')).data || [],
+  })
+  const unpushed = allMembers.filter((m) => !m.device_user_id).length
+  const allPushed = allMembers.length > 0 && unpushed === 0
+
+  const push = useMutation({
+    mutationFn: () => api.post('/attendance/device/push/'),
+    onSuccess: (r) => {
+      toast.success(r.data.message || 'Pushed to device')
+      qc.invalidateQueries({ queryKey: ['members'] })
+      qc.invalidateQueries({ queryKey: ['members-for-map'] })
+      qc.invalidateQueries({ queryKey: ['device-users'] })
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Push failed'),
   })
 
   if (!cfg || !form) return <div className="py-8 text-center text-gray-400">Loading…</div>
@@ -105,6 +123,25 @@ export default function DevicePanel() {
         {!cfg.ip && <p className="text-xs text-gray-500">Set the device IP above to enable syncing.</p>}
       </div>
 
+      {/* Push members to device */}
+      <div className="border-t border-gray-700/60 pt-4 space-y-3">
+        <h3 className="text-sm font-semibold text-gray-200 flex items-center gap-2"><UserPlus size={15} /> Add members to device</h3>
+        <p className="text-xs text-gray-500">
+          Push every member’s name and ID onto the device from here — no typing on the keypad.
+          Members without a device ID get one automatically. Each person then just places their
+          finger on the sensor once to enroll (or taps their card).
+        </p>
+        <button onClick={() => push.mutate()} disabled={push.isPending || !cfg.ip || allPushed}
+          className="btn-primary"
+          title={!cfg.ip ? 'Set an IP first' : allPushed ? 'All members are already on the device' : ''}>
+          <UserPlus size={15} className={push.isPending ? 'animate-pulse' : ''} />
+          {push.isPending ? 'Pushing…' : allPushed ? 'All members on device' : 'Push members to device'}
+        </button>
+        {allPushed && (
+          <p className="text-xs text-green-400 flex items-center gap-1.5"><Check size={13} /> All members are on the device.</p>
+        )}
+      </div>
+
       {/* Enrollment mapping */}
       <div className="border-t border-gray-700/60 pt-4 space-y-3">
         <div className="flex items-center justify-between">
@@ -126,6 +163,7 @@ export default function DevicePanel() {
 
 function DeviceUsers() {
   const qc = useQueryClient()
+  const [q, setQ] = useState('')
   const { data, isLoading, error } = useQuery({
     queryKey: ['device-users'],
     queryFn: async () => (await api.get('/attendance/device/users/')).data,
@@ -146,10 +184,25 @@ function DeviceUsers() {
   if (error) return <p className="text-sm text-red-400 py-2">{error.response?.data?.message || 'Could not read device'}</p>
 
   const unmapped = members.filter((m) => !m.device_user_id)
+  const allUsers = data?.users || []
+  const term = q.trim().toLowerCase()
+  const users = term
+    ? allUsers.filter((u) => (u.name || '').toLowerCase().includes(term) || String(u.user_id).includes(term))
+    : allUsers
 
   return (
-    <div className="mt-2 max-h-72 overflow-y-auto rounded-lg border border-gray-700/60 divide-y divide-gray-700/50">
-      {(data?.users || []).map((u) => (
+    <div className="mt-2 space-y-2">
+      <div className="relative">
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={`Search ${allUsers.length} device users…`}
+          className="input pl-9 py-1.5 text-sm"
+        />
+      </div>
+      <div className="max-h-72 overflow-y-auto rounded-lg border border-gray-700/60 divide-y divide-gray-700/50">
+        {users.map((u) => (
         <div key={u.user_id} className="flex items-center gap-3 px-3 py-2 text-sm">
           <span className="w-14 text-gray-400">#{u.user_id}</span>
           <span className="flex-1 text-gray-200 truncate">{u.name || <span className="text-gray-500">—</span>}</span>
@@ -166,8 +219,10 @@ function DeviceUsers() {
             </select>
           )}
         </div>
-      ))}
-      {!(data?.users || []).length && <p className="text-sm text-gray-400 px-3 py-3">No users on the device.</p>}
+        ))}
+        {!allUsers.length && <p className="text-sm text-gray-400 px-3 py-3">No users on the device.</p>}
+        {!!allUsers.length && !users.length && <p className="text-sm text-gray-400 px-3 py-3">No match for “{q}”.</p>}
+      </div>
     </div>
   )
 }
