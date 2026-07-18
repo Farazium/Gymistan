@@ -3,9 +3,23 @@
 Used by both the ZKTeco device sync and the dummy seeder, so the "first punch is
 check-in, last punch is check-out" rule lives in exactly one place.
 """
+from django.utils import timezone
+
 from apps.members.models import Member
 from apps.trainers.models import Trainer
 from .models import Attendance
+
+
+def _naive_local(dt):
+    """ZKTeco punches carry naive local wall-clock time (e.g. 00:35 means 00:35 at
+    the gym). The `since` watermark comes back from the DB timezone-aware, so
+    coerce any aware value to naive local before we compare it against a punch —
+    otherwise Python raises "can't compare offset-naive and offset-aware
+    datetimes". Keeping everything naive-local also means .date()/.time() land on
+    the right calendar day and time."""
+    if dt is not None and timezone.is_aware(dt):
+        return timezone.localtime(dt).replace(tzinfo=None)
+    return dt
 
 
 def resolve_person(gym, device_user_id):
@@ -47,8 +61,10 @@ def record_punches(gym, punches, source=Attendance.Source.DEVICE, since=None):
     If `since` is given, only punches newer than it are applied (incremental sync).
     Returns a summary dict including the newest punch datetime seen (`latest`)."""
     applied = skipped = created = old = 0
+    since = _naive_local(since)
     latest = since
     for device_user_id, dt in punches:
+        dt = _naive_local(dt)
         if since is not None and dt <= since:
             old += 1
             continue
