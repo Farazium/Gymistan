@@ -74,11 +74,26 @@ def _maybe_add_to_device(request, member):
     if member.gym.tier not in AT_TIERS:
         return
     from apps.attendance.models import DeviceConfig
-    from apps.attendance.device_actions import push_member
+    from apps.attendance.device_actions import push_person
     try:
         cfg = DeviceConfig.objects.filter(gym=member.gym).first()
         if cfg and cfg.ip:
-            push_member(cfg, member)
+            push_person(cfg, member)
+    except Exception:
+        pass
+
+
+def _repush_to_device(member):
+    """After a restore, re-create the member's record on the device (soft delete
+    removed it). Best-effort; the fingerprint still needs re-enrolling."""
+    if member.gym.tier not in AT_TIERS or not member.device_user_id:
+        return
+    from apps.attendance.models import DeviceConfig
+    from apps.attendance.device_actions import push_person
+    try:
+        cfg = DeviceConfig.objects.filter(gym=member.gym).first()
+        if cfg and cfg.ip:
+            push_person(cfg, member)
     except Exception:
         pass
 
@@ -171,9 +186,15 @@ class MemberDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Member.objects.filter(gym=self.request.user.gym)
 
     def perform_destroy(self, instance):
+        # Removed from the roster → also drop them off the device so they can't
+        # punch in. Their device id is kept (restore re-pushes them), but the
+        # fingerprint is gone and must be re-enrolled on restore.
+        from apps.attendance.device_actions import remove_person_from_device
+        remove_person_from_device(instance)
         instance.is_deleted = True
         instance.deleted_at = timezone.now()
-        instance.save(update_fields=['is_deleted', 'deleted_at'])
+        instance.has_fingerprint = False
+        instance.save(update_fields=['is_deleted', 'deleted_at', 'has_fingerprint'])
 
 
 class DeletedMembersView(APIView):
@@ -212,9 +233,20 @@ class RestoreMemberView(APIView):
                 member.package = Package.objects.get(pk=request.data['package'], gym=request.user.gym)
             except Package.DoesNotExist:
                 pass
+        if 'trainer' in request.data:
+            tid = request.data.get('trainer')
+            if tid:
+                from apps.trainers.models import Trainer
+                try:
+                    member.trainer = Trainer.objects.get(pk=tid, gym=request.user.gym)
+                except Trainer.DoesNotExist:
+                    pass
+            else:
+                member.trainer = None
         if request.data.get('expiry_date'):
             member.expiry_date = request.data['expiry_date']
         member.save()
+        _repush_to_device(member)
         admission = _create_admission_payment(request, member, rejoin=True)
         _maybe_send_welcome(request, member, welcome_back=True,
                             admission_payment=admission)
@@ -229,6 +261,9 @@ class HardDeleteMemberView(APIView):
             member = Member.objects.get(pk=pk, gym=request.user.gym, is_deleted=True)
         except Member.DoesNotExist:
             return Response({'detail': 'Not found'}, status=404)
+        # Permanent delete → also drop them off the biometric device.
+        from apps.attendance.device_actions import remove_person_from_device
+        remove_person_from_device(member)
         member.delete()
         return Response(status=204)
 

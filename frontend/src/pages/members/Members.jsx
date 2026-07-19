@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
-import { Search, UserPlus, Download, ChevronUp, ChevronDown, Trash2, RotateCcw, Pencil, MoreVertical, Ban } from 'lucide-react'
+import { Search, UserPlus, Download, ChevronUp, ChevronDown, Trash2, RotateCcw, Pencil, MoreVertical, Ban, Fingerprint } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../api/axios'
 import useAuthStore from '../../store/authStore'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
 import Modal from '../../components/ui/Modal'
+import EnrollModal from '../../components/EnrollModal'
 import MemberForm from './MemberForm'
 import toast from 'react-hot-toast'
 import { exportToExcel } from '../../utils/exportExcel'
@@ -41,15 +42,17 @@ function calcExpiryISO(isoDate, status, pkgMonths) {
 function RestoreForm({ member, onSubmit, isPending }) {
   const { user } = useAuthStore()
   const hasWhatsApp = ['TIER2_WA', 'TIER3'].includes(user?.gym_tier)
+  const hasAttendance = ['TIER2_AT', 'TIER3'].includes(user?.gym_tier)
   const outOfCredits = !!useWaCredits(hasWhatsApp)?.exhausted
   const today = new Date()
   const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
 
-  const { register, handleSubmit, watch, formState: { errors } } = useForm({
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm({
     defaultValues: {
       join_date: member.join_date || todayStr,
       status: 'EXPIRED',
       package: member.package || '',
+      trainer: member.trainer || '',
     }
   })
 
@@ -57,14 +60,24 @@ function RestoreForm({ member, onSubmit, isPending }) {
     queryKey: ['packages'],
     queryFn: async () => { const { data } = await api.get('/packages/'); return data?.results || data || [] },
   })
+  const { data: trainers = [] } = useQuery({
+    queryKey: ['trainers-active'],
+    queryFn: async () => { const { data } = await api.get('/trainers/', { params: { is_active: 'true' } }); return data?.results || data || [] },
+  })
 
   const joinDate = watch('join_date')
   const status = watch('status')
   const selectedPkgId = watch('package')
   const selectedPkg = packages.find(p => String(p.id) === String(selectedPkgId))
   const pkgMonths = selectedPkg ? selectedPkg.duration_months : null
+  const trainerAllowed = !!selectedPkg?.has_trainer
   const expiryISO = calcExpiryISO(joinDate, status, pkgMonths)
   const expiryDisplay = expiryISO ? new Date(expiryISO + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''
+
+  // Trainer only on trainer packages; clear it otherwise.
+  useEffect(() => {
+    if (!trainerAllowed) setValue('trainer', '')
+  }, [trainerAllowed, setValue])
 
   const onFormSubmit = (data) => {
     const pkg = packages.find(p => String(p.id) === String(data.package))
@@ -72,9 +85,11 @@ function RestoreForm({ member, onSubmit, isPending }) {
     onSubmit({
       join_date: data.join_date,
       package: data.package,
+      trainer: data.trainer || '',
       expiry_date: calcExpiryISO(data.join_date, data.status, months),
       admission_fee: data.admission_fee || null,
       send_welcome: !!data.send_welcome,
+      add_to_device: !!data.add_to_device,
     })
   }
 
@@ -111,6 +126,24 @@ function RestoreForm({ member, onSubmit, isPending }) {
           {errors.package && <p className="text-red-500 text-xs mt-1">{errors.package.message}</p>}
         </div>
         <div className="col-span-2">
+          <label className="label">
+            Trainer {trainerAllowed ? '*' : <span className="text-gray-400 text-xs">(select a trainer package)</span>}
+          </label>
+          <select
+            className={`input ${!trainerAllowed ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={!trainerAllowed}
+            {...register('trainer', {
+              validate: (v) => !trainerAllowed || !!v || 'This package includes a trainer — please select one',
+            })}
+          >
+            <option value="">{trainerAllowed ? 'Select trainer' : 'No trainer'}</option>
+            {trainers.map((t) => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+          {errors.trainer && <p className="text-red-500 text-xs mt-1">{errors.trainer.message}</p>}
+        </div>
+        <div className="col-span-2">
           <label className="label">Admission Fee (PKR) <span className="text-gray-400 text-xs">(optional)</span></label>
           <input
             className="input [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
@@ -134,6 +167,16 @@ function RestoreForm({ member, onSubmit, isPending }) {
                 {outOfCredits
                   ? 'Out of WhatsApp messages — top up to send a welcome'
                   : 'Send welcome-back message on WhatsApp'}
+              </span>
+            </label>
+          </div>
+        )}
+        {hasAttendance && (
+          <div className="col-span-2">
+            <label className="flex items-center gap-2 select-none cursor-pointer">
+              <input type="checkbox" className="w-4 h-4 accent-green-500" {...register('add_to_device')} />
+              <span className="text-sm text-gray-300 flex items-center gap-1.5">
+                <Fingerprint size={14} className="text-primary-400" /> Add to device &amp; enroll fingerprint
               </span>
             </label>
           </div>
@@ -228,17 +271,21 @@ export default function Members() {
   const [deletedSearch, setDeletedSearch] = useState('')
   const [deletedSearchBy, setDeletedSearchBy] = useState('name')
   const [restoreMember, setRestoreMember] = useState(null)
+  const [enrollAfterRestore, setEnrollAfterRestore] = useState(null)
 
   const restoreMutation = useMutation({
     mutationFn: ({ id, ...body }) => api.post(`/members/${id}/restore/`, body),
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries(['members'])
       queryClient.invalidateQueries(['members-deleted'])
       queryClient.invalidateQueries(['members-blacklisted'])
       queryClient.invalidateQueries(['member-next-id'])
       invalidateFinance(queryClient) // admission fee may create a payment
+      const restored = restoreMember
       setRestoreMember(null)
       toast.success('Member restored')
+      // Enroll the fingerprint right away if they asked for it on restore.
+      if (variables?.add_to_device && restored) setEnrollAfterRestore(restored)
     },
     onError: (err) => toast.error(apiErrorMessage(err, 'Failed to restore member')),
   })
@@ -593,6 +640,15 @@ export default function Members() {
           />
         )}
       </Modal>
+
+      {enrollAfterRestore && (
+        <EnrollModal
+          member={enrollAfterRestore}
+          isOpen
+          autoStart
+          onClose={() => setEnrollAfterRestore(null)}
+        />
+      )}
 
       <Modal
         isOpen={showModal}

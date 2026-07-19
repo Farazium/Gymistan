@@ -15,8 +15,8 @@ from .services import record_punch, resolve_person
 from .zk_service import (sync_device, pull_device_users, push_users,
                          delete_fingerprint, device_has_fingerprint)
 from .live import get_monitor, current_seq, stop_monitor, monitor_running, _HAS_ZK
-from .enroll import start_enroll, enroll_status
-from .device_actions import ensure_member_id
+from .enroll import start_enroll, enroll_status, cancel_enroll
+from .device_actions import ensure_person_id, get_person
 
 
 def _parse_date(s):
@@ -231,35 +231,34 @@ class DevicePushView(APIView):
             return Response({'message': 'No device IP configured'}, status=status.HTTP_400_BAD_REQUEST)
 
         members = list(Member.objects.filter(gym=gym, is_deleted=False).order_by('name'))
+        trainers = list(Trainer.objects.filter(gym=gym).order_by('name'))
+        everyone = members + trainers
 
         used = set()
-        for m in members:
-            if m.device_user_id and m.device_user_id.isdigit():
-                used.add(int(m.device_user_id))
-        for t in Trainer.objects.filter(gym=gym):
-            if t.device_user_id and t.device_user_id.isdigit():
-                used.add(int(t.device_user_id))
+        for p in everyone:
+            if p.device_user_id and p.device_user_id.isdigit():
+                used.add(int(p.device_user_id))
 
         nxt = 1
         assigned = 0
-        for m in members:
-            if not m.device_user_id:
+        for p in everyone:
+            if not p.device_user_id:
                 while nxt in used:
                     nxt += 1
-                m.device_user_id = str(nxt)
+                p.device_user_id = str(nxt)
                 used.add(nxt)
-                m.save(update_fields=['device_user_id'])
+                p.save(update_fields=['device_user_id'])
                 assigned += 1
 
-        people = [(m.device_user_id, m.name) for m in members if m.device_user_id]
+        people = [(p.device_user_id, p.name) for p in everyone if p.device_user_id]
         if not people:
-            return Response({'message': 'No members to push'})
+            return Response({'message': 'No one to push'})
         try:
             pushed, errors = push_users(cfg.ip, cfg.port, cfg.password, people)
         except Exception as e:
             return Response({'message': f'Failed: {e}'}, status=status.HTTP_502_BAD_GATEWAY)
 
-        msg = f'Pushed {pushed} members to the device'
+        msg = f'Pushed {pushed} people to the device'
         if assigned:
             msg += f' — {assigned} got a new device ID'
         return Response({'message': msg, 'pushed': pushed, 'assigned': assigned,
@@ -274,26 +273,27 @@ class DeviceFingerprintStatusView(APIView):
     def get(self, request):
         gym = request.user.gym
         cfg, _ = DeviceConfig.objects.get_or_create(gym=gym)
-        member = Member.objects.filter(gym=gym, pk=request.query_params.get('member_id'),
-                                       is_deleted=False).first()
-        if not member:
-            return Response({'message': 'Member not found'}, status=status.HTTP_404_NOT_FOUND)
+        kind = request.query_params.get('type') or 'member'
+        pid = request.query_params.get('id') or request.query_params.get('member_id')
+        person = get_person(gym, kind, pid)
+        if not person:
+            return Response({'message': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
 
         # Can't ask the device — fall back to what we last recorded.
-        if not member.device_user_id or not cfg.ip or not _HAS_ZK:
-            return Response({'enrolled': bool(member.has_fingerprint), 'checked': False})
+        if not person.device_user_id or not cfg.ip or not _HAS_ZK:
+            return Response({'enrolled': bool(person.has_fingerprint), 'checked': False})
 
         if monitor_running(gym.id):
             stop_monitor(gym.id)
             time.sleep(3.5)
         try:
-            enrolled = device_has_fingerprint(cfg.ip, cfg.port, cfg.password, member.device_user_id)
+            enrolled = device_has_fingerprint(cfg.ip, cfg.port, cfg.password, person.device_user_id)
         except Exception:
-            return Response({'enrolled': bool(member.has_fingerprint), 'checked': False})
+            return Response({'enrolled': bool(person.has_fingerprint), 'checked': False})
 
-        if enrolled != member.has_fingerprint:
-            member.has_fingerprint = enrolled
-            member.save(update_fields=['has_fingerprint'])
+        if enrolled != person.has_fingerprint:
+            person.has_fingerprint = enrolled
+            person.save(update_fields=['has_fingerprint'])
         return Response({'enrolled': enrolled, 'checked': True})
 
 
@@ -308,45 +308,55 @@ class DeviceEnrollView(APIView):
         cfg, _ = DeviceConfig.objects.get_or_create(gym=gym)
         if not cfg.ip:
             return Response({'message': 'No device IP configured'}, status=status.HTTP_400_BAD_REQUEST)
-        member = Member.objects.filter(gym=gym, pk=request.data.get('member_id'),
-                                       is_deleted=False).first()
-        if not member:
-            return Response({'message': 'Member not found'}, status=status.HTTP_404_NOT_FOUND)
+        kind = request.data.get('type') or 'member'
+        pid = request.data.get('id') or request.data.get('member_id')
+        person = get_person(gym, kind, pid)
+        if not person:
+            return Response({'message': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
         try:
             finger = int(request.data.get('finger') or 0)
         except (TypeError, ValueError):
             finger = 0
 
-        uid = ensure_member_id(member)
+        uid = ensure_person_id(person)
         started, detail = start_enroll(gym.id, cfg.ip, cfg.port, cfg.password,
-                                       uid, member.name, finger, member_id=member.id)
+                                       uid, person.name, finger, kind=kind, person_id=person.id)
         if not started:
             return Response({'message': detail, 'started': False}, status=status.HTTP_409_CONFLICT)
-        return Response({'message': 'Ask the member to place their finger on the sensor',
+        return Response({'message': 'Ask them to place their finger on the sensor',
                          'started': True, 'device_user_id': uid})
 
     def get(self, request):
         return Response(enroll_status(request.user.gym.id))
 
+    def patch(self, request):
+        """Cancel a running enrollment (the modal was closed)."""
+        gym = request.user.gym
+        cfg, _ = DeviceConfig.objects.get_or_create(gym=gym)
+        cancel_enroll(gym.id, cfg.ip, cfg.port, cfg.password)
+        return Response({'cancelled': True})
+
     def delete(self, request):
-        """Remove a member's fingerprint from the device."""
+        """Remove a member's or trainer's fingerprint from the device."""
         gym = request.user.gym
         cfg, _ = DeviceConfig.objects.get_or_create(gym=gym)
         if not cfg.ip:
             return Response({'message': 'No device IP configured'}, status=status.HTTP_400_BAD_REQUEST)
-        mid = request.data.get('member_id') or request.query_params.get('member_id')
-        member = Member.objects.filter(gym=gym, pk=mid, is_deleted=False).first()
-        if not member or not member.device_user_id:
-            return Response({'message': 'Member is not on the device'}, status=status.HTTP_404_NOT_FOUND)
+        kind = request.data.get('type') or request.query_params.get('type') or 'member'
+        pid = (request.data.get('id') or request.query_params.get('id')
+               or request.data.get('member_id') or request.query_params.get('member_id'))
+        person = get_person(gym, kind, pid)
+        if not person or not person.device_user_id:
+            return Response({'message': 'Not on the device'}, status=status.HTTP_404_NOT_FOUND)
         # Free the device from the live monitor before we touch it.
         stop_monitor(gym.id)
         time.sleep(3.5)
         try:
-            delete_fingerprint(cfg.ip, cfg.port, cfg.password, member.device_user_id, finger=0)
+            delete_fingerprint(cfg.ip, cfg.port, cfg.password, person.device_user_id, finger=0)
         except Exception as e:
             return Response({'message': f'Failed: {e}'}, status=status.HTTP_502_BAD_GATEWAY)
-        member.has_fingerprint = False
-        member.save(update_fields=['has_fingerprint'])
+        person.has_fingerprint = False
+        person.save(update_fields=['has_fingerprint'])
         return Response({'message': 'Fingerprint removed', 'removed': True})
 
 

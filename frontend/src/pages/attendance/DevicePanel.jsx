@@ -57,8 +57,13 @@ export default function DevicePanel() {
     queryKey: ['members-for-map'],
     queryFn: async () => (await api.get('/members/')).data?.results || (await api.get('/members/')).data || [],
   })
-  const unpushed = allMembers.filter((m) => !m.device_user_id).length
-  const allPushed = allMembers.length > 0 && unpushed === 0
+  const { data: allTrainers = [] } = useQuery({
+    queryKey: ['trainers-for-map'],
+    queryFn: async () => (await api.get('/trainers/')).data?.results || (await api.get('/trainers/')).data || [],
+  })
+  const people = [...allMembers, ...allTrainers]
+  const unpushed = people.filter((p) => !p.device_user_id).length
+  const allPushed = people.length > 0 && unpushed === 0
 
   const push = useMutation({
     mutationFn: () => api.post('/attendance/device/push/'),
@@ -66,6 +71,8 @@ export default function DevicePanel() {
       toast.success(r.data.message || 'Pushed to device')
       qc.invalidateQueries({ queryKey: ['members'] })
       qc.invalidateQueries({ queryKey: ['members-for-map'] })
+      qc.invalidateQueries({ queryKey: ['trainers'] })
+      qc.invalidateQueries({ queryKey: ['trainers-for-map'] })
       qc.invalidateQueries({ queryKey: ['device-users'] })
     },
     onError: (e) => toast.error(e.response?.data?.message || 'Push failed'),
@@ -125,20 +132,20 @@ export default function DevicePanel() {
 
       {/* Push members to device */}
       <div className="border-t border-gray-700/60 pt-4 space-y-3">
-        <h3 className="text-sm font-semibold text-gray-200 flex items-center gap-2"><UserPlus size={15} /> Add members to device</h3>
+        <h3 className="text-sm font-semibold text-gray-200 flex items-center gap-2"><UserPlus size={15} /> Add people to device</h3>
         <p className="text-xs text-gray-500">
-          Push every member’s name and ID onto the device from here — no typing on the keypad.
-          Members without a device ID get one automatically. Each person then just places their
+          Push every member’s and trainer’s name and ID onto the device from here — no typing on the
+          keypad. Anyone without a device ID gets one automatically. Each person then just places their
           finger on the sensor once to enroll (or taps their card).
         </p>
         <button onClick={() => push.mutate()} disabled={push.isPending || !cfg.ip || allPushed}
           className="btn-primary"
-          title={!cfg.ip ? 'Set an IP first' : allPushed ? 'All members are already on the device' : ''}>
+          title={!cfg.ip ? 'Set an IP first' : allPushed ? 'Everyone is already on the device' : ''}>
           <UserPlus size={15} className={push.isPending ? 'animate-pulse' : ''} />
-          {push.isPending ? 'Pushing…' : allPushed ? 'All members on device' : 'Push members to device'}
+          {push.isPending ? 'Pushing…' : allPushed ? 'Everyone on device' : 'Push everyone to device'}
         </button>
         {allPushed && (
-          <p className="text-xs text-green-400 flex items-center gap-1.5"><Check size={13} /> All members are on the device.</p>
+          <p className="text-xs text-green-400 flex items-center gap-1.5"><Check size={13} /> Everyone is on the device.</p>
         )}
       </div>
 

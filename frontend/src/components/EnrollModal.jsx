@@ -9,7 +9,7 @@ import toast from 'react-hot-toast'
 // re-enroll (replace), or remove. Enrollment runs on the device and is polled;
 // remove is a quick device call. `autoStart` jumps straight into enrollment
 // (used right after adding a member).
-export default function EnrollModal({ member, isOpen, onClose, autoStart = false }) {
+export default function EnrollModal({ member, isOpen, onClose, autoStart = false, kind = 'member' }) {
   const qc = useQueryClient()
   const [state, setState] = useState(autoStart ? 'starting' : 'checking') // checking|idle|starting|running|done|removing|removed|failed
   const [enrolled, setEnrolled] = useState(!!member?.has_fingerprint)
@@ -17,12 +17,17 @@ export default function EnrollModal({ member, isOpen, onClose, autoStart = false
   const pollRef = useRef(null)
 
   const refreshMember = () => {
-    qc.invalidateQueries({ queryKey: ['member'] })
-    qc.invalidateQueries({ queryKey: ['members'] })
+    qc.invalidateQueries({ queryKey: [kind] })          // 'member' or 'trainer'
+    qc.invalidateQueries({ queryKey: [`${kind}s`] })    // 'members' or 'trainers'
   }
 
   const handleClose = () => {
     clearInterval(pollRef.current)
+    // If an enrollment is still waiting on the device, cancel it so it doesn't
+    // keep running (and block the next one) while the device stays in enroll mode.
+    if (state === 'starting' || state === 'running') {
+      api.patch('/attendance/device/enroll/').catch(() => {})
+    }
     setState('idle')
     setMessage('')
     onClose()
@@ -50,7 +55,7 @@ export default function EnrollModal({ member, isOpen, onClose, autoStart = false
   const start = async () => {
     setState('starting')
     try {
-      const { data } = await api.post('/attendance/device/enroll/', { member_id: member.id, finger: 0 })
+      const { data } = await api.post('/attendance/device/enroll/', { type: kind, id: member.id, finger: 0 })
       if (!data.started) {
         setState('failed')
         setMessage(data.message || 'Could not start')
@@ -69,7 +74,7 @@ export default function EnrollModal({ member, isOpen, onClose, autoStart = false
   const remove = async () => {
     setState('removing')
     try {
-      await api.delete('/attendance/device/enroll/', { data: { member_id: member.id } })
+      await api.delete('/attendance/device/enroll/', { data: { type: kind, id: member.id } })
       setState('removed')
       setEnrolled(false)
       refreshMember()
@@ -92,7 +97,7 @@ export default function EnrollModal({ member, isOpen, onClose, autoStart = false
     let alive = true
     ;(async () => {
       try {
-        const { data } = await api.get('/attendance/device/fingerprint/', { params: { member_id: member.id } })
+        const { data } = await api.get('/attendance/device/fingerprint/', { params: { type: kind, id: member.id } })
         if (alive) { setEnrolled(!!data.enrolled); setState('idle') }
       } catch {
         if (alive) setState('idle')

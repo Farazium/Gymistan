@@ -13,6 +13,8 @@ class Trainer(models.Model):
     is_active = models.BooleanField(default=True)
     # Maps this trainer to their user id on the ZKTeco biometric device.
     device_user_id = models.CharField(max_length=32, blank=True)
+    # Whether a fingerprint has been enrolled via the app (mirrors app actions).
+    has_fingerprint = models.BooleanField(default=False)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

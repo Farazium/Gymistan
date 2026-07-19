@@ -7,11 +7,33 @@ from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from django.utils import timezone
 from apps.accounts.permissions import IsGymMember
+from apps.gyms.models import AT_TIERS
 from apps.expenses.models import Expense
 from .models import Trainer, SalaryPayment
 from .serializers import (
     TrainerSerializer, TrainerDetailSerializer, SalaryPaymentSerializer, salary_status_for, _due_date,
 )
+
+
+def _truthy(v):
+    return str(v).lower() in ('1', 'true', 'yes', 'on')
+
+
+def _maybe_add_to_device(request, trainer):
+    """Push a newly-added trainer onto the device if the form asked and the plan
+    includes attendance. Best-effort — never blocks adding the trainer."""
+    if not _truthy(request.data.get('add_to_device')):
+        return
+    if trainer.gym.tier not in AT_TIERS:
+        return
+    from apps.attendance.models import DeviceConfig
+    from apps.attendance.device_actions import push_person
+    try:
+        cfg = DeviceConfig.objects.filter(gym=trainer.gym).first()
+        if cfg and cfg.ip:
+            push_person(cfg, trainer)
+    except Exception:
+        pass
 
 
 class TrainerListCreateView(generics.ListCreateAPIView):
@@ -30,7 +52,8 @@ class TrainerListCreateView(generics.ListCreateAPIView):
         return qs
 
     def perform_create(self, serializer):
-        serializer.save(gym=self.request.user.gym)
+        trainer = serializer.save(gym=self.request.user.gym)
+        _maybe_add_to_device(self.request, trainer)
 
 
 class TrainerDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -41,6 +64,12 @@ class TrainerDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_serializer_class(self):
         return TrainerDetailSerializer if self.request.method == 'GET' else TrainerSerializer
+
+    def perform_destroy(self, instance):
+        # Trainer removed for good → also drop them off the biometric device.
+        from apps.attendance.device_actions import remove_person_from_device
+        remove_person_from_device(instance)
+        instance.delete()
 
 
 class PaySalaryView(APIView):

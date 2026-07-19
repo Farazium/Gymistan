@@ -125,6 +125,25 @@ def device_has_fingerprint(ip, port, password, uid, timeout=10):
                 pass
 
 
+def delete_device_user(ip, port, password, uid, timeout=10):
+    """Remove a user entirely from the device (record + all fingerprints).
+    Used when a member/trainer is permanently deleted. Returns True on success."""
+    if not _HAS_ZK:
+        raise RuntimeError('pyzk is not installed. Run: pip install pyzk')
+    zk = ZK(ip, port=port, password=password, timeout=timeout, ommit_ping=False)
+    conn = None
+    try:
+        conn = zk.connect()
+        conn.delete_user(uid=int(uid))
+        return True
+    finally:
+        if conn:
+            try:
+                conn.disconnect()
+            except Exception:
+                pass
+
+
 def delete_fingerprint(ip, port, password, uid, finger=0, timeout=10):
     """Remove a user's fingerprint template from the device. Returns True on
     success. The user record (name/id) is left in place."""

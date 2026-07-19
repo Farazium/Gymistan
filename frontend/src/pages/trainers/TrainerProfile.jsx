@@ -6,6 +6,7 @@ import { ArrowLeft, UserCog, Phone, Calendar, CreditCard, Users, Wallet, Fingerp
 import api from '../../api/axios'
 import StatCard from '../../components/ui/StatCard'
 import Modal from '../../components/ui/Modal'
+import EnrollModal from '../../components/EnrollModal'
 import AttendanceCalendar from '../../components/ui/AttendanceCalendar'
 import PhotoViewer from '../../components/ui/PhotoViewer'
 import PhotoCropper from '../../components/ui/PhotoCropper'
@@ -133,6 +134,7 @@ export default function TrainerProfile() {
   const { user } = useAuthStore()
   const hasAttendance = ['TIER2_AT', 'TIER3'].includes(user?.gym_tier)
   const [showPay, setShowPay] = useState(false)
+  const [showEnroll, setShowEnroll] = useState(false)
 
   const { data: t, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['trainer', id],
@@ -333,9 +335,20 @@ export default function TrainerProfile() {
             </div>
           </div>
         </div>
-        <button onClick={() => setShowPay(true)} className="btn-primary">
-          <Banknote size={16} /> Pay Salary
-        </button>
+        <div className="flex gap-2">
+          {hasAttendance && (
+            <button
+              onClick={() => setShowEnroll(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 transition text-sm"
+              title="Enroll this trainer's fingerprint on the device"
+            >
+              <Fingerprint size={15} /> Fingerprint
+            </button>
+          )}
+          <button onClick={() => setShowPay(true)} className="btn-primary">
+            <Banknote size={16} /> Pay Salary
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -396,6 +409,8 @@ export default function TrainerProfile() {
           }}
         />
       </Modal>
+
+      {showEnroll && <EnrollModal member={t} kind="trainer" isOpen onClose={() => setShowEnroll(false)} />}
 
       {viewPhoto && photoUrl && <PhotoViewer src={photoUrl} alt={t.name} onClose={() => setViewPhoto(false)} />}
       {cropFile && (

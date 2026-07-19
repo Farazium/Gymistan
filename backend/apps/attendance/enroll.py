@@ -24,20 +24,24 @@ _jobs = {}
 _lock = threading.Lock()
 
 
-def _mark_member(member_id, value):
-    """Mirror the enrolled state onto the member (own DB connection in the thread)."""
-    if not member_id:
+def _mark_person(kind, pid, value):
+    """Mirror the enrolled state onto the member/trainer (own DB connection)."""
+    if not pid:
         return
     from django.db import close_old_connections
-    from apps.members.models import Member
     close_old_connections()
     try:
-        Member.objects.filter(pk=member_id).update(has_fingerprint=value)
+        if kind == 'trainer':
+            from apps.trainers.models import Trainer
+            Trainer.objects.filter(pk=pid).update(has_fingerprint=value)
+        else:
+            from apps.members.models import Member
+            Member.objects.filter(pk=pid).update(has_fingerprint=value)
     finally:
         close_old_connections()
 
 
-def _run(gym_id, ip, port, password, user_id, name, finger, member_id):
+def _run(gym_id, ip, port, password, user_id, name, finger, kind, person_id):
     job = _jobs[gym_id]
     conn = None
     # The live monitor holds the device connection; free it first so enrollment
@@ -48,6 +52,7 @@ def _run(gym_id, ip, port, password, user_id, name, finger, member_id):
     try:
         zk = ZK(ip, port=port, password=password, timeout=10, ommit_ping=False)
         conn = zk.connect()
+        job['conn'] = conn  # so a cancel can close the socket and unblock us
         # Make sure the user record exists so their name shows during enrollment,
         # and clear any existing print on this finger so a re-enroll replaces it
         # cleanly instead of being refused as a duplicate.
@@ -71,14 +76,17 @@ def _run(gym_id, ip, port, password, user_id, name, finger, member_id):
                 ok = bool(tmpl and getattr(tmpl, 'template', None))
             except Exception:
                 pass
+        if job.get('cancelled'):
+            return  # closed from the UI — don't record or overwrite state
         job['state'] = 'done' if ok else 'failed'
         job['message'] = ('Fingerprint enrolled' if ok
                           else 'Enrollment was cancelled or timed out')
         if ok:
-            _mark_member(member_id, True)
+            _mark_person(kind, person_id, True)
     except Exception as e:
-        job['state'] = 'failed'
-        job['message'] = str(e)
+        if not job.get('cancelled'):
+            job['state'] = 'failed'
+            job['message'] = str(e)
     finally:
         if conn:
             try:
@@ -91,7 +99,8 @@ def _run(gym_id, ip, port, password, user_id, name, finger, member_id):
                 pass
 
 
-def start_enroll(gym_id, ip, port, password, user_id, name, finger=0, member_id=None):
+def start_enroll(gym_id, ip, port, password, user_id, name, finger=0,
+                 kind='member', person_id=None):
     """Kick off enrollment in the background. Returns (started, detail)."""
     if not _HAS_ZK:
         return False, 'pyzk is not installed'
@@ -100,11 +109,53 @@ def start_enroll(gym_id, ip, port, password, user_id, name, finger=0, member_id=
         if cur and cur.get('state') == 'running':
             return False, 'An enrollment is already in progress'
         _jobs[gym_id] = {'state': 'running', 'user_id': str(user_id), 'name': name,
-                         'message': 'Ask the member to place their finger on the sensor'}
+                         'message': 'Ask them to place their finger on the sensor'}
     threading.Thread(target=_run, daemon=True,
-                     args=(gym_id, ip, port, password, str(user_id), name, finger, member_id)).start()
+                     args=(gym_id, ip, port, password, str(user_id), name, finger,
+                           kind, person_id)).start()
     return True, 'started'
 
 
 def enroll_status(gym_id):
-    return _jobs.get(gym_id) or {'state': 'idle'}
+    job = _jobs.get(gym_id)
+    if not job:
+        return {'state': 'idle'}
+    # Never leak the live connection object out to the API layer.
+    return {k: v for k, v in job.items() if k != 'conn'}
+
+
+def cancel_enroll(gym_id, ip, port, password):
+    """Abort a running enrollment: unblock the worker (close its socket) and tell
+    the device to leave enroll mode, so a fresh enrollment can start."""
+    job = _jobs.pop(gym_id, None)
+    if job:
+        job['cancelled'] = True
+        job['state'] = 'cancelled'
+        conn = job.get('conn')
+        if conn is not None:
+            sock = getattr(conn, '_ZK__sock', None)
+            if sock is not None:
+                try:
+                    sock.close()  # unblock the recv the worker is stuck on
+                except Exception:
+                    pass
+    if not _HAS_ZK:
+        return
+    # Separate connection to kick the device out of "place finger" mode.
+    try:
+        c = ZK(ip, port=port, password=password, timeout=6, ommit_ping=False).connect()
+        try:
+            c.cancel_capture()
+        except Exception:
+            pass
+        try:
+            c.disable_device()
+            c.enable_device()
+        except Exception:
+            pass
+        try:
+            c.disconnect()
+        except Exception:
+            pass
+    except Exception:
+        pass

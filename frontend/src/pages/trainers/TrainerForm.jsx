@@ -1,9 +1,12 @@
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMutation } from '@tanstack/react-query'
+import { Fingerprint } from 'lucide-react'
 import api from '../../api/axios'
 import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
 import { apiErrorMessage } from '../../utils/apiError'
+import EnrollModal from '../../components/EnrollModal'
 
 const todayISO = () => {
   const d = new Date()
@@ -13,6 +16,7 @@ const todayISO = () => {
 export default function TrainerForm({ trainer, onSuccess }) {
   const { user } = useAuthStore()
   const hasAttendance = ['TIER2_AT', 'TIER3'].includes(user?.gym_tier)
+  const [enrollTarget, setEnrollTarget] = useState(null)
   const { register, handleSubmit, setError, formState: { errors } } = useForm({
     defaultValues: trainer
       ? { ...trainer }
@@ -30,9 +34,13 @@ export default function TrainerForm({ trainer, onSuccess }) {
         ? api.patch(`/trainers/${trainer.id}/`, body)
         : api.post('/trainers/', body)
     },
-    onSuccess: () => {
+    onSuccess: (res, variables) => {
       toast.success(trainer ? 'Trainer updated' : 'Trainer added')
-      onSuccess()
+      if (!trainer && hasAttendance && variables?.add_to_device && res?.data?.id) {
+        setEnrollTarget(res.data)
+      } else {
+        onSuccess()
+      }
     },
     onError: (err) => {
       const data = err.response?.data
@@ -52,6 +60,7 @@ export default function TrainerForm({ trainer, onSuccess }) {
   })
 
   return (
+    <>
     <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div className="col-span-2">
@@ -115,7 +124,18 @@ export default function TrainerForm({ trainer, onSuccess }) {
         {hasAttendance && (
           <div>
             <label className="label">Device ID <span className="text-gray-400 text-xs">(biometric)</span></label>
-            <input className="input" placeholder="ZKTeco user id" {...register('device_user_id')} />
+            <input className="input" placeholder="Auto if left blank" {...register('device_user_id')} />
+          </div>
+        )}
+
+        {!trainer && hasAttendance && (
+          <div className="col-span-2">
+            <label className="flex items-center gap-2 select-none cursor-pointer">
+              <input type="checkbox" className="w-4 h-4 accent-green-500" {...register('add_to_device')} />
+              <span className="text-sm text-gray-300 flex items-center gap-1.5">
+                <Fingerprint size={14} className="text-primary-400" /> Add to device &amp; enroll fingerprint
+              </span>
+            </label>
           </div>
         )}
 
@@ -129,5 +149,15 @@ export default function TrainerForm({ trainer, onSuccess }) {
         {mutation.isPending ? 'Saving...' : trainer ? 'Update Trainer' : 'Add Trainer'}
       </button>
     </form>
+    {enrollTarget && (
+      <EnrollModal
+        member={enrollTarget}
+        kind="trainer"
+        isOpen={!!enrollTarget}
+        autoStart
+        onClose={() => { setEnrollTarget(null); onSuccess() }}
+      />
+    )}
+    </>
   )
 }

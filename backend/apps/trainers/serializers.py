@@ -65,9 +65,9 @@ class TrainerSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'phone', 'cnic', 'join_date', 'monthly_salary',
             'photo', 'is_active', 'notes', 'members_count', 'salary_status',
-            'device_user_id', 'created_at',
+            'device_user_id', 'has_fingerprint', 'created_at',
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'created_at', 'has_fingerprint']
 
     def validate_monthly_salary(self, value):
         if value is not None and value < 0:
