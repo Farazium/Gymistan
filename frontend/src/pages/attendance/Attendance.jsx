@@ -71,12 +71,6 @@ export default function Attendance() {
     placeholderData: keepPreviousData,
   })
 
-  const mark = useMutation({
-    mutationFn: (body) => api.post('/attendance/mark/', body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['attendance'] }),
-    onError: () => toast.error('Could not update attendance'),
-  })
-
   const sync = useMutation({
     mutationFn: () => api.post('/attendance/device/sync/'),
     onSuccess: (r) => {
@@ -91,17 +85,12 @@ export default function Attendance() {
   const rows = data?.rows || []
   const days = data?.days || []
 
-  const toggle = (row, day, cell) => {
-    if (cell.status === 'upcoming') return
-    mark.mutate({ type, id: row.id, date: day, present: cell.status !== 'present' })
-  }
-
   const exportSheet = () => {
     const data = rows.map((r) => {
       const base = { Name: r.name, Code: r.code || '' }
       if (scope === 'daily') {
         const c = r.days[days[0]] || {}
-        return { ...base, 'Check In': c.check_in || '', 'Check Out': c.check_out || '',
+        return { ...base, 'Check In': c.check_in || '',
                  Status: c.status === 'present' ? 'Present' : 'Absent' }
       }
       const perDay = {}
@@ -213,9 +202,9 @@ export default function Attendance() {
       ) : !rows.length ? (
         <div className="card py-16 text-center text-gray-400">No {type}s to show.</div>
       ) : scope === 'daily' ? (
-        <DailySheet rows={rows} day={days[0]} onToggle={toggle} busy={mark.isPending} />
+        <DailySheet rows={rows} day={days[0]} />
       ) : (
-        <MatrixSheet rows={rows} days={days} scope={scope} onToggle={toggle} />
+        <MatrixSheet rows={rows} days={days} scope={scope} />
       )}
 
       <Modal isOpen={showDevice} onClose={() => setShowDevice(false)} title="Biometric Device">
@@ -225,13 +214,12 @@ export default function Attendance() {
   )
 }
 
-function DailySheet({ rows, day, onToggle, busy }) {
+function DailySheet({ rows, day }) {
   return (
     <div className="card divide-y divide-gray-700/60">
       <div className="flex items-center gap-4 px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
         <span className="flex-1">Name</span>
         <span className="w-20 text-center">Check In</span>
-        <span className="w-20 text-center">Check Out</span>
         <span className="w-28 text-center">Status</span>
       </div>
       {rows.map((r) => {
@@ -244,15 +232,11 @@ function DailySheet({ rows, day, onToggle, busy }) {
               {r.code && <p className="text-xs text-gray-500">#{r.code}</p>}
             </div>
             <span className="w-20 text-center text-sm text-gray-300">{cell.check_in || '—'}</span>
-            <span className="w-20 text-center text-sm text-gray-300">{cell.check_out || '—'}</span>
             <div className="w-28 flex justify-center">
-              <button disabled={busy} onClick={() => onToggle(r, day, cell)}
-                title="Click to toggle"
-                className={`text-xs px-3 py-1 rounded-full font-medium transition ${
-                  present ? 'bg-[#368239] text-white hover:bg-[#2b6a2f]'
-                          : 'bg-[#990F02] text-white hover:bg-[#7a0c02]'}`}>
+              <span className={`text-xs px-3 py-1 rounded-full font-medium ${
+                present ? 'bg-[#368239] text-white' : 'bg-[#990F02] text-white'}`}>
                 {present ? 'Present' : 'Absent'}
-              </button>
+              </span>
             </div>
           </div>
         )
@@ -261,7 +245,7 @@ function DailySheet({ rows, day, onToggle, busy }) {
   )
 }
 
-function MatrixSheet({ rows, days, scope, onToggle }) {
+function MatrixSheet({ rows, days, scope }) {
   const head = days.map((d) => {
     const dt = new Date(d + 'T00:00:00')
     return scope === 'weekly'
@@ -293,8 +277,7 @@ function MatrixSheet({ rows, days, scope, onToggle }) {
               {days.map((d) => {
                 const cell = r.days[d] || { status: 'absent' }
                 return (
-                  <td key={d} className="px-1 py-1.5 text-center cursor-pointer"
-                    onClick={() => onToggle(r, d, cell)}>
+                  <td key={d} className="px-1 py-1.5 text-center">
                     <Dot status={cell.status} />
                   </td>
                 )
