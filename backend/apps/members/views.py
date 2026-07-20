@@ -17,6 +17,7 @@ from apps.payments.utils import (
 from apps.gyms.models import WA_TIERS, AT_TIERS
 import calendar
 import datetime
+import logging
 
 
 def _truthy(v):
@@ -59,6 +60,9 @@ def _maybe_send_welcome(request, member, welcome_back=False, admission_payment=N
         sent, _ = send_whatsapp_welcome(member, welcome_back=welcome_back,
                                         admission_payment=admission_payment)
     except Exception:
+        # Best-effort: never fail the add/restore on a messaging error, but don't
+        # swallow it silently either — a broken welcome must be diagnosable.
+        logging.getLogger(__name__).exception('welcome WhatsApp send failed for member %s', member.id)
         return
     if sent and admission_payment:
         admission_payment.slip_sent = True
@@ -73,6 +77,14 @@ def _maybe_add_to_device(request, member):
         return
     if member.gym.tier not in AT_TIERS:
         return
+    from apps.attendance.device_actions import run_async
+    run_async(_push_member_to_device, member)
+
+
+def _push_member_to_device(member):
+    """Best-effort push of one member onto the biometric device. Assumes the
+    caller has already checked the plan/flag. Runs off the request thread (see
+    run_async) because an offline device can block for ~50s before timing out."""
     from apps.attendance.models import DeviceConfig
     from apps.attendance.device_actions import push_person
     try:
@@ -85,17 +97,12 @@ def _maybe_add_to_device(request, member):
 
 def _repush_to_device(member):
     """After a restore, re-create the member's record on the device (soft delete
-    removed it). Best-effort; the fingerprint still needs re-enrolling."""
+    removed it). Best-effort and off the request thread — a restore must never
+    wait on (or be blocked from sending its welcome by) an offline device."""
     if member.gym.tier not in AT_TIERS or not member.device_user_id:
         return
-    from apps.attendance.models import DeviceConfig
-    from apps.attendance.device_actions import push_person
-    try:
-        cfg = DeviceConfig.objects.filter(gym=member.gym).first()
-        if cfg and cfg.ip:
-            push_person(cfg, member)
-    except Exception:
-        pass
+    from apps.attendance.device_actions import run_async
+    run_async(_push_member_to_device, member)
 
 
 class MemberNextIdView(APIView):
@@ -188,9 +195,11 @@ class MemberDetailView(generics.RetrieveUpdateDestroyAPIView):
     def perform_destroy(self, instance):
         # Removed from the roster → also drop them off the device so they can't
         # punch in. Their device id is kept (restore re-pushes them), but the
-        # fingerprint is gone and must be re-enrolled on restore.
-        from apps.attendance.device_actions import remove_person_from_device
-        remove_person_from_device(instance)
+        # fingerprint is gone and must be re-enrolled on restore. Done off the
+        # request thread: an offline device can block ~30s, and the delete must
+        # not wait on it.
+        from apps.attendance.device_actions import remove_person_from_device, run_async
+        run_async(remove_person_from_device, instance)
         instance.is_deleted = True
         instance.deleted_at = timezone.now()
         instance.has_fingerprint = False
@@ -246,6 +255,10 @@ class RestoreMemberView(APIView):
         if request.data.get('expiry_date'):
             member.expiry_date = request.data['expiry_date']
         member.save()
+        # join_date/expiry_date were assigned as raw strings from the request, so
+        # the in-memory instance still holds strings. Reload to get proper date
+        # objects before building the welcome slip (which calls strftime on them).
+        member.refresh_from_db()
         _repush_to_device(member)
         admission = _create_admission_payment(request, member, rejoin=True)
         _maybe_send_welcome(request, member, welcome_back=True,
@@ -261,9 +274,11 @@ class HardDeleteMemberView(APIView):
             member = Member.objects.get(pk=pk, gym=request.user.gym, is_deleted=True)
         except Member.DoesNotExist:
             return Response({'detail': 'Not found'}, status=404)
-        # Permanent delete → also drop them off the biometric device.
-        from apps.attendance.device_actions import remove_person_from_device
-        remove_person_from_device(member)
+        # Permanent delete → also drop them off the biometric device. Off the
+        # request thread (offline device blocks ~30s); the thread keeps its own
+        # reference to the member, so the device id survives the row delete below.
+        from apps.attendance.device_actions import remove_person_from_device, run_async
+        run_async(remove_person_from_device, member)
         member.delete()
         return Response(status=204)
 

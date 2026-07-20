@@ -26,6 +26,13 @@ def _maybe_add_to_device(request, trainer):
         return
     if trainer.gym.tier not in AT_TIERS:
         return
+    from apps.attendance.device_actions import run_async
+    run_async(_push_trainer_to_device, trainer)
+
+
+def _push_trainer_to_device(trainer):
+    """Best-effort push of one trainer onto the device, off the request thread —
+    an offline device can block ~50s before timing out."""
     from apps.attendance.models import DeviceConfig
     from apps.attendance.device_actions import push_person
     try:
@@ -67,8 +74,10 @@ class TrainerDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def perform_destroy(self, instance):
         # Trainer removed for good → also drop them off the biometric device.
-        from apps.attendance.device_actions import remove_person_from_device
-        remove_person_from_device(instance)
+        # Off the request thread (offline device blocks ~30s); the thread keeps
+        # its own reference, so the device id survives the row delete below.
+        from apps.attendance.device_actions import remove_person_from_device, run_async
+        run_async(remove_person_from_device, instance)
         instance.delete()
 
 

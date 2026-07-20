@@ -2,11 +2,28 @@
 assigning a device id and pushing their name. Shared by the create hooks and the
 device views so the id logic lives in one place.
 """
+import threading
 import time
+
+from django.db import close_old_connections
 
 from apps.members.models import Member
 from apps.trainers.models import Trainer
 from .zk_service import push_users, delete_device_user
+
+
+def run_async(fn, *args, **kwargs):
+    """Run a best-effort device operation off the request thread so a slow or
+    offline device never blocks the HTTP response — an unreachable device can
+    take 30–50s to time out, and delete/restore must not wait on that. The device
+    helpers already swallow their own errors; here we just make sure the thread's
+    own DB connection is returned instead of leaking."""
+    def _wrap():
+        try:
+            fn(*args, **kwargs)
+        finally:
+            close_old_connections()
+    threading.Thread(target=_wrap, daemon=True).start()
 
 
 def next_device_id(gym):
