@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { Building2, Camera, Image as ImageIcon, Check, ChevronRight, MessageCircle, MoreVertical, Sparkles, Upload } from 'lucide-react'
 import Cropper from 'react-easy-crop'
 import 'react-easy-crop/react-easy-crop.css'
-import api from '../../api/axios'
+import api, { API_ORIGIN } from '../../api/axios'
 import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
 import Modal from '../../components/ui/Modal'
@@ -93,40 +93,93 @@ function BackgroundPicker({ mode, onSelect }) {
   )
 }
 
-// Crop the chosen picture to the background's 16:9 shape before uploading.
-function BackgroundCropperModal({ src, busy, onCancel, onDone }) {
+// Background upload/update modal. Two states in one modal: a preview of the
+// current picture with a "Choose / Change picture" button, and — once a file is
+// picked — the cropper to position it at the screen's 16:9 before saving.
+function BackgroundModal({ isOpen, onClose, currentUrl, busy, onApply }) {
+  const [src, setSrc] = useState(null) // picked image being cropped
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
   const areaRef = useRef(null)
+  const fileRef = useRef(null)
+
+  // Reset back to the preview state each time the modal closes.
+  const [prevOpen, setPrevOpen] = useState(isOpen)
+  if (isOpen !== prevOpen) {
+    setPrevOpen(isOpen)
+    if (!isOpen) { setSrc(null); setZoom(1); setCrop({ x: 0, y: 0 }) }
+  }
+
   const onCropComplete = useCallback((_area, areaPixels) => { areaRef.current = areaPixels }, [])
+
+  const pickFile = (e) => {
+    const file = e.target.files[0]
+    e.target.value = ''
+    if (!file) return
+    if (!file.type.startsWith('image/')) { toast.error('Please choose an image file'); return }
+    if (file.size > 8 * 1024 * 1024) { toast.error('Image must be under 8 MB'); return }
+    const reader = new FileReader()
+    reader.onload = () => { setSrc(reader.result); setZoom(1); setCrop({ x: 0, y: 0 }) }
+    reader.readAsDataURL(file)
+  }
+
+  const setBackground = async () => {
+    const blob = await getCroppedBlob(src, areaRef.current)
+    onApply(blob)
+  }
+
   return (
-    <Modal isOpen={!!src} onClose={busy ? () => {} : onCancel} title="Position your background" size="lg">
-      <p className="text-xs text-gray-500 mb-3">Drag to reposition, and zoom to fit. It’s cropped to the screen’s 16:9 shape.</p>
-      <div className="relative w-full h-72 rounded-xl overflow-hidden bg-black">
-        <Cropper
-          image={src}
-          crop={crop}
-          zoom={zoom}
-          aspect={16 / 9}
-          onCropChange={setCrop}
-          onZoomChange={setZoom}
-          onCropComplete={onCropComplete}
-        />
-      </div>
-      <div className="flex items-center gap-3 mt-4">
-        <span className="text-xs text-gray-400 w-10">Zoom</span>
-        <input
-          type="range" min={1} max={3} step={0.01} value={zoom}
-          onChange={(e) => setZoom(Number(e.target.value))}
-          className="flex-1 accent-primary-500"
-        />
-      </div>
-      <div className="flex justify-end gap-2 mt-5">
-        <button onClick={onCancel} disabled={busy} className="btn-secondary">Cancel</button>
-        <button onClick={() => onDone(areaRef.current)} disabled={busy} className="btn-primary">
-          {busy ? 'Setting…' : 'Set background'}
-        </button>
-      </div>
+    <Modal isOpen={isOpen} onClose={busy ? () => {} : onClose} title="Background picture" size="lg">
+      {src ? (
+        <>
+          <p className="text-xs text-gray-500 mb-3">Drag to reposition and zoom to fit — cropped to the screen’s 16:9 shape.</p>
+          <div className="relative w-full h-72 rounded-xl overflow-hidden bg-black">
+            <Cropper
+              image={src}
+              crop={crop}
+              zoom={zoom}
+              aspect={16 / 9}
+              onCropChange={setCrop}
+              onZoomChange={setZoom}
+              onCropComplete={onCropComplete}
+            />
+          </div>
+          <div className="flex items-center gap-3 mt-4">
+            <span className="text-xs text-gray-400 w-10">Zoom</span>
+            <input
+              type="range" min={1} max={3} step={0.01} value={zoom}
+              onChange={(e) => setZoom(Number(e.target.value))}
+              className="flex-1 accent-primary-500"
+            />
+          </div>
+          <div className="flex justify-end gap-2 mt-5">
+            <button onClick={() => setSrc(null)} disabled={busy} className="btn-secondary">Back</button>
+            <button onClick={setBackground} disabled={busy} className="btn-primary">
+              {busy ? 'Setting…' : 'Set background'}
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-slate-900 border border-gray-700 flex items-center justify-center">
+            {currentUrl
+              ? <img src={currentUrl} alt="Current background" className="w-full h-full object-cover" />
+              : (
+                <div className="text-center text-gray-500 text-sm">
+                  <ImageIcon size={26} className="mx-auto mb-2 opacity-60" />
+                  No custom background yet
+                </div>
+              )}
+          </div>
+          <div className="flex justify-end gap-2 mt-5">
+            <button onClick={onClose} className="btn-secondary">Close</button>
+            <button onClick={() => fileRef.current?.click()} className="btn-primary">
+              <Upload size={15} /> {currentUrl ? 'Change picture' : 'Choose picture'}
+            </button>
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={pickFile} />
+        </>
+      )}
     </Modal>
   )
 }
@@ -324,10 +377,10 @@ export default function Settings() {
     surfaceMutation.mutate(color)
   }
 
-  // App background mode + upload/crop.
+  // App background mode + upload/crop (Upload opens a modal to pick/reposition).
   const [bgMode, setBgMode] = useState(user?.gym_background_mode || 'default')
-  const [cropSrc, setCropSrc] = useState(null)
-  const bgFileRef = useRef(null)
+  const [bgModalOpen, setBgModalOpen] = useState(false)
+  const gymBgUrl = user?.gym_background_image ? `${API_ORIGIN}${user.gym_background_image}` : null
 
   const bgMutation = useMutation({
     mutationFn: ({ mode, blob }) => {
@@ -343,35 +396,20 @@ export default function Settings() {
         gym_background_mode: data.background_mode,
         gym_background_image: data.background_image ?? user.gym_background_image,
       })
-      setCropSrc(null)
+      setBgModalOpen(false)
       toast.success('Background updated')
     },
     onError: () => { setBgMode(user?.gym_background_mode || 'default'); toast.error('Failed to update background') },
   })
 
-  // Default/Animated apply immediately; Upload opens the file picker to crop a new one.
+  // Default/Animated apply immediately; Upload opens the picture modal.
   const selectBackground = (m) => {
-    if (m === 'upload') { bgFileRef.current?.click(); return }
+    if (m === 'upload') { setBgModalOpen(true); return }
     setBgMode(m)
     bgMutation.mutate({ mode: m })
   }
 
-  const handleBgFile = (e) => {
-    const file = e.target.files[0]
-    e.target.value = ''
-    if (!file) return
-    if (!file.type.startsWith('image/')) { toast.error('Please choose an image file'); return }
-    if (file.size > 8 * 1024 * 1024) { toast.error('Image must be under 8 MB'); return }
-    const reader = new FileReader()
-    reader.onload = () => setCropSrc(reader.result)
-    reader.readAsDataURL(file)
-  }
-
-  const applyCrop = async (area) => {
-    if (!area) return
-    const blob = await getCroppedBlob(cropSrc, area)
-    bgMutation.mutate({ mode: 'upload', blob })
-  }
+  const applyBackground = (blob) => bgMutation.mutate({ mode: 'upload', blob })
 
   const passwordMutation = useMutation({
     mutationFn: () => api.post('/auth/change-password/', { current_password: currentPw, new_password: newPw }),
@@ -486,7 +524,6 @@ export default function Settings() {
         {user?.gym && (
           <Row label="Background" hint="Default image, animated starfield, or your own picture">
             <BackgroundPicker mode={bgMode} onSelect={selectBackground} />
-            <input ref={bgFileRef} type="file" accept="image/*" className="hidden" onChange={handleBgFile} />
           </Row>
         )}
 
@@ -557,14 +594,13 @@ export default function Settings() {
         />
       </Modal>
 
-      {cropSrc && (
-        <BackgroundCropperModal
-          src={cropSrc}
-          busy={bgMutation.isPending}
-          onCancel={() => setCropSrc(null)}
-          onDone={applyCrop}
-        />
-      )}
+      <BackgroundModal
+        isOpen={bgModalOpen}
+        onClose={() => setBgModalOpen(false)}
+        currentUrl={gymBgUrl}
+        busy={bgMutation.isPending}
+        onApply={applyBackground}
+      />
     </div>
   )
 }
