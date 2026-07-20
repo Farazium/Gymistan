@@ -43,6 +43,7 @@ class CardColor(models.TextChoices):
     SLATE    = 'slate',    'Slate'
     GRAPHITE = 'graphite', 'Graphite'
     MIDNIGHT = 'midnight', 'Midnight'
+    ONYX     = 'onyx',     'Onyx'
     NAVY     = 'navy',     'Navy'
     INDIGO   = 'indigo',   'Indigo'
     OCEAN    = 'ocean',    'Ocean'

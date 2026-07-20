@@ -34,6 +34,7 @@ export const SURFACES = {
   slate:    { name: 'Slate',    swatch: '#1f2937', rgb: '31 41 55'  },
   graphite: { name: 'Graphite', swatch: '#18181b', rgb: '24 24 27'  },
   midnight: { name: 'Midnight', swatch: '#10172a', rgb: '16 23 42'  },
+  onyx:     { name: 'Onyx',     swatch: '#0f172a', rgb: '15 23 42'  },  // the sign-in card's deep slate
   navy:     { name: 'Navy',     swatch: '#1a2338', rgb: '26 35 56'  },
   indigo:   { name: 'Indigo',   swatch: '#1e1b3a', rgb: '30 27 58'  },
   ocean:    { name: 'Ocean',    swatch: '#14262b', rgb: '20 38 43'  },
