@@ -54,6 +54,12 @@ class CardColor(models.TextChoices):
     WINE     = 'wine',     'Wine'
 
 
+class BackgroundMode(models.TextChoices):
+    DEFAULT  = 'default',  'Default'
+    ANIMATED = 'animated', 'Animated'
+    UPLOAD   = 'upload',   'Upload'
+
+
 class Gym(models.Model):
     name = models.CharField(max_length=200)
     address = models.TextField(blank=True)
@@ -76,6 +82,11 @@ class Gym(models.Model):
     wa_used = models.PositiveIntegerField(default=0)
     theme_color = models.CharField(max_length=20, choices=ThemeColor.choices, default=ThemeColor.BLUE)
     card_color = models.CharField(max_length=20, choices=CardColor.choices, default=CardColor.SLATE)
+    # App background: the packaged image ('default'), the animated starfield
+    # ('animated', same as the sign-in screen), or a gym-uploaded image ('upload',
+    # stored in background_image and cropped to the background's aspect on upload).
+    background_mode = models.CharField(max_length=20, choices=BackgroundMode.choices, default=BackgroundMode.DEFAULT)
+    background_image = models.ImageField(upload_to='gym_backgrounds/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

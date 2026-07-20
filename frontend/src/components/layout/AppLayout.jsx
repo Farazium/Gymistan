@@ -2,8 +2,10 @@ import { useEffect } from 'react'
 import { Outlet, Navigate, useLocation } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import LiveEntrance from '../LiveEntrance'
+import AnimatedBackground from '../AnimatedBackground'
 import useAuthStore from '../../store/authStore'
 import { applyTheme, applySurface } from '../../utils/theme'
+import { API_ORIGIN } from '../../api/axios'
 
 export default function AppLayout() {
   const { isAuthenticated, refreshUser, user } = useAuthStore()
@@ -21,12 +23,30 @@ export default function AppLayout() {
 
   if (!isAuthenticated) return <Navigate to="/login" replace />
 
+  // Background: packaged image, the animated starfield, or the gym's upload.
+  const mode = user?.gym_background_mode || 'default'
+  const uploadUrl = user?.gym_background_image ? `${API_ORIGIN}${user.gym_background_image}` : null
+  const imageUrl = mode === 'upload' && uploadUrl ? uploadUrl
+    : mode === 'default' ? '/Gym_BG.jpg'
+    : null // animated
+
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto bg-cover bg-center bg-no-repeat" style={{ backgroundImage: "url('/Gym_BG.jpg')" }}>
-        <div key={location.pathname} className="page-enter p-6 max-w-7xl mx-auto">
-          <Outlet />
+      {/* Background stays fixed behind a scrolling content column. */}
+      <main className="relative flex-1 overflow-hidden">
+        {mode === 'animated'
+          ? <AnimatedBackground />
+          : imageUrl && (
+              <div
+                className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+                style={{ backgroundImage: `url('${imageUrl}')` }}
+              />
+            )}
+        <div className="relative z-10 h-full overflow-y-auto">
+          <div key={location.pathname} className="page-enter p-6 max-w-7xl mx-auto">
+            <Outlet />
+          </div>
         </div>
       </main>
       {/* Global entrance feed — keeps running (and sounding) across page changes. */}

@@ -1,7 +1,12 @@
 import axios from 'axios'
 
+// Base URL for the API, and the bare origin (no /api) for building media URLs
+// like uploaded logos and background images.
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+export const API_ORIGIN = API_BASE.replace(/\/api\/?$/, '')
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
+  baseURL: API_BASE,
 })
 
 api.interceptors.request.use((config) => {

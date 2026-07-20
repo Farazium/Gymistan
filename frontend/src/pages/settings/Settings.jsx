@@ -1,18 +1,16 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Building2, Camera, Image as ImageIcon, Check, ChevronRight, MessageCircle, MoreVertical } from 'lucide-react'
+import { Building2, Camera, Image as ImageIcon, Check, ChevronRight, MessageCircle, MoreVertical, Sparkles, Upload } from 'lucide-react'
+import Cropper from 'react-easy-crop'
+import 'react-easy-crop/react-easy-crop.css'
 import api from '../../api/axios'
 import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
 import Modal from '../../components/ui/Modal'
+import { getCroppedBlob } from '../../utils/cropImage'
 import { applyTheme, applySurface, PRESETS, SURFACE_PRESETS, DEFAULT_THEME, DEFAULT_SURFACE } from '../../utils/theme'
 import { isPrintingEnabled, setPrintingEnabled, getPaperWidth, setPaperWidth } from '../../utils/printReceipt'
 import { CREDIT_TONES } from '../../utils/waCredits'
-
-// Small "not wired yet" tag for placeholder settings.
-const SoonBadge = () => (
-  <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-gray-700 text-gray-400 font-medium">Soon</span>
-)
 
 // One settings row: label (+ optional hint) on the left, control on the right.
 function Row({ label, hint, children }) {
@@ -66,6 +64,70 @@ function ColorGrid({ presets, current, onSelect, bordered }) {
         </button>
       ))}
     </div>
+  )
+}
+
+// App background: pick between the packaged image, the animated starfield, or
+// a gym-uploaded picture. 'Upload' always opens the picker so a new image can
+// be chosen and cropped.
+const BG_MODES = [
+  { id: 'default', label: 'Default', Icon: ImageIcon },
+  { id: 'animated', label: 'Animated', Icon: Sparkles },
+  { id: 'upload', label: 'Upload', Icon: Upload },
+]
+function BackgroundPicker({ mode, onSelect }) {
+  return (
+    <div className="inline-flex rounded-lg border border-gray-600 overflow-hidden">
+      {BG_MODES.map(({ id, label, Icon }) => (
+        <button
+          key={id}
+          onClick={() => onSelect(id)}
+          className={`no-fx flex items-center gap-1.5 px-2.5 py-1.5 text-[13px] transition ${
+            mode === id ? 'bg-primary-600 text-white' : 'text-gray-300 hover:bg-primary-500/10'
+          }`}
+        >
+          <Icon size={13} /> {label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// Crop the chosen picture to the background's 16:9 shape before uploading.
+function BackgroundCropperModal({ src, busy, onCancel, onDone }) {
+  const [crop, setCrop] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const areaRef = useRef(null)
+  const onCropComplete = useCallback((_area, areaPixels) => { areaRef.current = areaPixels }, [])
+  return (
+    <Modal isOpen={!!src} onClose={busy ? () => {} : onCancel} title="Position your background" size="lg">
+      <p className="text-xs text-gray-500 mb-3">Drag to reposition, and zoom to fit. It’s cropped to the screen’s 16:9 shape.</p>
+      <div className="relative w-full h-72 rounded-xl overflow-hidden bg-black">
+        <Cropper
+          image={src}
+          crop={crop}
+          zoom={zoom}
+          aspect={16 / 9}
+          onCropChange={setCrop}
+          onZoomChange={setZoom}
+          onCropComplete={onCropComplete}
+        />
+      </div>
+      <div className="flex items-center gap-3 mt-4">
+        <span className="text-xs text-gray-400 w-10">Zoom</span>
+        <input
+          type="range" min={1} max={3} step={0.01} value={zoom}
+          onChange={(e) => setZoom(Number(e.target.value))}
+          className="flex-1 accent-primary-500"
+        />
+      </div>
+      <div className="flex justify-end gap-2 mt-5">
+        <button onClick={onCancel} disabled={busy} className="btn-secondary">Cancel</button>
+        <button onClick={() => onDone(areaRef.current)} disabled={busy} className="btn-primary">
+          {busy ? 'Setting…' : 'Set background'}
+        </button>
+      </div>
+    </Modal>
   )
 }
 
@@ -262,6 +324,55 @@ export default function Settings() {
     surfaceMutation.mutate(color)
   }
 
+  // App background mode + upload/crop.
+  const [bgMode, setBgMode] = useState(user?.gym_background_mode || 'default')
+  const [cropSrc, setCropSrc] = useState(null)
+  const bgFileRef = useRef(null)
+
+  const bgMutation = useMutation({
+    mutationFn: ({ mode, blob }) => {
+      const form = new FormData()
+      form.append('background_mode', mode)
+      if (blob) form.append('background_image', blob, 'background.jpg')
+      return api.patch(`/gyms/${user.gym}/`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
+    },
+    onSuccess: ({ data }) => {
+      setBgMode(data.background_mode)
+      setUser({
+        ...user,
+        gym_background_mode: data.background_mode,
+        gym_background_image: data.background_image ?? user.gym_background_image,
+      })
+      setCropSrc(null)
+      toast.success('Background updated')
+    },
+    onError: () => { setBgMode(user?.gym_background_mode || 'default'); toast.error('Failed to update background') },
+  })
+
+  // Default/Animated apply immediately; Upload opens the file picker to crop a new one.
+  const selectBackground = (m) => {
+    if (m === 'upload') { bgFileRef.current?.click(); return }
+    setBgMode(m)
+    bgMutation.mutate({ mode: m })
+  }
+
+  const handleBgFile = (e) => {
+    const file = e.target.files[0]
+    e.target.value = ''
+    if (!file) return
+    if (!file.type.startsWith('image/')) { toast.error('Please choose an image file'); return }
+    if (file.size > 8 * 1024 * 1024) { toast.error('Image must be under 8 MB'); return }
+    const reader = new FileReader()
+    reader.onload = () => setCropSrc(reader.result)
+    reader.readAsDataURL(file)
+  }
+
+  const applyCrop = async (area) => {
+    if (!area) return
+    const blob = await getCroppedBlob(cropSrc, area)
+    bgMutation.mutate({ mode: 'upload', blob })
+  }
+
   const passwordMutation = useMutation({
     mutationFn: () => api.post('/auth/change-password/', { current_password: currentPw, new_password: newPw }),
     onSuccess: () => { toast.success('Password changed'); setCurrentPw(''); setNewPw(''); setConfirmPw('') },
@@ -372,14 +483,12 @@ export default function Settings() {
           </Row>
         )}
 
-        <Row label={<span className="flex items-center gap-2">Background Picture <SoonBadge /></span>} hint="Custom app background">
-          <button
-            onClick={() => toast('Background pictures coming soon', { icon: '🕓' })}
-            className="no-fx inline-flex items-center gap-2 text-sm px-3 py-2 rounded-lg border border-gray-600 text-gray-300 hover:bg-primary-500/10 transition"
-          >
-            <ImageIcon size={14} /> Choose image
-          </button>
-        </Row>
+        {user?.gym && (
+          <Row label="Background" hint="Default image, animated starfield, or your own picture">
+            <BackgroundPicker mode={bgMode} onSelect={selectBackground} />
+            <input ref={bgFileRef} type="file" accept="image/*" className="hidden" onChange={handleBgFile} />
+          </Row>
+        )}
 
         <Row label="Receipt Printing" hint="Show a print option on payments for a thermal receipt printer">
           <button
@@ -447,6 +556,15 @@ export default function Settings() {
           bordered
         />
       </Modal>
+
+      {cropSrc && (
+        <BackgroundCropperModal
+          src={cropSrc}
+          busy={bgMutation.isPending}
+          onCancel={() => setCropSrc(null)}
+          onDone={applyCrop}
+        />
+      )}
     </div>
   )
 }

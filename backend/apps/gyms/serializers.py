@@ -56,7 +56,7 @@ class GymSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Gym
-        fields = ['id', 'name', 'address', 'phone', 'logo', 'is_active', 'joining_date', 'expiry_date', 'subscription_amount', 'tier', 'whatsapp_rate', 'theme_color', 'card_color', 'created_at', 'updated_at', 'member_count', 'user_count', 'wa_allowance', 'wa_used', 'wa_remaining', 'wa_percent_used']
+        fields = ['id', 'name', 'address', 'phone', 'logo', 'is_active', 'joining_date', 'expiry_date', 'subscription_amount', 'tier', 'whatsapp_rate', 'theme_color', 'card_color', 'background_mode', 'background_image', 'created_at', 'updated_at', 'member_count', 'user_count', 'wa_allowance', 'wa_used', 'wa_remaining', 'wa_percent_used']
         # Credits move only through top-ups and sends, never a gym PATCH.
         read_only_fields = ['wa_allowance', 'wa_used']
 

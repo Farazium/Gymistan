@@ -22,10 +22,12 @@ class UserSerializer(serializers.ModelSerializer):
     gym_tier = serializers.CharField(source='gym.tier', read_only=True)
     gym_theme = serializers.CharField(source='gym.theme_color', read_only=True)
     gym_card = serializers.CharField(source='gym.card_color', read_only=True)
+    gym_background_mode = serializers.CharField(source='gym.background_mode', read_only=True)
+    gym_background_image = serializers.ImageField(source='gym.background_image', read_only=True)
 
     class Meta:
         model = User
-        fields = ['id', 'name', 'email', 'role', 'is_active', 'gym', 'gym_name', 'gym_logo', 'gym_tier', 'gym_theme', 'gym_card', 'created_at']
+        fields = ['id', 'name', 'email', 'role', 'is_active', 'gym', 'gym_name', 'gym_logo', 'gym_tier', 'gym_theme', 'gym_card', 'gym_background_mode', 'gym_background_image', 'created_at']
 
 
 class LoginSerializer(serializers.Serializer):
