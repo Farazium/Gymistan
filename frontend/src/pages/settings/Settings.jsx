@@ -7,6 +7,7 @@ import api, { API_ORIGIN } from '../../api/axios'
 import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
 import Modal from '../../components/ui/Modal'
+import AnimatedBackground from '../../components/AnimatedBackground'
 import { getCroppedBlob } from '../../utils/cropImage'
 import { applyTheme, applySurface, PRESETS, SURFACE_PRESETS, DEFAULT_THEME, DEFAULT_SURFACE } from '../../utils/theme'
 import { isPrintingEnabled, setPrintingEnabled, getPaperWidth, setPaperWidth } from '../../utils/printReceipt'
@@ -75,39 +76,45 @@ const BG_MODES = [
   { id: 'animated', label: 'Animated', Icon: Sparkles },
   { id: 'upload', label: 'Upload', Icon: Upload },
 ]
-function BackgroundPicker({ mode, onSelect }) {
+// One selectable background option with a live preview thumbnail.
+function BgOption({ active, label, disabled, onClick, children }) {
   return (
-    <div className="inline-flex rounded-lg border border-gray-600 overflow-hidden">
-      {BG_MODES.map(({ id, label, Icon }) => (
-        <button
-          key={id}
-          onClick={() => onSelect(id)}
-          className={`no-fx flex items-center gap-1.5 px-2.5 py-1.5 text-[13px] transition ${
-            mode === id ? 'bg-primary-600 text-white' : 'text-gray-300 hover:bg-primary-500/10'
-          }`}
-        >
-          <Icon size={13} /> {label}
-        </button>
-      ))}
-    </div>
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`no-fx group relative rounded-xl overflow-hidden border-2 text-left transition disabled:opacity-60 ${
+        active ? 'border-primary-500' : 'border-gray-700 hover:border-primary-500/50'
+      }`}
+    >
+      <div className="relative aspect-video bg-slate-900">{children}</div>
+      <div className="flex items-center justify-between px-3 py-2 bg-black/40">
+        <span className="text-sm text-gray-200">{label}</span>
+        {active && (
+          <span className="w-5 h-5 rounded-full bg-primary-500 flex items-center justify-center">
+            <Check size={12} className="text-white" />
+          </span>
+        )}
+      </div>
+    </button>
   )
 }
 
-// Background upload/update modal. Two states in one modal: a preview of the
-// current picture with a "Choose / Change picture" button, and — once a file is
-// picked — the cropper to position it at the screen's 16:9 before saving.
-function BackgroundModal({ isOpen, onClose, currentUrl, busy, onApply }) {
-  const [src, setSrc] = useState(null) // picked image being cropped
+// Background picker modal: three options with live previews (Default image,
+// Animated starfield, your Upload). Default/Animated apply instantly; Upload
+// opens the cropper in the same modal.
+function BackgroundModal({ isOpen, onClose, mode, currentUrl, busy, onSelectMode, onApplyUpload }) {
+  const [view, setView] = useState('choose') // 'choose' | 'crop'
+  const [src, setSrc] = useState(null)
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
   const areaRef = useRef(null)
   const fileRef = useRef(null)
 
-  // Reset back to the preview state each time the modal closes.
+  // Reset to the chooser each time the modal closes.
   const [prevOpen, setPrevOpen] = useState(isOpen)
   if (isOpen !== prevOpen) {
     setPrevOpen(isOpen)
-    if (!isOpen) { setSrc(null); setZoom(1); setCrop({ x: 0, y: 0 }) }
+    if (!isOpen) { setView('choose'); setSrc(null); setZoom(1); setCrop({ x: 0, y: 0 }) }
   }
 
   const onCropComplete = useCallback((_area, areaPixels) => { areaRef.current = areaPixels }, [])
@@ -119,18 +126,18 @@ function BackgroundModal({ isOpen, onClose, currentUrl, busy, onApply }) {
     if (!file.type.startsWith('image/')) { toast.error('Please choose an image file'); return }
     if (file.size > 8 * 1024 * 1024) { toast.error('Image must be under 8 MB'); return }
     const reader = new FileReader()
-    reader.onload = () => { setSrc(reader.result); setZoom(1); setCrop({ x: 0, y: 0 }) }
+    reader.onload = () => { setSrc(reader.result); setZoom(1); setCrop({ x: 0, y: 0 }); setView('crop') }
     reader.readAsDataURL(file)
   }
 
   const setBackground = async () => {
     const blob = await getCroppedBlob(src, areaRef.current)
-    onApply(blob)
+    try { await onApplyUpload(blob); setView('choose'); setSrc(null) } catch { /* mutation toasts */ }
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={busy ? () => {} : onClose} title="Background picture" size="lg">
-      {src ? (
+    <Modal isOpen={isOpen} onClose={busy ? () => {} : onClose} title="Background" size="lg">
+      {view === 'crop' ? (
         <>
           <p className="text-xs text-gray-500 mb-3">Drag to reposition and zoom to fit — cropped to the screen’s 16:9 shape.</p>
           <div className="relative w-full h-72 rounded-xl overflow-hidden bg-black">
@@ -153,7 +160,7 @@ function BackgroundModal({ isOpen, onClose, currentUrl, busy, onApply }) {
             />
           </div>
           <div className="flex justify-end gap-2 mt-5">
-            <button onClick={() => setSrc(null)} disabled={busy} className="btn-secondary">Back</button>
+            <button onClick={() => { setView('choose'); setSrc(null) }} disabled={busy} className="btn-secondary">Back</button>
             <button onClick={setBackground} disabled={busy} className="btn-primary">
               {busy ? 'Setting…' : 'Set background'}
             </button>
@@ -161,21 +168,22 @@ function BackgroundModal({ isOpen, onClose, currentUrl, busy, onApply }) {
         </>
       ) : (
         <>
-          <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-slate-900 border border-gray-700 flex items-center justify-center">
-            {currentUrl
-              ? <img src={currentUrl} alt="Current background" className="w-full h-full object-cover" />
-              : (
-                <div className="text-center text-gray-500 text-sm">
-                  <ImageIcon size={26} className="mx-auto mb-2 opacity-60" />
-                  No custom background yet
-                </div>
-              )}
+          <p className="text-xs text-gray-500 mb-4">Pick what shows behind the app. Default and Animated apply instantly; Upload lets you crop your own picture.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <BgOption active={mode === 'default'} label="Default" disabled={busy} onClick={() => onSelectMode('default')}>
+              <img src="/Gym_BG.jpg" alt="" className="w-full h-full object-cover" />
+            </BgOption>
+            <BgOption active={mode === 'animated'} label="Animated" disabled={busy} onClick={() => onSelectMode('animated')}>
+              <AnimatedBackground />
+            </BgOption>
+            <BgOption active={mode === 'upload'} label="Upload" disabled={busy} onClick={() => fileRef.current?.click()}>
+              {currentUrl
+                ? <img src={currentUrl} alt="" className="w-full h-full object-cover" />
+                : <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 gap-1"><Upload size={20} /><span className="text-xs">Choose…</span></div>}
+            </BgOption>
           </div>
-          <div className="flex justify-end gap-2 mt-5">
-            <button onClick={onClose} className="btn-secondary">Close</button>
-            <button onClick={() => fileRef.current?.click()} className="btn-primary">
-              <Upload size={15} /> {currentUrl ? 'Change picture' : 'Choose picture'}
-            </button>
+          <div className="flex justify-end mt-5">
+            <button onClick={onClose} className="btn-primary">Done</button>
           </div>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={pickFile} />
         </>
@@ -384,9 +392,11 @@ export default function Settings() {
 
   const bgMutation = useMutation({
     mutationFn: ({ mode, blob }) => {
+      // Mode-only changes go as JSON; an upload rides a multipart form.
+      if (!blob) return api.patch(`/gyms/${user.gym}/`, { background_mode: mode })
       const form = new FormData()
       form.append('background_mode', mode)
-      if (blob) form.append('background_image', blob, 'background.jpg')
+      form.append('background_image', blob, 'background.jpg')
       return api.patch(`/gyms/${user.gym}/`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
     },
     onSuccess: ({ data }) => {
@@ -396,20 +406,14 @@ export default function Settings() {
         gym_background_mode: data.background_mode,
         gym_background_image: data.background_image ?? user.gym_background_image,
       })
-      setBgModalOpen(false)
       toast.success('Background updated')
     },
     onError: () => { setBgMode(user?.gym_background_mode || 'default'); toast.error('Failed to update background') },
   })
 
-  // Default/Animated apply immediately; Upload opens the picture modal.
-  const selectBackground = (m) => {
-    if (m === 'upload') { setBgModalOpen(true); return }
-    setBgMode(m)
-    bgMutation.mutate({ mode: m })
-  }
-
-  const applyBackground = (blob) => bgMutation.mutate({ mode: 'upload', blob })
+  const chooseBgMode = (m) => { setBgMode(m); bgMutation.mutate({ mode: m }) }
+  const applyBgUpload = (blob) => bgMutation.mutateAsync({ mode: 'upload', blob })
+  const currentBgLabel = BG_MODES.find((m) => m.id === bgMode)?.label || 'Default'
 
   const passwordMutation = useMutation({
     mutationFn: () => api.post('/auth/change-password/', { current_password: currentPw, new_password: newPw }),
@@ -523,7 +527,12 @@ export default function Settings() {
 
         {user?.gym && (
           <Row label="Background" hint="Default image, animated starfield, or your own picture">
-            <BackgroundPicker mode={bgMode} onSelect={selectBackground} />
+            <button
+              onClick={() => setBgModalOpen(true)}
+              className="no-fx inline-flex items-center gap-2 text-sm px-3 py-2 rounded-lg border border-gray-600 text-gray-200 hover:bg-primary-500/10 transition"
+            >
+              <ImageIcon size={14} /> {currentBgLabel} <ChevronRight size={15} className="text-gray-500" />
+            </button>
           </Row>
         )}
 
@@ -597,9 +606,11 @@ export default function Settings() {
       <BackgroundModal
         isOpen={bgModalOpen}
         onClose={() => setBgModalOpen(false)}
+        mode={bgMode}
         currentUrl={gymBgUrl}
         busy={bgMutation.isPending}
-        onApply={applyBackground}
+        onSelectMode={chooseBgMode}
+        onApplyUpload={applyBgUpload}
       />
     </div>
   )
