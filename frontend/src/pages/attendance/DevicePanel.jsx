@@ -21,12 +21,17 @@ export default function DevicePanel() {
 
   const { data: cfg } = useQuery({
     queryKey: ['device-config'],
-    queryFn: async () => {
-      const { data } = await api.get('/attendance/device/')
-      setForm((f) => f ?? { name: data.name, ip: data.ip, port: data.port, password: data.password })
-      return data
-    },
+    queryFn: async () => (await api.get('/attendance/device/')).data,
   })
+
+  // Seed the editable form as soon as the config is known — whether it came from
+  // the network or straight from the react-query cache on a reopen. Adjusting
+  // state during render (guarded, so it runs once) is React's sanctioned pattern;
+  // deriving it inside the queryFn meant a cached reopen never seeded the form, so
+  // the panel sat on "Loading…" until a background refetch happened to run.
+  if (cfg && form === null) {
+    setForm({ name: cfg.name, ip: cfg.ip, port: cfg.port, password: cfg.password })
+  }
 
   const ping = useMutation({
     mutationFn: (body) => api.post('/attendance/device/ping/', body || {}),
