@@ -16,6 +16,21 @@ export default function EnrollModal({ member, isOpen, onClose, autoStart = false
   const [message, setMessage] = useState('')
   const pollRef = useRef(null)
 
+  // Reset to a clean state each time the modal opens. Tracking the previous
+  // isOpen in state and adjusting during render (React's sanctioned pattern for
+  // "reset state when a prop changes") lets the parent keep this mounted across
+  // close — which is what allows the Modal's exit animation to play instead of
+  // the panel vanishing instantly.
+  const [prevOpen, setPrevOpen] = useState(isOpen)
+  if (isOpen !== prevOpen) {
+    setPrevOpen(isOpen)
+    if (isOpen) {
+      setState(autoStart ? 'starting' : 'checking')
+      setMessage('')
+      setEnrolled(!!member?.has_fingerprint)
+    }
+  }
+
   const refreshMember = () => {
     qc.invalidateQueries({ queryKey: [kind] })          // 'member' or 'trainer'
     qc.invalidateQueries({ queryKey: [`${kind}s`] })    // 'members' or 'trainers'
@@ -89,7 +104,11 @@ export default function EnrollModal({ member, isOpen, onClose, autoStart = false
   useEffect(() => () => clearInterval(pollRef.current), [])
 
   // On open: auto-start (add-member flow), or read the real status off the device.
+  // Keyed on isOpen so it runs each time the modal opens (the parent may keep this
+  // mounted while closed), and does nothing while closed — so a closed panel never
+  // fires a device fingerprint check.
   useEffect(() => {
+    if (!isOpen) return
     if (autoStart) {
       const t = setTimeout(start, 60)
       return () => clearTimeout(t)
@@ -105,7 +124,7 @@ export default function EnrollModal({ member, isOpen, onClose, autoStart = false
     })()
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [isOpen])
 
   const Icon = state === 'done' || state === 'removed' ? CheckCircle2
     : state === 'failed' ? XCircle
@@ -174,7 +193,7 @@ export default function EnrollModal({ member, isOpen, onClose, autoStart = false
 
         {!busy && (state === 'done' || state === 'removed') && (
           <div className="flex justify-center mt-5">
-            <button onClick={handleClose} className="btn-secondary">Done</button>
+            <button onClick={handleClose} className="btn-primary">Done</button>
           </div>
         )}
       </div>

@@ -352,7 +352,7 @@ export default function MemberProfile() {
         <BlacklistForm onSubmit={(body) => blacklistMutation.mutate(body)} isPending={blacklistMutation.isPending} />
       </Modal>
 
-      {showEnroll && <EnrollModal member={member} isOpen onClose={() => setShowEnroll(false)} />}
+      {member && <EnrollModal member={member} isOpen={showEnroll} onClose={() => setShowEnroll(false)} />}
 
       {viewPhoto && photoUrl && <PhotoViewer src={photoUrl} alt={member.name} onClose={() => setViewPhoto(false)} />}
       {cropFile && (

@@ -410,7 +410,7 @@ export default function TrainerProfile() {
         />
       </Modal>
 
-      {showEnroll && <EnrollModal member={t} kind="trainer" isOpen onClose={() => setShowEnroll(false)} />}
+      {t && <EnrollModal member={t} kind="trainer" isOpen={showEnroll} onClose={() => setShowEnroll(false)} />}
 
       {viewPhoto && photoUrl && <PhotoViewer src={photoUrl} alt={t.name} onClose={() => setViewPhoto(false)} />}
       {cropFile && (
