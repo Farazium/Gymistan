@@ -36,7 +36,7 @@ export default function DevicePanel() {
   const ping = useMutation({
     mutationFn: (body) => api.post('/attendance/device/ping/', body || {}),
     onMutate: () => setConn(null),
-    onSuccess: (r) => setConn(r.data),
+    onSuccess: (r) => { setConn(r.data); qc.invalidateQueries({ queryKey: ['device-ping'] }) },
     onError: (e) => setConn({ online: false, message: e.response?.data?.message || 'Could not reach device' }),
   })
 
