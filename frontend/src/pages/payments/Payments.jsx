@@ -201,7 +201,7 @@ export default function Payments() {
                               onClick={() => sendWhatsApp.mutate(p.id)}
                               disabled={outOfCredits}
                               title={outOfCredits ? 'Out of WhatsApp messages — top up to send' : 'Send via WhatsApp'}
-                              className="p-1.5 text-gray-400 rounded-lg transition enabled:hover:text-white enabled:hover:bg-green-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                              className="p-1.5 text-gray-400 rounded-lg transition enabled:hover:text-white disabled:opacity-40 disabled:cursor-not-allowed [--btn-fill:34_197_94] [--btn-edge:21_128_61]"
                             >
                               <MessageCircle size={14} />
                             </button>

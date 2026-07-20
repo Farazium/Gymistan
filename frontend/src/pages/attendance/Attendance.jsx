@@ -123,8 +123,8 @@ export default function Attendance() {
           <button onClick={() => { const nv = !live; if (nv) initAudio(); setLive(nv) }}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition text-sm ${
               live
-                ? 'bg-green-500/20 text-green-300 border-green-400/40 hover:bg-green-500/30'
-                : 'bg-primary-500/20 text-primary-300 border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500'}`}
+                ? 'bg-green-500/20 text-green-300 border-green-400/40 hover:text-white [--btn-fill:34_197_94] [--btn-edge:21_128_61]'
+                : 'bg-primary-500/20 text-primary-300 border-primary-400/30 hover:text-white hover:border-primary-500'}`}
             title="Play a sound on each entrance scan — ting for active, buzzer for expired">
             <Radio size={16} className={live ? 'animate-pulse' : ''} /> {live ? 'Live · On' : 'Live'}
           </button>
@@ -159,7 +159,7 @@ export default function Attendance() {
         </div>
         <div className="flex items-center gap-1">
           <button onClick={() => setDate(shiftDate(date, scope, -1))}
-            className="p-1.5 rounded-lg bg-primary-500/15 hover:bg-primary-500/25 text-primary-300 transition">
+            className="p-1.5 rounded-lg bg-primary-500/15 text-primary-300 hover:text-white transition">
             <ChevronLeft size={15} />
           </button>
           <div className="flex items-center gap-2 px-3 py-1.5 bg-primary-500/10 rounded-lg min-w-[11rem] justify-center">
@@ -167,11 +167,11 @@ export default function Attendance() {
             <span className="text-sm font-medium text-gray-100">{rangeLabel(data)}</span>
           </div>
           <button onClick={() => setDate(shiftDate(date, scope, 1))}
-            className="p-1.5 rounded-lg bg-primary-500/15 hover:bg-primary-500/25 text-primary-300 transition">
+            className="p-1.5 rounded-lg bg-primary-500/15 text-primary-300 hover:text-white transition">
             <ChevronRight size={15} />
           </button>
           <button onClick={() => setDate(iso(new Date()))}
-            className="ml-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-600/20 text-primary-400 hover:bg-primary-600/30 transition">
+            className="ml-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-600/20 text-primary-400 hover:text-white transition">
             Today
           </button>
         </div>
