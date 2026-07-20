@@ -32,7 +32,7 @@ function ColorTrigger({ preset, onClick, bordered }) {
   return (
     <button
       onClick={onClick}
-      className="no-fx inline-flex items-center gap-2.5 pl-2 pr-2.5 py-1.5 rounded-lg border border-gray-600 hover:bg-gray-700/50 transition"
+      className="no-fx inline-flex items-center gap-2.5 pl-2 pr-2.5 py-1.5 rounded-lg border border-gray-600 hover:bg-primary-500/10 transition"
     >
       <span
         className={`w-5 h-5 rounded-full ${bordered ? 'border border-gray-500' : ''}`}
@@ -53,7 +53,7 @@ function ColorGrid({ presets, current, onSelect, bordered }) {
           key={p.id}
           onClick={() => onSelect(p.id)}
           className={`no-fx flex items-center gap-2.5 p-2.5 rounded-lg border transition ${
-            current === p.id ? 'border-primary-500 bg-primary-500/10' : 'border-gray-700 hover:border-gray-500 hover:bg-gray-700/40'
+            current === p.id ? 'border-primary-500 bg-primary-500/10' : 'border-gray-700 hover:border-primary-500/50 hover:bg-primary-500/10'
           }`}
         >
           <span
@@ -375,7 +375,7 @@ export default function Settings() {
         <Row label={<span className="flex items-center gap-2">Background Picture <SoonBadge /></span>} hint="Custom app background">
           <button
             onClick={() => toast('Background pictures coming soon', { icon: '🕓' })}
-            className="no-fx inline-flex items-center gap-2 text-sm px-3 py-2 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700/50 transition"
+            className="no-fx inline-flex items-center gap-2 text-sm px-3 py-2 rounded-lg border border-gray-600 text-gray-300 hover:bg-primary-500/10 transition"
           >
             <ImageIcon size={14} /> Choose image
           </button>
@@ -397,7 +397,7 @@ export default function Settings() {
                 <button
                   key={w}
                   onClick={() => changePaperWidth(w)}
-                  className={`no-fx px-4 py-1.5 text-sm transition ${paperWidth === w ? 'bg-primary-600 text-white' : 'text-gray-300 hover:bg-gray-700/50'}`}
+                  className={`no-fx px-4 py-1.5 text-sm transition ${paperWidth === w ? 'bg-primary-600 text-white' : 'text-gray-300 hover:bg-primary-500/10'}`}
                 >
                   {w}mm
                 </button>
