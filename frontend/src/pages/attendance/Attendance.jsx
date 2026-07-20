@@ -132,10 +132,6 @@ export default function Attendance() {
           <p className="text-gray-500 text-sm mt-1">Biometric check-ins synced from your ZKTeco device.</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={exportSheet} disabled={!rows.length}
-            className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:text-white hover:border-primary-500 disabled:opacity-40 transition" title="Export">
-            <Download size={18} />
-          </button>
           {hasDevice && (
             <span className="relative flex items-center p-2"
               title={pingData?.message || (checkingDevice ? 'Checking device…' : deviceOnline ? 'Device connected' : 'Device offline')}>
@@ -147,6 +143,10 @@ export default function Attendance() {
                   : deviceOnline ? 'bg-green-400 animate-pulse' : 'bg-red-500'}`} />
             </span>
           )}
+          <button onClick={exportSheet} disabled={!rows.length}
+            className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:text-white hover:border-primary-500 disabled:opacity-40 transition" title="Export">
+            <Download size={18} />
+          </button>
           <button onClick={() => sync.mutate()} disabled={sync.isPending}
             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:text-white hover:border-primary-500 disabled:opacity-40 transition text-sm"
             title="Pull the latest punches from the device now">
