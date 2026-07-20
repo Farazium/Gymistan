@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { RefreshCw, Wifi, Users, Check, UserPlus, Search } from 'lucide-react'
+import { RefreshCw, Wifi, WifiOff, Users, Check, UserPlus, Search, Loader2 } from 'lucide-react'
 import api from '../../api/axios'
 import toast from 'react-hot-toast'
 
@@ -17,6 +17,7 @@ export default function DevicePanel() {
   const qc = useQueryClient()
   const [form, setForm] = useState(null)
   const [showUsers, setShowUsers] = useState(false)
+  const [conn, setConn] = useState(null) // null | {online, message}
 
   const { data: cfg } = useQuery({
     queryKey: ['device-config'],
@@ -27,9 +28,22 @@ export default function DevicePanel() {
     },
   })
 
+  const ping = useMutation({
+    mutationFn: (body) => api.post('/attendance/device/ping/', body || {}),
+    onMutate: () => setConn(null),
+    onSuccess: (r) => setConn(r.data),
+    onError: (e) => setConn({ online: false, message: e.response?.data?.message || 'Could not reach device' }),
+  })
+
   const save = useMutation({
     mutationFn: (body) => api.put('/attendance/device/', body),
-    onSuccess: () => { toast.success('Device settings saved'); qc.invalidateQueries({ queryKey: ['device-config'] }) },
+    onSuccess: (_r, body) => {
+      toast.success('Device settings saved')
+      qc.invalidateQueries({ queryKey: ['device-config'] })
+      // Test the just-saved connection so the status reflects these values.
+      if ((body.ip || '').trim()) ping.mutate({ ip: body.ip, port: body.port, password: body.password })
+      else setConn(null)
+    },
     onError: () => toast.error('Could not save settings'),
   })
 
@@ -105,9 +119,22 @@ export default function DevicePanel() {
             <input className="input" type="number" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
           </div>
         </div>
-        <button onClick={handleSave} disabled={save.isPending} className="btn-primary">
-          {save.isPending ? 'Saving…' : 'Save Settings'}
-        </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          <button onClick={handleSave} disabled={save.isPending} className="btn-primary">
+            {save.isPending ? 'Saving…' : 'Save Settings'}
+          </button>
+          {(save.isPending || ping.isPending) ? (
+            <span className="flex items-center gap-1.5 text-xs text-gray-400">
+              <Loader2 size={14} className="animate-spin" /> {save.isPending ? 'Saving…' : 'Connecting…'}
+            </span>
+          ) : conn ? (
+            <span className={`flex items-center gap-1.5 text-xs ${conn.online ? 'text-green-400' : 'text-red-400'}`}
+              title={conn.message}>
+              {conn.online ? <Wifi size={14} /> : <WifiOff size={14} />}
+              {conn.online ? 'Connected' : 'Unable to connect'}
+            </span>
+          ) : null}
+        </div>
       </div>
 
       {/* Sync */}

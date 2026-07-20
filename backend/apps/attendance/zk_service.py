@@ -163,6 +163,34 @@ def delete_fingerprint(ip, port, password, uid, finger=0, timeout=10):
                 pass
 
 
+def ping_device(ip, port=4370, password=0, timeout=5):
+    """Quick reachability check: try to connect to the device and read a light
+    identifier, then disconnect. Returns (ok, detail). Never raises — a failure
+    comes back as (False, message) so the UI can show 'offline' cleanly.
+
+    Uses a short timeout so a dead IP fails fast instead of hanging the request."""
+    if not _HAS_ZK:
+        return False, 'pyzk is not installed on the server'
+    zk = ZK(ip, port=port, timeout=timeout, password=password, ommit_ping=False)
+    conn = None
+    try:
+        conn = zk.connect()
+        # A tiny read confirms the link is really usable, not just a socket open.
+        try:
+            name = conn.get_device_name()
+        except Exception:
+            name = ''
+        return True, (f'Connected to {name}'.strip() if name else 'Connected')
+    except Exception as e:
+        return False, str(e) or 'Could not reach device'
+    finally:
+        if conn:
+            try:
+                conn.disconnect()
+            except Exception:
+                pass
+
+
 def sync_device(gym, ip, port=4370, timeout=10, password=0, since=None):
     """Pull punches from a device and record them for `gym`, applying only those
     newer than `since` (incremental). Returns a summary dict with `latest` watermark."""

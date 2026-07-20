@@ -13,7 +13,7 @@ from .models import Attendance, DeviceConfig
 from .serializers import DeviceConfigSerializer
 from .services import record_punch, resolve_person
 from .zk_service import (sync_device, pull_device_users, push_users,
-                         delete_fingerprint, device_has_fingerprint)
+                         delete_fingerprint, device_has_fingerprint, ping_device)
 from .live import get_monitor, current_seq, stop_monitor, monitor_running, _HAS_ZK
 from .enroll import start_enroll, enroll_status, cancel_enroll
 from .device_actions import ensure_person_id, get_person
@@ -186,6 +186,30 @@ class DeviceConfigView(APIView):
         ser.is_valid(raise_exception=True)
         ser.save()
         return Response(ser.data)
+
+
+class DevicePingView(APIView):
+    """Test whether the configured device is reachable right now. Used by the
+    settings panel to show a live online/offline status after saving. Fails fast
+    on a dead IP (short timeout) so the request doesn't hang."""
+    permission_classes = [IsAuthenticated, IsGymMember, HasAttendance]
+
+    def post(self, request):
+        cfg, _ = DeviceConfig.objects.get_or_create(gym=request.user.gym)
+        ip = (request.data.get('ip') or cfg.ip or '').strip()
+        if not ip:
+            return Response({'online': False, 'message': 'No device IP configured'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        port = request.data.get('port') or cfg.port or 4370
+        password = request.data.get('password')
+        if password in (None, ''):
+            password = cfg.password or 0
+        try:
+            online, detail = ping_device(ip, port=int(port), password=int(password))
+        except (TypeError, ValueError):
+            return Response({'online': False, 'message': 'Invalid port or password'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        return Response({'online': online, 'message': detail})
 
 
 class DeviceSyncView(APIView):
