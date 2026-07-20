@@ -322,7 +322,7 @@ function LedgerTab() {
             </thead>
             <tbody>
               {data?.entries.length ? data.entries.map((e, i) => (
-                <tr key={i} className="border-b border-gray-700/50 hover:bg-gray-700/20 transition">
+                <tr key={i} className="border-b border-gray-700/50 hover:bg-primary-500/10 transition">
                   <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
                     {new Date(e.date).toLocaleDateString('en-PK')}
                   </td>
@@ -523,7 +523,7 @@ function ExpenseCategoriesTab() {
             <div key={cat.category} className="card overflow-hidden">
               <button
                 onClick={() => toggle(cat.category)}
-                className="no-fx w-full flex items-center gap-4 p-4 hover:bg-gray-700/20 transition text-left"
+                className="no-fx w-full flex items-center gap-4 p-4 hover:bg-primary-500/10 transition text-left"
               >
                 <span className={`text-xs px-2.5 py-1 rounded-full font-medium flex-shrink-0 ${CAT_COLORS[cat.category] || CAT_COLORS['Other']}`}>
                   {cat.category}
@@ -544,7 +544,7 @@ function ExpenseCategoriesTab() {
               {expanded[cat.category] && (
                 <div className="border-t border-gray-700">
                   {cat.entries.map((e, i) => (
-                    <div key={i} className="flex items-center justify-between px-4 py-2.5 border-b border-gray-700/40 last:border-0 hover:bg-gray-700/10">
+                    <div key={i} className="flex items-center justify-between px-4 py-2.5 border-b border-gray-700/40 last:border-0 hover:bg-primary-500/10">
                       <div>
                         <p className="text-sm text-gray-200">{e.title}</p>
                         <p className="text-xs text-gray-500">{new Date(e.date).toLocaleDateString('en-PK')}</p>
@@ -602,7 +602,7 @@ function DailyCollectionTab() {
           </thead>
           <tbody>
             {items.map((row, i) => (
-              <tr key={i} className="border-b border-gray-700/30 last:border-0 hover:bg-gray-700/10">
+              <tr key={i} className="border-b border-gray-700/30 last:border-0 hover:bg-primary-500/10">
                 {cols.map(c => (
                   <td key={c.key} className={`px-4 py-2.5 ${c.right ? 'text-right' : ''} ${c.bold ? 'font-semibold ' + color : 'text-gray-300'}`}>
                     {c.fmt ? fmt(row[c.key]) : row[c.key]}

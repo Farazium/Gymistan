@@ -258,7 +258,7 @@ function DailySheet({ rows, day }) {
         const cell = r.days[day] || { status: 'absent' }
         const present = cell.status === 'present'
         return (
-          <div key={r.id} className="flex items-center gap-4 px-4 py-3 hover:bg-gray-700/30 transition">
+          <div key={r.id} className="flex items-center gap-4 px-4 py-3 hover:bg-primary-500/15 transition">
             <div className="flex-1 min-w-0">
               <p className="font-medium text-gray-100 truncate">{r.name}</p>
               {r.code && <p className="text-xs text-gray-500">#{r.code}</p>}
@@ -301,7 +301,7 @@ function MatrixSheet({ rows, days, scope }) {
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.id} className="border-t border-gray-700/50 hover:bg-gray-700/20">
+            <tr key={r.id} className="border-t border-gray-700/50 hover:bg-primary-500/10">
               <td className="sticky left-0 surface z-10 px-4 py-2">
                 <p className="font-medium text-gray-100 text-sm truncate">{r.name}</p>
                 {r.code && <p className="text-[10px] text-gray-500">#{r.code}</p>}
