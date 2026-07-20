@@ -136,6 +136,17 @@ export default function Attendance() {
             className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:text-white hover:border-primary-500 disabled:opacity-40 transition" title="Export">
             <Download size={18} />
           </button>
+          {hasDevice && (
+            <span className="relative flex items-center p-2"
+              title={pingData?.message || (checkingDevice ? 'Checking device…' : deviceOnline ? 'Device connected' : 'Device offline')}>
+              {deviceOnline
+                ? <Wifi size={18} className="text-green-400" />
+                : <WifiOff size={18} className="text-gray-500" />}
+              <span className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${
+                checkingDevice ? 'bg-amber-400 animate-pulse'
+                  : deviceOnline ? 'bg-green-400 animate-pulse' : 'bg-red-500'}`} />
+            </span>
+          )}
           <button onClick={() => sync.mutate()} disabled={sync.isPending}
             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:text-white hover:border-primary-500 disabled:opacity-40 transition text-sm"
             title="Pull the latest punches from the device now">
@@ -149,24 +160,6 @@ export default function Attendance() {
             title="Play a sound on each entrance scan — ting for active, buzzer for expired">
             <Radio size={16} className={live ? 'animate-pulse' : ''} /> {live ? 'Live · On' : 'Live'}
           </button>
-          {hasDevice && (
-            <div
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition ${
-                deviceOnline
-                  ? 'bg-green-500/15 text-green-300 border-green-400/40'
-                  : 'bg-gray-500/10 text-gray-400 border-gray-600/50'}`}
-              title={pingData?.message || (checkingDevice ? 'Checking device…' : deviceOnline ? 'Device connected' : 'Device offline')}>
-              <span className="relative flex">
-                {deviceOnline ? <Wifi size={16} /> : <WifiOff size={16} />}
-                <span className={`absolute -top-1 -right-1.5 w-2 h-2 rounded-full ${
-                  checkingDevice ? 'bg-amber-400 animate-pulse'
-                    : deviceOnline ? 'bg-green-400 animate-pulse' : 'bg-red-500'}`} />
-              </span>
-              <span className="hidden sm:inline">
-                {checkingDevice ? 'Checking…' : deviceOnline ? 'Connected' : 'Offline'}
-              </span>
-            </div>
-          )}
           <button onClick={() => setShowDevice(true)}
             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:text-white hover:border-primary-500 transition text-sm">
             <Settings size={16} /> Device
