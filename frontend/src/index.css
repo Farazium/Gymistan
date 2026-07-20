@@ -243,6 +243,14 @@ button:not(.no-fx):hover::before { opacity: 1; transform: scale(1); }
   overflow: hidden;
   isolation: isolate;
 }
+/* The glint is only 55% as wide as the tab, so it needs to travel further than
+   the full-width button sweep to clear the right edge — otherwise a sliver
+   lingers there and pops out of view when the loop restarts. */
+@keyframes sidebar-shimmer {
+  0%   { transform: translateX(-170%) skewX(-16deg); }
+  55%  { transform: translateX(220%) skewX(-16deg); }
+  100% { transform: translateX(220%) skewX(-16deg); }
+}
 .sidebar-active::after {
   content: '';
   position: absolute;
@@ -253,8 +261,8 @@ button:not(.no-fx):hover::before { opacity: 1; transform: scale(1); }
   z-index: -1;
   opacity: 1;
   background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.16), transparent);
-  transform: translateX(-160%) skewX(-16deg);
-  animation: btn-shimmer 3.4s ease-in-out infinite;
+  transform: translateX(-170%) skewX(-16deg);
+  animation: sidebar-shimmer 3.4s ease-in-out infinite;
   pointer-events: none;
 }
 @media (prefers-reduced-motion: reduce) {
