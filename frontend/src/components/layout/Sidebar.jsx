@@ -62,7 +62,7 @@ export default function Sidebar() {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all origin-left hover:scale-[1.04] ${
                   isActive
-                    ? 'sidebar-active bg-primary-500/30 text-primary-300 shadow-sm shadow-primary-500/10'
+                    ? 'sidebar-active scale-[1.04] bg-primary-500/30 text-primary-300 shadow-sm shadow-primary-500/10'
                     : 'text-gray-400 hover:bg-primary-500/10 hover:text-gray-100'
                 }`
               }
@@ -77,7 +77,7 @@ export default function Sidebar() {
               to="/attendance"
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all origin-left hover:scale-[1.04] ${
-                  isActive ? 'sidebar-active bg-primary-500/30 text-primary-300 shadow-sm shadow-primary-500/10' : 'text-gray-400 hover:bg-primary-500/10 hover:text-gray-100'
+                  isActive ? 'sidebar-active scale-[1.04] bg-primary-500/30 text-primary-300 shadow-sm shadow-primary-500/10' : 'text-gray-400 hover:bg-primary-500/10 hover:text-gray-100'
                 }`
               }
             >
