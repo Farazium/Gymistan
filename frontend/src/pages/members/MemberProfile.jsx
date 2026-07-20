@@ -107,13 +107,13 @@ export default function MemberProfile() {
       form.append('photo', file)
       return api.patch(`/members/${id}/`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
     },
-    onSuccess: () => { toast.success('Photo updated'); queryClient.invalidateQueries(['member', id]) },
+    onSuccess: () => { toast.success('Photo updated'); queryClient.invalidateQueries({ queryKey: ['member', id] }) },
     onError: () => toast.error('Failed to upload photo'),
   })
 
   const removePhotoMutation = useMutation({
     mutationFn: () => api.patch(`/members/${id}/`, { photo: null }),
-    onSuccess: () => { toast.success('Photo removed'); queryClient.invalidateQueries(['member', id]) },
+    onSuccess: () => { toast.success('Photo removed'); queryClient.invalidateQueries({ queryKey: ['member', id] }) },
     onError: () => toast.error('Failed to remove photo'),
   })
 
@@ -135,9 +135,9 @@ export default function MemberProfile() {
     mutationFn: (body) => api.post(`/members/${id}/blacklist/`, body),
     onSuccess: () => {
       setShowBlacklist(false)
-      queryClient.invalidateQueries(['member', id])
-      queryClient.invalidateQueries(['members'])
-      queryClient.invalidateQueries(['members-blacklisted'])
+      queryClient.invalidateQueries({ queryKey: ['member', id] })
+      queryClient.invalidateQueries({ queryKey: ['members'] })
+      queryClient.invalidateQueries({ queryKey: ['members-blacklisted'] })
       toast.success('Member blacklisted')
     },
     onError: (err) => toast.error(apiErrorMessage(err, 'Failed to blacklist member')),

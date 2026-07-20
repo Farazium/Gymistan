@@ -126,8 +126,8 @@ export default function PaymentForm({ onSuccess }) {
     // again so the row picks up slip_sent and stops offering to send twice.
     onSuccess: () => {
       toast.success('Receipt sent via WhatsApp!')
-      queryClient.invalidateQueries(['payments'])
-      queryClient.invalidateQueries(['wa-billing'])   // one credit just went
+      queryClient.invalidateQueries({ queryKey: ['payments'] })
+      queryClient.invalidateQueries({ queryKey: ['wa-billing'] })   // one credit just went
     },
     onError: (err) => toast.error(
       err.response?.data?.message || 'Payment saved but WhatsApp failed'),

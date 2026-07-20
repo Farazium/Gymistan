@@ -148,13 +148,13 @@ export default function TrainerProfile() {
       form.append('photo', file)
       return api.patch(`/trainers/${id}/`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
     },
-    onSuccess: () => { toast.success('Photo updated'); queryClient.invalidateQueries(['trainer', id]) },
+    onSuccess: () => { toast.success('Photo updated'); queryClient.invalidateQueries({ queryKey: ['trainer', id] }) },
     onError: () => toast.error('Failed to upload photo'),
   })
 
   const removePhotoMutation = useMutation({
     mutationFn: () => api.patch(`/trainers/${id}/`, { photo: null }),
-    onSuccess: () => { toast.success('Photo removed'); queryClient.invalidateQueries(['trainer', id]) },
+    onSuccess: () => { toast.success('Photo removed'); queryClient.invalidateQueries({ queryKey: ['trainer', id] }) },
     onError: () => toast.error('Failed to remove photo'),
   })
 
@@ -403,8 +403,8 @@ export default function TrainerProfile() {
           trainer={t}
           onSuccess={() => {
             setShowPay(false)
-            queryClient.invalidateQueries(['trainer', id])
-            queryClient.invalidateQueries(['trainers'])
+            queryClient.invalidateQueries({ queryKey: ['trainer', id] })
+            queryClient.invalidateQueries({ queryKey: ['trainers'] })
             invalidateFinance(queryClient)
           }}
         />

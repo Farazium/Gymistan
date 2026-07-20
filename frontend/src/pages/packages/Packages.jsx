@@ -96,7 +96,7 @@ export default function Packages() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/packages/${id}/`),
-    onSuccess: () => { queryClient.invalidateQueries(['packages']); toast.success('Package deleted') },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['packages'] }); toast.success('Package deleted') },
     onError: (err) => toast.error(err.response?.data?.detail || 'Failed to delete package'),
   })
 
@@ -187,7 +187,7 @@ export default function Packages() {
       )}
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editPkg ? 'Edit Package' : 'New Package'}>
-        <PackageForm pkg={editPkg} onSuccess={() => { setShowModal(false); queryClient.invalidateQueries(['packages']) }} />
+        <PackageForm pkg={editPkg} onSuccess={() => { setShowModal(false); queryClient.invalidateQueries({ queryKey: ['packages'] }) }} />
       </Modal>
     </div>
   )

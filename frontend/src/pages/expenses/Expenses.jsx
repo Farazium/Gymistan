@@ -113,7 +113,7 @@ export default function Expenses() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/expenses/${id}/`),
-    onSuccess: () => { queryClient.invalidateQueries(['expenses']); invalidateFinance(queryClient); toast.success('Expense deleted') },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['expenses'] }); invalidateFinance(queryClient); toast.success('Expense deleted') },
     onError: (err) => toast.error(apiErrorMessage(err, 'Failed to delete expense')),
   })
 
@@ -232,7 +232,7 @@ export default function Expenses() {
       )}
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Add Expense">
-        <ExpenseForm onSuccess={() => { setShowModal(false); queryClient.invalidateQueries(['expenses']); invalidateFinance(queryClient) }} />
+        <ExpenseForm onSuccess={() => { setShowModal(false); queryClient.invalidateQueries({ queryKey: ['expenses'] }); invalidateFinance(queryClient) }} />
       </Modal>
     </div>
   )

@@ -259,13 +259,53 @@ export default function Members() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/members/${id}/`),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['members'])
-      queryClient.invalidateQueries(['members-deleted'])
-      queryClient.invalidateQueries(['members-blacklisted'])
-      toast.success('Member removed')
+    // Optimistic: drop the row from every cached members list right away and
+    // slot it into the Deleted list, so the UI reacts instantly instead of
+    // waiting on a server round-trip. Rolled back if the request fails.
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['members'] })
+      const prev = queryClient.getQueriesData({ queryKey: ['members'] })
+      let removed = null
+      for (const [, d] of prev) {
+        const list = Array.isArray(d) ? d : d?.results
+        const hit = list?.find((m) => m.id === id)
+        if (hit) { removed = hit; break }
+      }
+      queryClient.setQueriesData({ queryKey: ['members'] }, (old) => {
+        if (!old) return old
+        if (Array.isArray(old)) return old.filter((m) => m.id !== id)
+        if (Array.isArray(old.results)) return {
+          ...old,
+          results: old.results.filter((m) => m.id !== id),
+          count: typeof old.count === 'number' ? Math.max(0, old.count - 1) : old.count,
+        }
+        return old
+      })
+      const prevDeleted = queryClient.getQueryData(['members-deleted'])
+      if (removed && Array.isArray(prevDeleted)) {
+        queryClient.setQueryData(['members-deleted'], [
+          { ...removed, deleted_at: new Date().toISOString() },
+          ...prevDeleted,
+        ])
+      }
+      const prevBlacklist = queryClient.getQueryData(['members-blacklisted'])
+      if (Array.isArray(prevBlacklist)) {
+        queryClient.setQueryData(['members-blacklisted'], prevBlacklist.filter((m) => m.id !== id))
+      }
+      return { prev, prevDeleted, prevBlacklist }
     },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Failed to remove member')),
+    onError: (err, id, ctx) => {
+      ctx?.prev?.forEach(([key, data]) => queryClient.setQueryData(key, data))
+      if (ctx && 'prevDeleted' in ctx) queryClient.setQueryData(['members-deleted'], ctx.prevDeleted)
+      if (ctx && 'prevBlacklist' in ctx) queryClient.setQueryData(['members-blacklisted'], ctx.prevBlacklist)
+      toast.error(apiErrorMessage(err, 'Failed to remove member'))
+    },
+    onSuccess: () => toast.success('Member removed'),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['members'] })
+      queryClient.invalidateQueries({ queryKey: ['members-deleted'] })
+      queryClient.invalidateQueries({ queryKey: ['members-blacklisted'] })
+    },
   })
 
   const [deletedSearch, setDeletedSearch] = useState('')
@@ -276,10 +316,10 @@ export default function Members() {
   const restoreMutation = useMutation({
     mutationFn: ({ id, ...body }) => api.post(`/members/${id}/restore/`, body),
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries(['members'])
-      queryClient.invalidateQueries(['members-deleted'])
-      queryClient.invalidateQueries(['members-blacklisted'])
-      queryClient.invalidateQueries(['member-next-id'])
+      queryClient.invalidateQueries({ queryKey: ['members'] })
+      queryClient.invalidateQueries({ queryKey: ['members-deleted'] })
+      queryClient.invalidateQueries({ queryKey: ['members-blacklisted'] })
+      queryClient.invalidateQueries({ queryKey: ['member-next-id'] })
       invalidateFinance(queryClient) // admission fee may create a payment
       const restored = restoreMember
       setRestoreMember(null)
@@ -293,7 +333,7 @@ export default function Members() {
   const hardDeleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/members/${id}/hard-delete/`),
     onSuccess: () => {
-      queryClient.invalidateQueries(['members-deleted'])
+      queryClient.invalidateQueries({ queryKey: ['members-deleted'] })
       toast.success('Member permanently deleted')
     },
     onError: (err) => toast.error(apiErrorMessage(err, 'Failed to delete member')),
@@ -661,8 +701,8 @@ export default function Members() {
           defaultMemberId={!editMember ? nextIdData?.next_id : undefined}
           onSuccess={() => {
             setShowModal(false)
-            queryClient.invalidateQueries(['members'])
-            queryClient.invalidateQueries(['member-next-id'])
+            queryClient.invalidateQueries({ queryKey: ['members'] })
+            queryClient.invalidateQueries({ queryKey: ['member-next-id'] })
             invalidateFinance(queryClient) // admission fee may create a payment
           }}
         />

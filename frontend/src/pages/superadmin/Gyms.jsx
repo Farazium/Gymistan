@@ -135,7 +135,7 @@ export default function Gyms() {
 
   const toggleMutation = useMutation({
     mutationFn: (id) => api.post(`/gyms/${id}/toggle/`),
-    onSuccess: () => { queryClient.invalidateQueries(['gyms']); toast.success('Status updated') },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['gyms'] }); toast.success('Status updated') },
     onError: (err) => toast.error(apiErrorMessage(err, 'Failed to update status')),
   })
 
@@ -255,7 +255,7 @@ export default function Gyms() {
       </div>
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Add New Gym">
-        <GymForm onSuccess={() => { setShowModal(false); queryClient.invalidateQueries(['gyms']) }} />
+        <GymForm onSuccess={() => { setShowModal(false); queryClient.invalidateQueries({ queryKey: ['gyms'] }) }} />
       </Modal>
     </div>
   )

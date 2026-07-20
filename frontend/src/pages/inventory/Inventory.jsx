@@ -116,8 +116,8 @@ function SalesDrawer({ open, onClose }) {
   const del = useMutation({
     mutationFn: (id) => api.delete(`/inventory/sales/${id}/`),
     onSuccess: () => {
-      queryClient.invalidateQueries(['sales'])
-      queryClient.invalidateQueries(['inventory']) // stock is restored
+      queryClient.invalidateQueries({ queryKey: ['sales'] })
+      queryClient.invalidateQueries({ queryKey: ['inventory'] }) // stock is restored
       invalidateFinance(queryClient)               // sale removed from cashflow
       toast.success('Sale deleted · stock restored')
     },
@@ -233,7 +233,7 @@ export default function Inventory() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/inventory/${id}/`),
-    onSuccess: () => { queryClient.invalidateQueries(['inventory']); toast.success('Product deleted') },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['inventory'] }); toast.success('Product deleted') },
     onError: (err) => toast.error(apiErrorMessage(err, 'Failed to delete product')),
   })
 
@@ -244,8 +244,8 @@ export default function Inventory() {
     setShowAddModal(false)
     setEditProduct(null)
     setStockAction(null)
-    queryClient.invalidateQueries(['inventory'])
-    queryClient.invalidateQueries(['sales'])
+    queryClient.invalidateQueries({ queryKey: ['inventory'] })
+    queryClient.invalidateQueries({ queryKey: ['sales'] })
     invalidateFinance(queryClient) // restock records an expense
   }
 

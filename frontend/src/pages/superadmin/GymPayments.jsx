@@ -138,7 +138,7 @@ export default function GymPayments() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/gyms/gym-payments/${id}/`),
-    onSuccess: () => { queryClient.invalidateQueries(['gym-payments']); toast.success('Deleted') },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['gym-payments'] }); toast.success('Deleted') },
     onError: () => toast.error('Failed to delete'),
   })
 
@@ -224,7 +224,7 @@ export default function GymPayments() {
       </div>
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Record Gym Payment">
-        <PaymentForm gyms={gyms} onSuccess={() => { setShowModal(false); queryClient.invalidateQueries(['gym-payments']) }} />
+        <PaymentForm gyms={gyms} onSuccess={() => { setShowModal(false); queryClient.invalidateQueries({ queryKey: ['gym-payments'] }) }} />
       </Modal>
     </div>
   )

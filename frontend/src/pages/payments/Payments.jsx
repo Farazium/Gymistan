@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Download, MessageCircle, CheckCircle2, Search, Trash2 } from 'lucide-react'
+import { Plus, Download, MessageCircle, CheckCircle2, Search, Trash2, Loader2 } from 'lucide-react'
 import { exportToExcel } from '../../utils/exportExcel'
 import api from '../../api/axios'
 import useAuthStore from '../../store/authStore'
@@ -59,7 +59,7 @@ export default function Payments() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/payments/${id}/`),
-    onSuccess: () => { queryClient.invalidateQueries(['payments']); invalidateFinance(queryClient); toast.success('Payment deleted') },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['payments'] }); invalidateFinance(queryClient); toast.success('Payment deleted') },
     onError: (err) => toast.error(apiErrorMessage(err, 'Failed to delete payment')),
   })
 
@@ -67,11 +67,21 @@ export default function Payments() {
     mutationFn: (id) => api.post(`/payments/${id}/whatsapp/`),
     onSuccess: () => {
       toast.success('Slip sent via WhatsApp!')
-      queryClient.invalidateQueries(['payments'])
-      queryClient.invalidateQueries(['wa-billing'])   // one credit just went
+      queryClient.invalidateQueries({ queryKey: ['payments'] })
+      queryClient.invalidateQueries({ queryKey: ['wa-billing'] })   // one credit just went
     },
     onError: (err) => toast.error(err.response?.data?.message || 'Failed to send'),
   })
+
+  // Guard against rapid double-clicks sending duplicate receipts: track the ids
+  // currently in flight in a ref (updated synchronously, so it blocks repeat
+  // clicks that fire before React re-renders and disables the button).
+  const sendingRef = useRef(new Set())
+  const handleSendWhatsApp = (id) => {
+    if (sendingRef.current.has(id)) return
+    sendingRef.current.add(id)
+    sendWhatsApp.mutate(id, { onSettled: () => sendingRef.current.delete(id) })
+  }
 
   // Sort newest first (by date, then by id so same-day payments keep insertion order), group by month
   const sorted = [...payments].sort((a, b) => {
@@ -198,12 +208,14 @@ export default function Payments() {
                             </span>
                           ) : (
                             <button
-                              onClick={() => sendWhatsApp.mutate(p.id)}
-                              disabled={outOfCredits}
+                              onClick={() => handleSendWhatsApp(p.id)}
+                              disabled={outOfCredits || (sendWhatsApp.isPending && sendWhatsApp.variables === p.id)}
                               title={outOfCredits ? 'Out of WhatsApp messages — top up to send' : 'Send via WhatsApp'}
                               className="p-1.5 text-gray-400 rounded-lg transition enabled:hover:text-white disabled:opacity-40 disabled:cursor-not-allowed [--btn-fill:34_197_94] [--btn-edge:21_128_61]"
                             >
-                              <MessageCircle size={14} />
+                              {sendWhatsApp.isPending && sendWhatsApp.variables === p.id
+                                ? <Loader2 size={14} className="animate-spin" />
+                                : <MessageCircle size={14} />}
                             </button>
                           )
                         )}
@@ -223,7 +235,7 @@ export default function Payments() {
       )}
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Record Payment">
-        <PaymentForm onSuccess={() => { setShowModal(false); queryClient.invalidateQueries(['payments']) }} />
+        <PaymentForm onSuccess={() => { setShowModal(false); queryClient.invalidateQueries({ queryKey: ['payments'] }) }} />
       </Modal>
     </div>
   )

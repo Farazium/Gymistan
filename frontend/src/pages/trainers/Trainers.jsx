@@ -44,7 +44,7 @@ export default function Trainers() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/trainers/${id}/`),
-    onSuccess: () => { queryClient.invalidateQueries(['trainers']); toast.success('Trainer removed') },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['trainers'] }); toast.success('Trainer removed') },
     onError: () => toast.error('Failed to remove trainer'),
   })
 
@@ -160,7 +160,7 @@ export default function Trainers() {
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editTrainer ? 'Edit Trainer' : 'Add Trainer'}>
         <TrainerForm
           trainer={editTrainer}
-          onSuccess={() => { setShowModal(false); queryClient.invalidateQueries(['trainers']) }}
+          onSuccess={() => { setShowModal(false); queryClient.invalidateQueries({ queryKey: ['trainers'] }) }}
         />
       </Modal>
     </div>

@@ -285,8 +285,8 @@ function GymDashboard() {
     mutationFn: (id) => api.post(`/members/${id}/reminder/`),
     onSuccess: () => {
       toast.success('Reminder sent via WhatsApp!')
-      queryClient.invalidateQueries(['dashboard'])
-      queryClient.invalidateQueries(['wa-billing'])   // one credit just went
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['wa-billing'] })   // one credit just went
     },
     onError: (err) => toast.error(err.response?.data?.message || 'Failed to send reminder'),
   })

@@ -207,8 +207,8 @@ export default function GymProfile() {
   const editMutation = useMutation({
     mutationFn: () => api.patch(`/gyms/${id}/`, { name: gymName, phone: gymPhone, address: gymAddress, subscription_amount: gymSubscription || null, whatsapp_rate: waRate || null }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['gym-stats', id])
-      queryClient.invalidateQueries(['gyms'])
+      queryClient.invalidateQueries({ queryKey: ['gym-stats', id] })
+      queryClient.invalidateQueries({ queryKey: ['gyms'] })
       setEditingGym(false)
       toast.success('Gym updated')
     },
@@ -221,7 +221,7 @@ export default function GymProfile() {
       ...(newPassword ? { new_password: newPassword } : {}),
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['gym-stats', id])
+      queryClient.invalidateQueries({ queryKey: ['gym-stats', id] })
       toast.success('Admin updated')
       setNewPassword('')
       setEditingAdmin(false)
@@ -403,7 +403,7 @@ export default function GymProfile() {
               className="input w-64"
               value={gym.tier || 'TIER1'}
               onChange={(e) => api.patch(`/gyms/${id}/`, { tier: e.target.value })
-                .then(() => { queryClient.invalidateQueries(['gym-stats', id]); toast.success('Tier updated') })
+                .then(() => { queryClient.invalidateQueries({ queryKey: ['gym-stats', id] }); toast.success('Tier updated') })
                 .catch((err) => toast.error(apiErrorMessage(err, 'Failed to update tier')))}
             >
               <option value="TIER1">Tier 1 — Starter</option>
@@ -430,7 +430,7 @@ export default function GymProfile() {
         <TopupModal
           gym={gym}
           onClose={() => setShowTopup(false)}
-          onDone={() => queryClient.invalidateQueries(['gym-stats', id])}
+          onDone={() => queryClient.invalidateQueries({ queryKey: ['gym-stats', id] })}
         />
       )}
 
