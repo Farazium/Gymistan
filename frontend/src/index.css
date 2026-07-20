@@ -43,14 +43,24 @@
   .btn {
     @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
   }
+  /* Centre/edge colours the cursor radial (.btn::before) blooms with — the disc
+     is a solid two-stop gradient (bright centre → darker edge), per variant.
+     Space-separated RGB channels. */
+  .btn { --btn-fill: var(--p500); --btn-edge: var(--p600); }
   .btn-primary {
-    @apply btn bg-primary-500/20 text-primary-300 border border-primary-500/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 hover:shadow-lg hover:shadow-primary-500/20 backdrop-blur-sm transition-all;
+    @apply btn bg-primary-500/20 text-primary-300 border border-primary-500/30 hover:text-white hover:border-primary-500 hover:shadow-lg hover:shadow-primary-500/20 backdrop-blur-sm transition-all;
+    --btn-fill: var(--p500);
+    --btn-edge: var(--p600);
   }
   .btn-secondary {
-    @apply btn bg-white text-gray-700 border border-gray-300 hover:bg-gray-50;
+    @apply btn bg-white text-gray-700 border border-gray-300 hover:text-gray-900;
+    --btn-fill: 226 232 240; /* slate-200 */
+    --btn-edge: 148 163 184; /* slate-400 */
   }
   .btn-danger {
-    @apply btn bg-red-600 text-white hover:bg-red-700;
+    @apply btn bg-red-600/20 text-red-300 border border-red-500/30 hover:text-white hover:border-red-500 hover:shadow-lg hover:shadow-red-500/20;
+    --btn-fill: 239 68 68;  /* red-500 */
+    --btn-edge: 185 28 28;  /* red-700 */
   }
   .input {
     @apply w-full px-3 py-2 border border-gray-600 rounded-lg text-sm text-gray-100 bg-primary-500/10 placeholder-gray-400 hover:border-primary-500/60 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition;
@@ -176,6 +186,79 @@ input:-webkit-autofill:active {
 }
 @media (prefers-reduced-motion: reduce) {
   .btn-shimmer-sweep { animation: none; }
+}
+
+/* "Fill from cursor" on hover (Button Hover Lab · #02) — applied app-wide to
+   EVERY <button> (pages, modals, dropdown menus, follow-through screens), so
+   there is nothing to opt into. Pure text-link buttons (sort headers, name
+   links, input-adornment icons) opt OUT with the `no-fx` class, where a radial
+   bloom would look wrong.
+   The accent disc is pinned to the pointer's ENTRY point (--mx/--my) and sized
+   (--fill-d) by the listener in App.jsx to reach the button's farthest corner,
+   so scaling it 0 → 1 blooms the accent out of the cursor and covers the whole
+   button gradually — whatever the button's size. On leave it collapses back
+   toward the exit point. The disc sits at z-index:-1 in an isolated stacking
+   context, so it paints above the button's background but below its label.
+   Colour comes from --btn-fill/--btn-edge (set per .btn variant); buttons that
+   don't set them fall back to the gym accent. */
+/* Base positioning lives in @layer components so Tailwind's position utilities
+   (absolute / fixed / sticky, in the utilities layer) always win — otherwise an
+   unlayered `position: relative` would clobber a button that positions itself
+   (e.g. the floating login dumbbells, an absolutely-placed close button) and
+   break its layout. Buttons with no position utility still get `relative` here,
+   giving the disc a containing block. */
+@layer components {
+  button:not(.no-fx) {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+}
+button:not(.no-fx)::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  left: var(--mx, 50%);
+  top: var(--my, 50%);
+  width: var(--fill-d, 22rem);
+  height: var(--fill-d, 22rem);
+  margin-left: calc(var(--fill-d, 22rem) / -2);
+  margin-top: calc(var(--fill-d, 22rem) / -2);
+  border-radius: 50%;
+  opacity: 0;
+  background: radial-gradient(circle, rgb(var(--btn-fill, var(--p500))), rgb(var(--btn-edge, var(--p600))));
+  transform: scale(0);
+  transition: transform 0.6s cubic-bezier(0.33, 1, 0.68, 1), opacity 0.25s ease;
+  pointer-events: none;
+}
+button:not(.no-fx):hover::before { opacity: 1; transform: scale(1); }
+@media (prefers-reduced-motion: reduce) {
+  button:not(.no-fx)::before { transition: opacity 0.2s ease; }
+}
+
+/* Sidebar's selected tab: a slow shimmer glinting over its (brighter) tint.
+   Same isolated-stacking-context trick so the glint sits behind the label. */
+.sidebar-active {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.sidebar-active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 55%;
+  z-index: -1;
+  opacity: 1;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.16), transparent);
+  transform: translateX(-160%) skewX(-16deg);
+  animation: btn-shimmer 3.4s ease-in-out infinite;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-active::after { animation: none; opacity: 0; }
 }
 
 /* Live attendance card — pops in on each entrance scan. */

@@ -118,7 +118,7 @@ export default function Packages() {
               'Members Enrolled': p.member_count || 0,
               Active: p.is_active ? 'Yes' : 'No',
             })), 'Packages')}
-            className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 transition"
+            className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:text-white hover:border-primary-500 transition"
             title="Export"
           >
             <Download size={18} />
@@ -145,10 +145,10 @@ export default function Packages() {
                     <PackageIcon size={20} />
                   </div>
                   <div className="flex gap-1">
-                    <button onClick={() => { setEditPkg(pkg); setShowModal(true) }} className="p-1.5 text-gray-500 hover:text-white hover:bg-primary-500 rounded-lg transition">
+                    <button onClick={() => { setEditPkg(pkg); setShowModal(true) }} className="p-1.5 text-gray-500 hover:text-white rounded-lg transition">
                       <Pencil size={14} />
                     </button>
-                    <button onClick={() => { if (confirm('Delete package?')) deleteMutation.mutate(pkg.id) }} className="p-1.5 text-gray-500 hover:text-white hover:bg-red-500 rounded-lg transition">
+                    <button onClick={() => { if (confirm('Delete package?')) deleteMutation.mutate(pkg.id) }} className="p-1.5 text-gray-500 hover:text-white rounded-lg transition [--btn-fill:239_68_68] [--btn-edge:185_28_28]">
                       <Trash2 size={14} />
                     </button>
                   </div>

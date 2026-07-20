@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'react-hot-toast'
@@ -25,7 +26,46 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30000 } },
 })
 
+// "Fill from cursor" on button hover: anchor the accent disc at the point where
+// the pointer first sits on a button and let it grow from there; on leave, move
+// the origin to the exit point so it collapses back that way. The origin is
+// locked for the duration of one hover (data-filled flag) so it doesn't chase
+// the cursor around. The disc is sized to reach the button's farthest corner,
+// so it covers fully yet expands gradually regardless of button size.
+function useButtonCursorFill() {
+  useEffect(() => {
+    const place = (btn, e) => {
+      const r = btn.getBoundingClientRect()
+      const x = e.clientX - r.left
+      const y = e.clientY - r.top
+      const radius = Math.hypot(Math.max(x, r.width - x), Math.max(y, r.height - y))
+      btn.style.setProperty('--mx', `${x}px`)
+      btn.style.setProperty('--my', `${y}px`)
+      btn.style.setProperty('--fill-d', `${radius * 2}px`)
+    }
+    const onMove = (e) => {
+      const btn = e.target.closest?.('button:not(.no-fx)')
+      if (!btn || btn.dataset.filled) return   // already anchored this hover
+      btn.dataset.filled = '1'
+      place(btn, e)
+    }
+    const onOut = (e) => {
+      const btn = e.target.closest?.('button:not(.no-fx)')
+      if (!btn || btn.contains(e.relatedTarget)) return  // still inside
+      place(btn, e)                            // collapse toward the exit point
+      delete btn.dataset.filled                // re-arm for the next hover
+    }
+    document.addEventListener('pointermove', onMove, { passive: true })
+    document.addEventListener('pointerout', onOut, { passive: true })
+    return () => {
+      document.removeEventListener('pointermove', onMove)
+      document.removeEventListener('pointerout', onOut)
+    }
+  }, [])
+}
+
 export default function App() {
+  useButtonCursorFill()
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>

@@ -331,7 +331,7 @@ export default function Members() {
               Address: m.address || '',
               Notes: m.notes || '',
             })), 'Members')}
-            className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 transition"
+            className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:text-white hover:border-primary-500 transition"
             title="Export"
           >
             <Download size={18} />
@@ -343,7 +343,7 @@ export default function Members() {
             <button
               onClick={() => setShowMenu((s) => !s)}
               title="More"
-              className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-500/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 hover:shadow-lg hover:shadow-primary-500/20 transition-all"
+              className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-500/30 hover:text-white hover:border-primary-500 hover:shadow-lg hover:shadow-primary-500/20 transition-all"
             >
               <MoreVertical size={18} />
             </button>
@@ -415,12 +415,12 @@ export default function Members() {
           <Table>
             <Thead>
               <Th>
-                <button onClick={() => toggleSort('member_id')} className="flex items-center gap-1 hover:text-primary-400 transition">
+                <button onClick={() => toggleSort('member_id')} className="no-fx flex items-center gap-1 hover:text-primary-400 transition">
                   ID <SortIcon col="member_id" sort={sort} />
                 </button>
               </Th>
               <Th>
-                <button onClick={() => toggleSort('name')} className="flex items-center gap-1 hover:text-primary-400 transition">
+                <button onClick={() => toggleSort('name')} className="no-fx flex items-center gap-1 hover:text-primary-400 transition">
                   Name <SortIcon col="name" sort={sort} />
                 </button>
               </Th>
@@ -430,7 +430,7 @@ export default function Members() {
               <Th>Trainer</Th>
               <Th>Status</Th>
               <Th>
-                <button onClick={() => toggleSort('expiry_date')} className="flex items-center gap-1 hover:text-primary-400 transition">
+                <button onClick={() => toggleSort('expiry_date')} className="no-fx flex items-center gap-1 hover:text-primary-400 transition">
                   Expiry <SortIcon col="expiry_date" sort={sort} />
                 </button>
               </Th>
@@ -445,7 +445,7 @@ export default function Members() {
                     </span>
                   </Td>
                   <Td className="font-medium">
-                    <button onClick={() => navigate(`/members/${m.id}`)} className="hover:text-primary-400 transition text-left">
+                    <button onClick={() => navigate(`/members/${m.id}`)} className="no-fx hover:text-primary-400 transition text-left">
                       {m.name}
                     </button>
                   </Td>
@@ -470,7 +470,7 @@ export default function Members() {
                       <button
                         onClick={() => { setEditMember(m); setShowModal(true) }}
                         title="Edit"
-                        className="p-1.5 text-gray-400 hover:text-white hover:bg-primary-500 rounded-lg transition"
+                        className="p-1.5 text-gray-400 hover:text-white rounded-lg transition"
                       >
                         <Pencil size={14} />
                       </button>
@@ -479,7 +479,7 @@ export default function Members() {
                           if (confirm('Remove this member?')) deleteMutation.mutate(m.id)
                         }}
                         title="Remove"
-                        className="p-1.5 text-gray-400 hover:text-white hover:bg-red-500 rounded-lg transition"
+                        className="p-1.5 text-gray-400 hover:text-white rounded-lg transition [--btn-fill:239_68_68] [--btn-edge:185_28_28]"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -546,7 +546,7 @@ export default function Members() {
                   <div className="flex-1 min-w-0">
                     <button
                       onClick={() => { setShowDeleted(false); navigate(`/members/${m.id}`) }}
-                      className="font-medium text-gray-100 truncate hover:text-primary-400 transition text-left"
+                      className="no-fx font-medium text-gray-100 truncate hover:text-primary-400 transition text-left"
                     >
                       {m.name}
                     </button>
@@ -587,7 +587,7 @@ export default function Members() {
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <button onClick={() => { setShowBlacklist(false); navigate(`/members/${m.id}`) }} className="font-medium text-gray-100 truncate hover:text-primary-400 transition">
+                    <button onClick={() => { setShowBlacklist(false); navigate(`/members/${m.id}`) }} className="no-fx font-medium text-gray-100 truncate hover:text-primary-400 transition">
                       {m.name}
                     </button>
                     {!m.blacklist_active && (

@@ -348,7 +348,7 @@ function DumbbellField() {
           onClick={doRep}
           data-depth={d.depth}
           data-dir={d.dir}
-          className="db-cell pointer-events-auto absolute cursor-pointer border-0 bg-transparent p-0 focus:outline-none"
+          className="no-fx db-cell pointer-events-auto absolute cursor-pointer border-0 bg-transparent p-0 focus:outline-none"
           style={{ left: `${d.left}%`, top: `${d.top}%`, opacity: 0, transform: 'translate3d(0,0,0)' }}
         >
           <span className="db-pop block" style={{ transform: 'translateZ(0)' }}>
@@ -641,7 +641,7 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 transition z-10"
+                  className="no-fx absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 transition z-10"
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -669,7 +669,7 @@ export default function Login() {
           <button
             type="button"
             onClick={() => setShowTerms(true)}
-            className="text-primary-300 hover:text-primary-200 underline underline-offset-2 transition"
+            className="no-fx text-primary-300 hover:text-primary-200 underline underline-offset-2 transition"
           >
             Terms &amp; Conditions
           </button>

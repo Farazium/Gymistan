@@ -84,7 +84,7 @@ function SuperAdminDashboard() {
               {data.top_gyms.map((g) => (
                 <Tr key={g.id}>
                   <Td>
-                    <button onClick={() => navigate(`/admin/gyms/${g.id}`)} className="font-medium text-gray-100 hover:text-primary-400 transition">
+                    <button onClick={() => navigate(`/admin/gyms/${g.id}`)} className="no-fx font-medium text-gray-100 hover:text-primary-400 transition">
                       {g.name}
                     </button>
                   </Td>
@@ -145,7 +145,7 @@ function SuperAdminDashboard() {
             {(data.expired_gyms || []).map((g) => (
               <Tr key={g.id}>
                 <Td>
-                  <button onClick={() => navigate(`/admin/gyms/${g.id}`)} className="font-medium text-gray-100 hover:text-primary-400 transition">
+                  <button onClick={() => navigate(`/admin/gyms/${g.id}`)} className="no-fx font-medium text-gray-100 hover:text-primary-400 transition">
                     {g.name}
                   </button>
                 </Td>
@@ -216,7 +216,7 @@ function TierInfoModal({ tier, onClose }) {
       <div className="relative surface rounded-2xl border border-gray-700 shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b border-gray-700 sticky top-0 surface z-10">
           <h2 className="text-gray-100 font-semibold">Subscription Plans</h2>
-          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-100 hover:bg-gray-700 rounded-lg transition">
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-100 rounded-lg transition [--btn-fill:55_65_81] [--btn-edge:31_41_55]">
             <X size={15} />
           </button>
         </div>
@@ -306,7 +306,7 @@ function GymDashboard() {
           </span>
           <button
             onClick={() => setShowTierInfo(true)}
-            className="p-1 text-gray-500 hover:text-gray-200 hover:bg-gray-700 rounded-full transition"
+            className="p-1 text-gray-500 hover:text-gray-200 rounded-full transition [--btn-fill:55_65_81] [--btn-edge:31_41_55]"
             title="Plan info"
           >
             <Info size={14} />

@@ -114,7 +114,7 @@ export default function WhatsAppCredits() {
                   <Td>
                     <button
                       onClick={() => navigate(`/admin/gyms/${c.gym}`)}
-                      className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white transition"
+                      className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:text-white transition"
                     >
                       Top up <ChevronRight size={13} />
                     </button>

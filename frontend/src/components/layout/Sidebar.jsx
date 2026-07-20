@@ -62,7 +62,7 @@ export default function Sidebar() {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                   isActive
-                    ? 'bg-primary-500/15 text-primary-400'
+                    ? 'sidebar-active bg-primary-500/30 text-primary-300 shadow-sm shadow-primary-500/10'
                     : 'text-gray-400 hover:bg-primary-500/10 hover:text-gray-100'
                 }`
               }
@@ -77,7 +77,7 @@ export default function Sidebar() {
               to="/attendance"
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                  isActive ? 'bg-primary-500/15 text-primary-400' : 'text-gray-400 hover:bg-primary-500/10 hover:text-gray-100'
+                  isActive ? 'sidebar-active bg-primary-500/30 text-primary-300 shadow-sm shadow-primary-500/10' : 'text-gray-400 hover:bg-primary-500/10 hover:text-gray-100'
                 }`
               }
             >
@@ -90,7 +90,7 @@ export default function Sidebar() {
         <div className="p-4 border-t border-gray-700/50 space-y-1">
           <button
             onClick={() => navigate('/settings')}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-primary-500/10 transition group"
+            className="no-fx w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-primary-500/10 transition group"
           >
             <div className="w-8 h-8 bg-gray-700 rounded-full overflow-hidden flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
               {user?.gym_logo
@@ -102,11 +102,11 @@ export default function Sidebar() {
               <p className="text-white text-sm font-medium truncate">{user?.name}</p>
               <p className="text-gray-400 text-xs truncate">{user?.gym_name || 'Super Admin'}</p>
             </div>
-            <Settings size={14} className="text-gray-500 group-hover:text-gray-300 transition flex-shrink-0" />
+            <Settings size={14} className="no-fx text-gray-500 group-hover:text-gray-300 transition flex-shrink-0" />
           </button>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:bg-primary-500/10 hover:text-gray-100 text-sm transition-all"
+            className="no-fx w-full flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:bg-primary-500/10 hover:text-gray-100 text-sm transition-all"
           >
             <LogOut size={16} />
             Logout

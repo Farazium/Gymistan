@@ -154,7 +154,7 @@ export default function DevicePanel() {
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-gray-200 flex items-center gap-2"><Users size={15} /> Enrollment</h3>
           <button onClick={() => setShowUsers(true)} disabled={!cfg.ip}
-            className="text-xs px-3 py-1.5 rounded-lg bg-gray-700/60 text-gray-200 hover:bg-gray-700 disabled:opacity-40">
+            className="text-xs px-3 py-1.5 rounded-lg bg-gray-700/60 text-gray-200 disabled:opacity-40 [--btn-fill:55_65_81] [--btn-edge:31_41_55]">
             Load device users
           </button>
         </div>

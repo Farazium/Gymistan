@@ -166,12 +166,12 @@ function SalesDrawer({ open, onClose }) {
                   'Amount (PKR)': s.amount,
                 })), 'Sales')}
                 title="Export to Excel"
-                className="p-1.5 text-gray-400 hover:text-white hover:bg-primary-500 rounded-lg transition"
+                className="p-1.5 text-gray-400 hover:text-white rounded-lg transition"
               >
                 <Download size={18} />
               </button>
             )}
-            <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition"><X size={18} /></button>
+            <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-white rounded-lg transition [--btn-fill:55_65_81] [--btn-edge:31_41_55]"><X size={18} /></button>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-5">
@@ -196,7 +196,7 @@ function SalesDrawer({ open, onClose }) {
                     <button
                       onClick={() => { if (confirm('Delete this sale? The stock will be restored.')) del.mutate(s.id) }}
                       title="Delete sale"
-                      className="p-1.5 text-gray-400 hover:text-white hover:bg-red-500 rounded-lg transition shrink-0"
+                      className="p-1.5 text-gray-400 hover:text-white rounded-lg transition shrink-0 [--btn-fill:239_68_68] [--btn-edge:185_28_28]"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -269,14 +269,14 @@ export default function Inventory() {
               'Low Stock Alert': p.low_stock_alert,
               'Low Stock': p.is_low_stock ? 'Yes' : 'No',
             })), 'Inventory')}
-            className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 transition"
+            className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:text-white hover:border-primary-500 transition"
             title="Export"
           >
             <Download size={18} />
           </button>
           <button
             onClick={() => setShowSales(true)}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 transition"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:text-white hover:border-primary-500 transition"
           >
             <Receipt size={16} /> Sales
           </button>
@@ -307,10 +307,10 @@ export default function Inventory() {
                   <h3 className="font-semibold text-gray-100 mt-0.5">{p.name}</h3>
                 </div>
                 <div className="flex gap-1">
-                  <button onClick={() => { setEditProduct(p); setShowAddModal(true) }} className="p-1.5 text-gray-400 hover:text-white hover:bg-primary-500 rounded-lg transition">
+                  <button onClick={() => { setEditProduct(p); setShowAddModal(true) }} className="p-1.5 text-gray-400 hover:text-white rounded-lg transition">
                     <Pencil size={14} />
                   </button>
-                  <button onClick={() => { if (confirm('Delete product?')) deleteMutation.mutate(p.id) }} className="p-1.5 text-gray-400 hover:text-white hover:bg-red-500 rounded-lg transition">
+                  <button onClick={() => { if (confirm('Delete product?')) deleteMutation.mutate(p.id) }} className="p-1.5 text-gray-400 hover:text-white rounded-lg transition [--btn-fill:239_68_68] [--btn-edge:185_28_28]">
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -334,13 +334,13 @@ export default function Inventory() {
               )}
 
               <div className="mt-4 flex gap-2">
-                <button onClick={() => setStockAction({ product: p, action: 'SELL' })} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white rounded-lg transition">
+                <button onClick={() => setStockAction({ product: p, action: 'SELL' })} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-500/20 text-red-400 hover:text-white rounded-lg transition [--btn-fill:239_68_68] [--btn-edge:185_28_28]">
                   <TrendingDown size={13} /> Sell
                 </button>
-                <button onClick={() => setStockAction({ product: p, action: 'RESTOCK' })} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-white rounded-lg transition">
+                <button onClick={() => setStockAction({ product: p, action: 'RESTOCK' })} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-green-500/20 text-green-400 hover:text-white rounded-lg transition [--btn-fill:34_197_94] [--btn-edge:21_128_61]">
                   <TrendingUp size={13} /> Restock
                 </button>
-                <button onClick={() => setStockAction({ product: p, action: 'ADJUSTMENT' })} className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary-500/20 text-primary-400 hover:bg-primary-500 hover:text-white rounded-lg transition">
+                <button onClick={() => setStockAction({ product: p, action: 'ADJUSTMENT' })} className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary-500/20 text-primary-400 hover:text-white rounded-lg transition">
                   <SlidersHorizontal size={13} />
                 </button>
               </div>

@@ -198,7 +198,7 @@ export default function Gyms() {
                         <Building2 size={17} className="text-primary-400" />
                       </div>
                       <div>
-                        <button onClick={() => navigate(`/admin/gyms/${g.id}`)} className="font-medium text-gray-100 hover:text-primary-400 transition text-left">
+                        <button onClick={() => navigate(`/admin/gyms/${g.id}`)} className="no-fx font-medium text-gray-100 hover:text-primary-400 transition text-left">
                           {g.name}
                         </button>
                         {g.address && <p className="text-xs text-gray-400">{g.address}</p>}

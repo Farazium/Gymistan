@@ -112,11 +112,11 @@ export default function Attendance() {
         </div>
         <div className="flex gap-2">
           <button onClick={exportSheet} disabled={!rows.length}
-            className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 disabled:opacity-40 transition" title="Export">
+            className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:text-white hover:border-primary-500 disabled:opacity-40 transition" title="Export">
             <Download size={18} />
           </button>
           <button onClick={() => sync.mutate()} disabled={sync.isPending}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 disabled:opacity-40 transition text-sm"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:text-white hover:border-primary-500 disabled:opacity-40 transition text-sm"
             title="Pull the latest punches from the device now">
             <RefreshCw size={16} className={sync.isPending ? 'animate-spin' : ''} /> {sync.isPending ? 'Syncing…' : 'Sync'}
           </button>
@@ -129,7 +129,7 @@ export default function Attendance() {
             <Radio size={16} className={live ? 'animate-pulse' : ''} /> {live ? 'Live · On' : 'Live'}
           </button>
           <button onClick={() => setShowDevice(true)}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 transition text-sm">
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:text-white hover:border-primary-500 transition text-sm">
             <Settings size={16} /> Device
           </button>
         </div>

@@ -40,7 +40,7 @@ export default function PhotoViewer({ src, alt = '', onClose }) {
     >
       <button
         onClick={close}
-        className={`absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all duration-200 ${show ? 'opacity-100' : 'opacity-0'}`}
+        className={`no-fx absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all duration-200 ${show ? 'opacity-100' : 'opacity-0'}`}
       >
         <X size={22} />
       </button>

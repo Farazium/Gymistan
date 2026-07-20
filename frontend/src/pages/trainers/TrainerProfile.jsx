@@ -269,7 +269,7 @@ export default function TrainerProfile() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/trainers')} className="p-2 text-gray-400 hover:text-gray-100 hover:bg-gray-700 rounded-lg transition">
+          <button onClick={() => navigate('/trainers')} className="p-2 text-gray-400 hover:text-gray-100 rounded-lg transition [--btn-fill:55_65_81] [--btn-edge:31_41_55]">
             <ArrowLeft size={18} />
           </button>
           <div className="flex items-center gap-3">
@@ -283,7 +283,7 @@ export default function TrainerProfile() {
               <div className="absolute bottom-0 right-0" ref={photoMenuRef}>
                 <button
                   onClick={() => setShowPhotoMenu((s) => !s)}
-                  className="p-1.5 rounded-full bg-primary-600 text-white hover:bg-primary-700 shadow-md transition"
+                  className="p-1.5 rounded-full bg-primary-600 text-white shadow-md transition"
                 >
                   {(photoMutation.isPending || removePhotoMutation.isPending)
                     ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -339,7 +339,7 @@ export default function TrainerProfile() {
           {hasAttendance && (
             <button
               onClick={() => setShowEnroll(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 transition text-sm"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:text-white hover:border-primary-500 transition text-sm"
               title="Enroll this trainer's fingerprint on the device"
             >
               <Fingerprint size={15} /> Fingerprint

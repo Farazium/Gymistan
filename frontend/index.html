@@ -9,5 +9,28 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <!-- Button "fill from cursor": anchor the accent disc where the pointer
+         enters a .btn (and re-anchor to the exit point on leave), sized to reach
+         the far corner so it always covers. Inlined here so it runs on every
+         page load regardless of the module graph / HMR. Delegated on document,
+         so it also covers buttons React mounts later. -->
+    <script>
+      (function () {
+        function place(btn, e) {
+          var r = btn.getBoundingClientRect();
+          var x = e.clientX - r.left, y = e.clientY - r.top;
+          var rad = Math.sqrt(Math.pow(Math.max(x, r.width - x), 2) + Math.pow(Math.max(y, r.height - y), 2));
+          btn.style.setProperty('--mx', x + 'px');
+          btn.style.setProperty('--my', y + 'px');
+          btn.style.setProperty('--fill-d', (rad * 2) + 'px');
+        }
+        function handler(e) {
+          var btn = e.target && e.target.closest ? e.target.closest('.btn') : null;
+          if (btn && !btn.contains(e.relatedTarget)) place(btn, e);
+        }
+        document.addEventListener('pointerover', handler, { passive: true });
+        document.addEventListener('pointerout', handler, { passive: true });
+      })();
+    </script>
   </body>
 </html>

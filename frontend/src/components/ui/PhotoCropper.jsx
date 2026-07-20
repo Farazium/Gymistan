@@ -121,7 +121,7 @@ export default function PhotoCropper({ file, onCancel, onCropped }) {
       <div className={`relative surface rounded-2xl shadow-2xl border border-gray-700 p-6 w-full max-w-sm transition-all duration-200 ease-out ${show ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-gray-100">Adjust photo</h2>
-          <button onClick={close} className="p-1 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-700 transition">
+          <button onClick={close} className="p-1 rounded-lg text-gray-400 hover:text-gray-200 transition [--btn-fill:55_65_81] [--btn-edge:31_41_55]">
             <X size={18} />
           </button>
         </div>
@@ -174,7 +174,7 @@ export default function PhotoCropper({ file, onCancel, onCropped }) {
         <p className="text-xs text-gray-400 text-center mt-2">Drag to reposition · scroll or slider to zoom</p>
 
         <div className="flex gap-3 mt-5">
-          <button onClick={close} className="btn flex-1 justify-center bg-red-500/20 text-red-300 border border-red-500/30 hover:bg-red-500 hover:text-white hover:border-red-500 hover:shadow-lg hover:shadow-red-500/20 backdrop-blur-sm transition-all">Cancel</button>
+          <button onClick={close} className="btn flex-1 justify-center bg-red-500/20 text-red-300 border border-red-500/30 hover:text-white hover:border-red-500 hover:shadow-lg hover:shadow-red-500/20 backdrop-blur-sm transition-all [--btn-fill:239_68_68] [--btn-edge:185_28_28]">Cancel</button>
           <button onClick={confirm} disabled={busy || !img} className="btn-primary flex-1 justify-center">
             <Check size={16} /> {busy ? 'Saving…' : 'Apply'}
           </button>

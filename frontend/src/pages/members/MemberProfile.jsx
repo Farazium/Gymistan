@@ -177,7 +177,7 @@ export default function MemberProfile() {
 
   return (
     <div className="space-y-5">
-      <button onClick={() => navigate('/members')} className="flex items-center gap-2 text-gray-400 hover:text-gray-100 text-sm transition">
+      <button onClick={() => navigate('/members')} className="no-fx flex items-center gap-2 text-gray-400 hover:text-gray-100 text-sm transition">
         <ArrowLeft size={16} /> Back to Members
       </button>
 
@@ -194,7 +194,7 @@ export default function MemberProfile() {
             <div className="absolute bottom-0 right-0" ref={photoMenuRef}>
               <button
                 onClick={() => setShowPhotoMenu((s) => !s)}
-                className="p-1.5 rounded-full bg-primary-600 text-white hover:bg-primary-700 shadow-md transition"
+                className="p-1.5 rounded-full bg-primary-600 text-white shadow-md transition"
               >
                 {(photoMutation.isPending || removePhotoMutation.isPending)
                   ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -275,7 +275,7 @@ export default function MemberProfile() {
             {hasAttendance && (
               <button
                 onClick={() => setShowEnroll(true)}
-                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-500/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 hover:shadow-lg hover:shadow-primary-500/20 transition-all"
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-500/30 hover:text-white hover:border-primary-500 hover:shadow-lg hover:shadow-primary-500/20 transition-all"
                 title="Enroll this member's fingerprint on the device"
               >
                 <Fingerprint size={14} /> Fingerprint
@@ -284,7 +284,7 @@ export default function MemberProfile() {
             {!member.blacklist_active && (
               <button
                 onClick={() => setShowBlacklist(true)}
-                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-500/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 hover:shadow-lg hover:shadow-primary-500/20 transition-all"
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-500/30 hover:text-white hover:border-primary-500 hover:shadow-lg hover:shadow-primary-500/20 transition-all"
               >
                 <Ban size={14} /> Blacklist
               </button>

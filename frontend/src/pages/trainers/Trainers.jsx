@@ -65,7 +65,7 @@ export default function Trainers() {
               'Monthly Salary': t.monthly_salary || 0,
               'Salary Status': t.salary_status?.status || '',
             })), 'Trainers')}
-            className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 transition"
+            className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:text-white hover:border-primary-500 transition"
             title="Export"
           >
             <Download size={18} />
@@ -101,7 +101,7 @@ export default function Trainers() {
               {trainers.map((t) => (
                 <Tr key={t.id}>
                   <Td className="font-medium">
-                    <button onClick={() => navigate(`/trainers/${t.id}`)} className="hover:text-primary-400 transition text-left">
+                    <button onClick={() => navigate(`/trainers/${t.id}`)} className="no-fx hover:text-primary-400 transition text-left">
                       {t.name}
                     </button>
                   </Td>
@@ -129,14 +129,14 @@ export default function Trainers() {
                       <button
                         onClick={() => { setEditTrainer(t); setShowModal(true) }}
                         title="Edit"
-                        className="p-1.5 text-gray-400 hover:text-white hover:bg-primary-500 rounded-lg transition"
+                        className="p-1.5 text-gray-400 hover:text-white rounded-lg transition"
                       >
                         <Pencil size={14} />
                       </button>
                       <button
                         onClick={() => { if (confirm('Remove this trainer? Members assigned to them will be unassigned.')) deleteMutation.mutate(t.id) }}
                         title="Remove"
-                        className="p-1.5 text-gray-400 hover:text-white hover:bg-red-500 rounded-lg transition"
+                        className="p-1.5 text-gray-400 hover:text-white rounded-lg transition [--btn-fill:239_68_68] [--btn-edge:185_28_28]"
                       >
                         <Trash2 size={14} />
                       </button>

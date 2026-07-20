@@ -252,7 +252,7 @@ export default function GymProfile() {
 
       {/* Header */}
       <div className="flex items-center gap-4">
-        <button onClick={() => navigate('/admin/gyms')} className="p-2 text-gray-400 hover:text-gray-100 hover:bg-gray-700 rounded-lg transition">
+        <button onClick={() => navigate('/admin/gyms')} className="p-2 text-gray-400 hover:text-gray-100 rounded-lg transition [--btn-fill:55_65_81] [--btn-edge:31_41_55]">
           <ArrowLeft size={18} />
         </button>
         <div className="flex items-center gap-3">
@@ -280,11 +280,11 @@ export default function GymProfile() {
               <Building2 size={15} className="text-primary-400" /> Gym Details
             </h2>
             {!editingGym ? (
-              <button onClick={() => setEditingGym(true)} className="flex items-center gap-1.5 text-xs text-primary-400 hover:text-primary-300 transition">
+              <button onClick={() => setEditingGym(true)} className="no-fx flex items-center gap-1.5 text-xs text-primary-400 hover:text-primary-300 transition">
                 <Pencil size={13} /> Edit
               </button>
             ) : (
-              <button onClick={() => { setEditingGym(false); setGymName(gym.name); setGymPhone(gym.phone || ''); setGymAddress(gym.address || '') }} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 transition">
+              <button onClick={() => { setEditingGym(false); setGymName(gym.name); setGymPhone(gym.phone || ''); setGymAddress(gym.address || '') }} className="no-fx flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 transition">
                 <X size={13} /> Cancel
               </button>
             )}
@@ -333,11 +333,11 @@ export default function GymProfile() {
               <KeyRound size={15} className="text-primary-400" /> Admin Account
             </h2>
             {admin && (!editingAdmin ? (
-              <button onClick={() => setEditingAdmin(true)} className="flex items-center gap-1.5 text-xs text-primary-400 hover:text-primary-300 transition">
+              <button onClick={() => setEditingAdmin(true)} className="no-fx flex items-center gap-1.5 text-xs text-primary-400 hover:text-primary-300 transition">
                 <Pencil size={13} /> Edit
               </button>
             ) : (
-              <button onClick={() => { setEditingAdmin(false); setAdminName(admin.name); setNewPassword('') }} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 transition">
+              <button onClick={() => { setEditingAdmin(false); setAdminName(admin.name); setNewPassword('') }} className="no-fx flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 transition">
                 <X size={13} /> Cancel
               </button>
             ))}
@@ -370,7 +370,7 @@ export default function GymProfile() {
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                       />
-                      <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200">
+                      <button type="button" onClick={() => setShowPw(!showPw)} className="no-fx absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200">
                         {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
                       </button>
                     </div>

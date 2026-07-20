@@ -32,7 +32,7 @@ function ColorTrigger({ preset, onClick, bordered }) {
   return (
     <button
       onClick={onClick}
-      className="inline-flex items-center gap-2.5 pl-2 pr-2.5 py-1.5 rounded-lg border border-gray-600 hover:bg-gray-700/50 transition"
+      className="no-fx inline-flex items-center gap-2.5 pl-2 pr-2.5 py-1.5 rounded-lg border border-gray-600 hover:bg-gray-700/50 transition"
     >
       <span
         className={`w-5 h-5 rounded-full ${bordered ? 'border border-gray-500' : ''}`}
@@ -52,7 +52,7 @@ function ColorGrid({ presets, current, onSelect, bordered }) {
         <button
           key={p.id}
           onClick={() => onSelect(p.id)}
-          className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition ${
+          className={`no-fx flex items-center gap-2.5 p-2.5 rounded-lg border transition ${
             current === p.id ? 'border-primary-500 bg-primary-500/10' : 'border-gray-700 hover:border-gray-500 hover:bg-gray-700/40'
           }`}
         >
@@ -146,7 +146,7 @@ function WhatsAppBillingCard() {
           ) : <span />}
           <button
             onClick={() => setShowHistory(true)}
-            className="p-1.5 rounded-lg text-primary-400/70 hover:text-primary-200 hover:bg-primary-500/20 transition"
+            className="no-fx p-1.5 rounded-lg text-primary-400/70 hover:text-primary-200 hover:bg-primary-500/20 transition"
             title="View top-up history"
             aria-label="View top-up history"
           >
@@ -337,7 +337,7 @@ export default function Settings() {
                 </div>
                 <button
                   onClick={() => logoRef.current.click()}
-                  className="absolute -bottom-1 -right-1 p-1 bg-primary-600 rounded-full hover:bg-primary-700 transition"
+                  className="no-fx absolute -bottom-1 -right-1 p-1 bg-primary-600 rounded-full transition"
                 >
                   <Camera size={10} className="text-white" />
                 </button>
@@ -351,7 +351,7 @@ export default function Settings() {
           <button
             onClick={handleSave}
             disabled={saving || (!nameChanged && !gymChanged)}
-            className="btn-primary justify-center px-6"
+            className="no-fx btn-primary justify-center px-6"
           >
             {saving ? 'Saving...' : 'Save Changes'}
           </button>
@@ -375,7 +375,7 @@ export default function Settings() {
         <Row label={<span className="flex items-center gap-2">Background Picture <SoonBadge /></span>} hint="Custom app background">
           <button
             onClick={() => toast('Background pictures coming soon', { icon: '🕓' })}
-            className="inline-flex items-center gap-2 text-sm px-3 py-2 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700/50 transition"
+            className="no-fx inline-flex items-center gap-2 text-sm px-3 py-2 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700/50 transition"
           >
             <ImageIcon size={14} /> Choose image
           </button>
@@ -384,7 +384,7 @@ export default function Settings() {
         <Row label="Receipt Printing" hint="Show a print option on payments for a thermal receipt printer">
           <button
             onClick={togglePrinting}
-            className={`relative w-11 h-6 rounded-full transition ${printable ? 'bg-primary-600' : 'bg-gray-600'}`}
+            className={`no-fx relative w-11 h-6 rounded-full transition ${printable ? 'bg-primary-600' : 'bg-gray-600'}`}
           >
             <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${printable ? 'translate-x-5' : ''}`} />
           </button>
@@ -397,7 +397,7 @@ export default function Settings() {
                 <button
                   key={w}
                   onClick={() => changePaperWidth(w)}
-                  className={`px-4 py-1.5 text-sm transition ${paperWidth === w ? 'bg-primary-600 text-white' : 'text-gray-300 hover:bg-gray-700/50'}`}
+                  className={`no-fx px-4 py-1.5 text-sm transition ${paperWidth === w ? 'bg-primary-600 text-white' : 'text-gray-300 hover:bg-gray-700/50'}`}
                 >
                   {w}mm
                 </button>
@@ -422,7 +422,7 @@ export default function Settings() {
           <button
             type="submit"
             disabled={passwordMutation.isPending || !currentPw || !newPw || !confirmPw}
-            className="btn-primary justify-center px-6"
+            className="no-fx btn-primary justify-center px-6"
           >
             {passwordMutation.isPending ? 'Changing...' : 'Change Password'}
           </button>

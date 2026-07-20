@@ -196,7 +196,7 @@ function CustomCalendarPicker({ start, end, onStartChange, onEndChange }) {
                 </span>
                 <button
                   onClick={() => { onStartChange(thisMonthStart); onEndChange(todayStr); setOpen(false); setPicking('start') }}
-                  className="text-[11px] text-gray-500 hover:text-primary-400 transition"
+                  className="no-fx text-[11px] text-gray-500 hover:text-primary-400 transition"
                 >
                   Reset to this month
                 </button>
@@ -251,7 +251,7 @@ function PdfExportButton({ onExport }) {
     <button
       onClick={handleExport}
       disabled={loading}
-      className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 transition disabled:opacity-50"
+      className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:text-white hover:border-primary-500 transition disabled:opacity-50"
       title="Export PDF"
     >
       {loading ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
@@ -523,7 +523,7 @@ function ExpenseCategoriesTab() {
             <div key={cat.category} className="card overflow-hidden">
               <button
                 onClick={() => toggle(cat.category)}
-                className="w-full flex items-center gap-4 p-4 hover:bg-gray-700/20 transition text-left"
+                className="no-fx w-full flex items-center gap-4 p-4 hover:bg-gray-700/20 transition text-left"
               >
                 <span className={`text-xs px-2.5 py-1 rounded-full font-medium flex-shrink-0 ${CAT_COLORS[cat.category] || CAT_COLORS['Other']}`}>
                   {cat.category}
@@ -695,7 +695,7 @@ export default function Finance() {
           <button
             key={id}
             onClick={() => setActiveTab(id)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition -mb-px focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded-t ${
+            className={`no-fx flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition -mb-px focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded-t ${
               activeTab === id
                 ? 'border-primary-500 text-primary-400'
                 : 'border-transparent text-gray-400 hover:text-gray-200'

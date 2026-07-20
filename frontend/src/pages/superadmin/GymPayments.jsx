@@ -69,7 +69,7 @@ function PaymentForm({ gyms, onSuccess }) {
             <div className="absolute z-50 w-full mt-1 surface border border-gray-600 rounded-lg shadow-xl max-h-48 overflow-y-auto">
               {filteredGyms.map((g) => (
                 <button key={g.id} type="button" onMouseDown={() => selectGym(g)}
-                  className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-gray-700 transition flex items-center justify-between">
+                  className="w-full text-left px-3 py-2 text-sm text-gray-200 transition flex items-center justify-between [--btn-fill:55_65_81] [--btn-edge:31_41_55]">
                   <span>{g.name}</span>
                   {g.subscription_amount && <span className="text-xs text-primary-400">PKR {Number(g.subscription_amount).toLocaleString('en-PK')}</span>}
                 </button>
@@ -160,7 +160,7 @@ export default function GymPayments() {
               Date: new Date(p.payment_date).toLocaleDateString('en-PK'),
               Notes: p.notes || '',
             })), 'GymSubscriptions')}
-            className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:bg-primary-500 hover:text-white hover:border-primary-500 transition"
+            className="p-2 rounded-lg bg-primary-500/20 text-primary-300 border border-primary-400/30 hover:text-white hover:border-primary-500 transition"
             title="Export"
           >
             <Download size={18} />
@@ -208,7 +208,7 @@ export default function GymPayments() {
                   <Td>
                     <button
                       onClick={() => { if (confirm('Delete this payment?')) deleteMutation.mutate(p.id) }}
-                      className="p-1.5 text-gray-400 hover:text-white hover:bg-red-500 rounded-lg transition"
+                      className="p-1.5 text-gray-400 hover:text-white rounded-lg transition [--btn-fill:239_68_68] [--btn-edge:185_28_28]"
                     >
                       <Trash2 size={14} />
                     </button>

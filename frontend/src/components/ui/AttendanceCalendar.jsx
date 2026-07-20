@@ -54,11 +54,11 @@ export default function AttendanceCalendar({ title = 'Attendance', type, personI
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold text-gray-100">{title}</h3>
         <div className="flex items-center gap-2">
-          <button onClick={prev} className="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-gray-100 transition">
+          <button onClick={prev} className="p-1 rounded text-gray-400 hover:text-gray-100 transition [--btn-fill:55_65_81] [--btn-edge:31_41_55]">
             <ChevronLeft size={16} />
           </button>
           <span className="text-sm text-gray-100 w-32 text-center">{MONTHS[month]} {year}</span>
-          <button onClick={next} className="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-gray-100 transition">
+          <button onClick={next} className="p-1 rounded text-gray-400 hover:text-gray-100 transition [--btn-fill:55_65_81] [--btn-edge:31_41_55]">
             <ChevronRight size={16} />
           </button>
         </div>
