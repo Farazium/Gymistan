@@ -3,12 +3,13 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { Building2, Camera, Image as ImageIcon, Check, ChevronRight, MessageCircle, MoreVertical, Sparkles, Upload } from 'lucide-react'
 import Cropper from 'react-easy-crop'
 import 'react-easy-crop/react-easy-crop.css'
-import api, { API_ORIGIN } from '../../api/axios'
+import api from '../../api/axios'
 import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
 import Modal from '../../components/ui/Modal'
 import AnimatedBackground from '../../components/AnimatedBackground'
 import { getCroppedBlob } from '../../utils/cropImage'
+import { mediaUrl } from '../../utils/mediaUrl'
 import { applyTheme, applySurface, PRESETS, SURFACE_PRESETS, DEFAULT_THEME, DEFAULT_SURFACE } from '../../utils/theme'
 import { isPrintingEnabled, setPrintingEnabled, getPaperWidth, setPaperWidth } from '../../utils/printReceipt'
 import { CREDIT_TONES } from '../../utils/waCredits'
@@ -327,6 +328,9 @@ export default function Settings() {
   const [theme, setTheme] = useState(user?.gym_theme || DEFAULT_THEME)
   const [surface, setSurface] = useState(user?.gym_card || DEFAULT_SURFACE)
   const [colorModal, setColorModal] = useState(null) // 'accent' | 'card' | null
+  // Superadmin has no gym to persist appearance on, so their theme/card/background
+  // are saved device-locally (localStorage) and mirrored onto the user in-session.
+  const isSA = user?.role === 'SUPERADMIN'
   // Receipt printing — persisted per-device in localStorage (the thermal printer
   // is physically attached to this machine).
   const [printable, setPrintable] = useState(isPrintingEnabled())
@@ -370,7 +374,8 @@ export default function Settings() {
   const selectTheme = (color) => {
     setTheme(color)
     applyTheme(color)          // instant preview
-    themeMutation.mutate(color) // persist
+    if (isSA) { localStorage.setItem('sa_theme', color); setUser({ ...user, gym_theme: color }); toast.success('Theme updated') }
+    else themeMutation.mutate(color) // persist to the gym
   }
 
   const surfaceMutation = useMutation({
@@ -382,13 +387,14 @@ export default function Settings() {
   const selectSurface = (color) => {
     setSurface(color)
     applySurface(color)
-    surfaceMutation.mutate(color)
+    if (isSA) { localStorage.setItem('sa_card', color); setUser({ ...user, gym_card: color }); toast.success('Card color updated') }
+    else surfaceMutation.mutate(color)
   }
 
   // App background mode + upload/crop (Upload opens a modal to pick/reposition).
   const [bgMode, setBgMode] = useState(user?.gym_background_mode || 'default')
   const [bgModalOpen, setBgModalOpen] = useState(false)
-  const gymBgUrl = user?.gym_background_image ? `${API_ORIGIN}${user.gym_background_image}` : null
+  const gymBgUrl = mediaUrl(user?.gym_background_image)
 
   const bgMutation = useMutation({
     mutationFn: ({ mode, blob }) => {
@@ -411,8 +417,20 @@ export default function Settings() {
     onError: () => { setBgMode(user?.gym_background_mode || 'default'); toast.error('Failed to update background') },
   })
 
-  const chooseBgMode = (m) => { setBgMode(m); bgMutation.mutate({ mode: m }) }
-  const applyBgUpload = (blob) => bgMutation.mutateAsync({ mode: 'upload', blob })
+  const chooseBgMode = (m) => {
+    setBgMode(m)
+    if (isSA) { localStorage.setItem('sa_bg_mode', m); setUser({ ...user, gym_background_mode: m }); toast.success('Background updated') }
+    else bgMutation.mutate({ mode: m })
+  }
+  const applyBgUpload = async (blob) => {
+    if (!isSA) return bgMutation.mutateAsync({ mode: 'upload', blob })
+    const dataUrl = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob) })
+    localStorage.setItem('sa_bg_mode', 'upload')
+    localStorage.setItem('sa_bg_image', dataUrl)
+    setBgMode('upload')
+    setUser({ ...user, gym_background_mode: 'upload', gym_background_image: dataUrl })
+    toast.success('Background updated')
+  }
   const currentBgLabel = BG_MODES.find((m) => m.id === bgMode)?.label || 'Default'
 
   const passwordMutation = useMutation({
@@ -513,19 +531,19 @@ export default function Settings() {
 
       {/* Customization */}
       <Section title="Customization" description="Personalize how the app looks and behaves">
-        {user?.gym && (
-          <Row label="Accent Color" hint="Match your gym's brand color">
+        {(user?.gym || isSA) && (
+          <Row label="Accent Color" hint="Buttons, links, highlights">
             <ColorTrigger preset={currentAccent} onClick={() => setColorModal('accent')} />
           </Row>
         )}
 
-        {user?.gym && (
+        {(user?.gym || isSA) && (
           <Row label="Card Color" hint="Surface tone for cards and sidebar">
             <ColorTrigger preset={currentSurface} onClick={() => setColorModal('card')} bordered />
           </Row>
         )}
 
-        {user?.gym && (
+        {(user?.gym || isSA) && (
           <Row label="Background" hint="Default image, animated starfield, or your own picture">
             <button
               onClick={() => setBgModalOpen(true)}

@@ -5,7 +5,7 @@ import LiveEntrance from '../LiveEntrance'
 import AnimatedBackground from '../AnimatedBackground'
 import useAuthStore from '../../store/authStore'
 import { applyTheme, applySurface } from '../../utils/theme'
-import { API_ORIGIN } from '../../api/axios'
+import { mediaUrl } from '../../utils/mediaUrl'
 
 export default function AppLayout() {
   const { isAuthenticated, refreshUser, user } = useAuthStore()
@@ -25,7 +25,7 @@ export default function AppLayout() {
 
   // Background: packaged image, the animated starfield, or the gym's upload.
   const mode = user?.gym_background_mode || 'default'
-  const uploadUrl = user?.gym_background_image ? `${API_ORIGIN}${user.gym_background_image}` : null
+  const uploadUrl = mediaUrl(user?.gym_background_image)
   const imageUrl = mode === 'upload' && uploadUrl ? uploadUrl
     : mode === 'default' ? '/Gym_BG.jpg'
     : null // animated

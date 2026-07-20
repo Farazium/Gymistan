@@ -27,8 +27,16 @@ const useAuthStore = create(
       refreshUser: async () => {
         try {
           const { data } = await api.get('/auth/me/')
+          // Superadmin has no gym to persist appearance on, so their theme/card/
+          // background are kept device-locally — re-apply them over the fresh /me.
+          if (!data.gym) {
+            data.gym_theme = localStorage.getItem('sa_theme') || data.gym_theme
+            data.gym_card = localStorage.getItem('sa_card') || data.gym_card
+            data.gym_background_mode = localStorage.getItem('sa_bg_mode') || data.gym_background_mode
+            data.gym_background_image = localStorage.getItem('sa_bg_image') || data.gym_background_image
+          }
           set({ user: data })
-        } catch {}
+        } catch { /* keep the last known user on a transient failure */ }
       },
     }),
     {
