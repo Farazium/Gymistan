@@ -1,10 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Users, CreditCard, TrendingUp, AlertTriangle, Receipt, DollarSign, Boxes, ShoppingCart, Building2, Wallet, Info, X, Check, Lock, Zap, MessageCircle, Fingerprint, Loader2 } from 'lucide-react'
+import { Users, CreditCard, TrendingUp, AlertTriangle, Receipt, DollarSign, Boxes, ShoppingCart, Building2, Wallet, Info, Check, Lock, Zap, MessageCircle, Fingerprint, Loader2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import api from '../../api/axios'
 import StatCard from '../../components/ui/StatCard'
+import Modal from '../../components/ui/Modal'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
 import useAuthStore from '../../store/authStore'
 import { fmtCurrency as fmt } from '../../utils/format'
@@ -205,21 +206,12 @@ const TIER_ICON_BG = {
 
 function TierInfoModal({ tier, tiers, onClose }) {
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative surface rounded-2xl border border-gray-700 shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-5 border-b border-gray-700 sticky top-0 surface z-10">
-          <h2 className="text-gray-100 font-semibold">Subscription Plans</h2>
-          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-100 rounded-lg transition [--btn-fill:55_65_81] [--btn-edge:31_41_55]">
-            <X size={15} />
-          </button>
-        </div>
-        <div className="p-5">
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-            {tiers.map((t) => {
+    <Modal isOpen onClose={onClose} title="Subscription Plans" size="xl">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+        {tiers.map((t) => {
               const isCurrent = t.tier_id === tier
-              const color = (TIER_VISUAL[t.tier_id] || TIER_VISUAL.TIER1).color
-              const c = TIER_COLORS[color]
+              const color = t.color || (TIER_VISUAL[t.tier_id] || TIER_VISUAL.TIER1).color
+              const c = TIER_COLORS[color] || TIER_COLORS.blue
               const Icon = (TIER_VISUAL[t.tier_id] || TIER_VISUAL.TIER1).icon
               return (
                 <div key={t.tier_id} className={`relative rounded-xl border p-4 flex flex-col ring-1 transition ${isCurrent ? `${c.card} ${TIER_RING[color]}` : 'border-gray-700/50 bg-gray-700/10 opacity-50 ring-gray-700/30'}`}>
@@ -256,11 +248,9 @@ function TierInfoModal({ tier, tiers, onClose }) {
                 </div>
               )
             })}
-          </div>
-          <p className="text-xs text-gray-500 text-center mt-4">Contact your Gymistan admin to upgrade.</p>
-        </div>
       </div>
-    </div>
+      <p className="text-xs text-gray-500 text-center mt-4">Contact your Gymistan admin to upgrade.</p>
+    </Modal>
   )
 }
 
@@ -276,6 +266,7 @@ function GymDashboard() {
   const visual = TIER_VISUAL[tier] || TIER_VISUAL.TIER1
   const TierIcon = visual.icon
   const tierInfo = tiers.find((t) => t.tier_id === tier)
+  const tierColor = tierInfo?.color || visual.color
   const waEnabled = tier === 'TIER2_WA' || tier === 'TIER3'
   const outOfCredits = !!useWaCredits(waEnabled)?.exhausted
 
@@ -299,7 +290,7 @@ function GymDashboard() {
           <p className="text-gray-500 text-sm mt-1">Overview of your gym's performance</p>
         </div>
         <div className="flex items-center gap-1.5 mt-1">
-          <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ring-1 ${TIER_PILL[visual.color]}`}>
+          <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ring-1 ${TIER_PILL[tierColor] || TIER_PILL.blue}`}>
             <TierIcon size={11} /> {tierInfo?.label || tier}{tierInfo?.name ? ` — ${tierInfo.name}` : ''}
           </span>
           <button

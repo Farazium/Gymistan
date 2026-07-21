@@ -226,13 +226,16 @@ class WhatsAppTopup(models.Model):
 
 
 class TierInfo(models.Model):
-    """Editable, per-tier plan copy shown on the superadmin Tiers page and the
-    gym dashboard's plan modal. One row per Tier id. The tier's icon and accent
-    colour stay in the frontend (keyed by tier_id) — only the wording is edited
-    here — so a change by the superadmin shows up for gyms too, from one source."""
-    tier_id = models.CharField(max_length=20, choices=Tier.choices, unique=True)
+    """Editable plan copy shown on the superadmin Tiers page and the gym
+    dashboard's plan modal — one source, so a superadmin edit shows for gyms too.
+    The four built-in ids (TIER1/TIER2_WA/TIER2_AT/TIER3) drive feature gating and
+    can't be deleted; extra ids can be added as display-only plan cards. The icon
+    stays in the frontend (keyed by id, with a default); the accent colour lives
+    here so custom tiers can be coloured too."""
+    tier_id = models.CharField(max_length=20, unique=True)
     name = models.CharField(max_length=60)
     label = models.CharField(max_length=30)
+    color = models.CharField(max_length=20, default='blue')
     description = models.CharField(max_length=200, blank=True)
     features = models.JSONField(default=list, blank=True)
     locked = models.JSONField(default=list, blank=True)

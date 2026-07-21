@@ -246,17 +246,35 @@ class ResetGymAdminPasswordView(APIView):
         return Response({'name': admin.name, 'email': admin.email})
 
 
+# The four ids that drive feature gating and gym assignment — never deletable.
+BUILTIN_TIERS = {'TIER1', 'TIER2_WA', 'TIER2_AT', 'TIER3'}
+
+
 class TierInfoListView(APIView):
-    """Read the editable plan copy. Any signed-in user can read it — the gym
-    dashboard's plan modal reads from here, the same source the superadmin edits."""
-    permission_classes = [IsAuthenticated]
+    """Read the editable plan copy (any signed-in user — the gym dashboard reads
+    the same source the superadmin edits). POST adds a display-only custom tier."""
+
+    def get_permissions(self):
+        return [IsAuthenticated(), IsSuperAdmin()] if self.request.method == 'POST' else [IsAuthenticated()]
 
     def get(self, request):
         return Response(TierInfoSerializer(TierInfo.objects.all(), many=True).data)
 
+    def post(self, request):
+        # Custom tiers get an auto id (CUSTOM1, CUSTOM2, …) so the built-in ids stay
+        # reserved for feature gating.
+        n = 1
+        while TierInfo.objects.filter(tier_id=f'CUSTOM{n}').exists():
+            n += 1
+        last = TierInfo.objects.order_by('-sort_order').first()
+        ser = TierInfoSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        ser.save(tier_id=f'CUSTOM{n}', sort_order=(last.sort_order + 1 if last else 0))
+        return Response(ser.data, status=status.HTTP_201_CREATED)
+
 
 class TierInfoDetailView(APIView):
-    """Superadmin: edit one tier's wording (name/label/description/features/…)."""
+    """Superadmin: edit a tier's wording, or delete a custom (non-built-in) one."""
     permission_classes = [IsAuthenticated, IsSuperAdmin]
 
     def patch(self, request, tier_id):
@@ -268,3 +286,9 @@ class TierInfoDetailView(APIView):
         ser.is_valid(raise_exception=True)
         ser.save()
         return Response(ser.data)
+
+    def delete(self, request, tier_id):
+        if tier_id in BUILTIN_TIERS:
+            return Response({'detail': 'Built-in tiers cannot be deleted'}, status=status.HTTP_400_BAD_REQUEST)
+        TierInfo.objects.filter(tier_id=tier_id).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

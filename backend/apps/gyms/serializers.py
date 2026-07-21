@@ -51,7 +51,7 @@ class CreateTopupSerializer(serializers.Serializer):
 class TierInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = TierInfo
-        fields = ['tier_id', 'name', 'label', 'description', 'features', 'locked', 'recommended', 'sort_order']
+        fields = ['tier_id', 'name', 'label', 'color', 'description', 'features', 'locked', 'recommended', 'sort_order']
         read_only_fields = ['tier_id']
 
 
