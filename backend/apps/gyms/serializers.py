@@ -1,7 +1,7 @@
 from decimal import Decimal
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Gym, GymPayment, WhatsAppTopup
+from .models import Gym, GymPayment, WhatsAppTopup, TierInfo
 from django.utils import timezone
 
 User = get_user_model()
@@ -46,6 +46,13 @@ class CreateTopupSerializer(serializers.Serializer):
                                       required=False, allow_null=True,
                                       min_value=Decimal('0'))
     notes = serializers.CharField(required=False, allow_blank=True)
+
+
+class TierInfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TierInfo
+        fields = ['tier_id', 'name', 'label', 'description', 'features', 'locked', 'recommended', 'sort_order']
+        read_only_fields = ['tier_id']
 
 
 class GymSerializer(serializers.ModelSerializer):

@@ -4,10 +4,10 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Sum
 from django.utils import timezone
-from .models import Gym, GymPayment, WhatsAppTopup, WA_TIERS
+from .models import Gym, GymPayment, WhatsAppTopup, WA_TIERS, TierInfo
 from .serializers import (
     GymSerializer, CreateGymSerializer, GymPaymentSerializer,
-    WhatsAppTopupSerializer, CreateTopupSerializer,
+    WhatsAppTopupSerializer, CreateTopupSerializer, TierInfoSerializer,
 )
 from . import credits
 from apps.members.queries import active_q, expired_q, expiring_soon_q
@@ -244,3 +244,27 @@ class ResetGymAdminPasswordView(APIView):
             admin.set_password(new_password)
         admin.save()
         return Response({'name': admin.name, 'email': admin.email})
+
+
+class TierInfoListView(APIView):
+    """Read the editable plan copy. Any signed-in user can read it — the gym
+    dashboard's plan modal reads from here, the same source the superadmin edits."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(TierInfoSerializer(TierInfo.objects.all(), many=True).data)
+
+
+class TierInfoDetailView(APIView):
+    """Superadmin: edit one tier's wording (name/label/description/features/…)."""
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+
+    def patch(self, request, tier_id):
+        try:
+            tier = TierInfo.objects.get(tier_id=tier_id)
+        except TierInfo.DoesNotExist:
+            return Response({'detail': 'Tier not found'}, status=status.HTTP_404_NOT_FOUND)
+        ser = TierInfoSerializer(tier, data=request.data, partial=True)
+        ser.is_valid(raise_exception=True)
+        ser.save()
+        return Response(ser.data)

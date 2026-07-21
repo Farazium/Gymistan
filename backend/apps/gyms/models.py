@@ -223,3 +223,25 @@ class WhatsAppTopup(models.Model):
 
     def __str__(self):
         return f'{self.gym.name} · +{self.messages} msgs · PKR {self.amount}'
+
+
+class TierInfo(models.Model):
+    """Editable, per-tier plan copy shown on the superadmin Tiers page and the
+    gym dashboard's plan modal. One row per Tier id. The tier's icon and accent
+    colour stay in the frontend (keyed by tier_id) — only the wording is edited
+    here — so a change by the superadmin shows up for gyms too, from one source."""
+    tier_id = models.CharField(max_length=20, choices=Tier.choices, unique=True)
+    name = models.CharField(max_length=60)
+    label = models.CharField(max_length=30)
+    description = models.CharField(max_length=200, blank=True)
+    features = models.JSONField(default=list, blank=True)
+    locked = models.JSONField(default=list, blank=True)
+    recommended = models.BooleanField(default=False)
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = 'tier_info'
+        ordering = ['sort_order']
+
+    def __str__(self):
+        return f'{self.label} — {self.name}'

@@ -168,26 +168,20 @@ function SuperAdminDashboard() {
   )
 }
 
-const TIER_META = {
-  TIER1:    { label: 'Starter', color: 'bg-primary-500/20 text-primary-300 ring-primary-500/40',    icon: Zap },
-  TIER2_WA: { label: 'Connect', color: 'bg-green-500/20 text-green-300 ring-green-500/40', icon: MessageCircle },
-  TIER2_AT: { label: 'Track',   color: 'bg-purple-500/20 text-purple-300 ring-purple-500/40', icon: Fingerprint },
-  TIER3:    { label: 'Elite',   color: 'bg-yellow-500/20 text-yellow-300 ring-yellow-500/40', icon: Zap },
+// Icon + accent colour per tier stay in code (keyed by id). The wording (label,
+// name, features) comes from the server, so a superadmin edit shows here too.
+const TIER_VISUAL = {
+  TIER1:    { icon: Zap,           color: 'blue' },
+  TIER2_WA: { icon: MessageCircle, color: 'green' },
+  TIER2_AT: { icon: Fingerprint,   color: 'purple' },
+  TIER3:    { icon: Zap,           color: 'yellow' },
 }
-
-const TIER_FEATURES = {
-  TIER1:    { have: ['Member management','Packages & payments','Expenses tracking','Inventory','Dashboard & reports','Export to Excel'], missing: ['WhatsApp payment slips','Attendance tracking'] },
-  TIER2_WA: { have: ['Member management','Packages & payments','Expenses tracking','Inventory','Dashboard & reports','Export to Excel','WhatsApp payment slips'], missing: ['Attendance tracking'] },
-  TIER2_AT: { have: ['Member management','Packages & payments','Expenses tracking','Inventory','Dashboard & reports','Export to Excel','Attendance tracking'], missing: ['WhatsApp payment slips'] },
-  TIER3:    { have: ['Member management','Packages & payments','Expenses tracking','Inventory','Dashboard & reports','Export to Excel','WhatsApp payment slips','Attendance tracking'], missing: [] },
+const TIER_PILL = {
+  blue:   'bg-primary-500/20 text-primary-300 ring-primary-500/40',
+  green:  'bg-green-500/20 text-green-300 ring-green-500/40',
+  purple: 'bg-purple-500/20 text-purple-300 ring-purple-500/40',
+  yellow: 'bg-yellow-500/20 text-yellow-300 ring-yellow-500/40',
 }
-
-const ALL_TIERS = [
-  { id: 'TIER1',    label: 'Tier 1', name: 'Starter', icon: Zap,          color: 'blue',   features: ['Member management','Packages & payments','Expenses tracking','Inventory','Dashboard & reports','Export to Excel'] },
-  { id: 'TIER2_WA', label: 'Tier 2.1', name: 'Connect', icon: MessageCircle, color: 'green', features: ['Everything in Starter','WhatsApp payment slips','Digital receipt sharing'] },
-  { id: 'TIER2_AT', label: 'Tier 2.2', name: 'Track',   icon: Fingerprint,  color: 'purple', features: ['Everything in Starter','Member check-in / check-out','Attendance reports'] },
-  { id: 'TIER3',    label: 'Tier 3', name: 'Elite',   icon: Zap,          color: 'yellow', features: ['Everything in Starter','WhatsApp payment slips','Member check-in / check-out','Attendance reports'] },
-]
 
 const TIER_COLORS = {
   blue:   { card: 'border-primary-500/30 bg-primary-500/5',     badge: 'bg-primary-500/20 text-primary-300',    icon: 'text-primary-400' },
@@ -209,7 +203,7 @@ const TIER_ICON_BG = {
   yellow: 'bg-yellow-500/20 text-yellow-400',
 }
 
-function TierInfoModal({ tier, onClose }) {
+function TierInfoModal({ tier, tiers, onClose }) {
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
@@ -222,19 +216,20 @@ function TierInfoModal({ tier, onClose }) {
         </div>
         <div className="p-5">
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-            {ALL_TIERS.map((t) => {
-              const isCurrent = t.id === tier
-              const c = TIER_COLORS[t.color]
-              const Icon = t.icon
+            {tiers.map((t) => {
+              const isCurrent = t.tier_id === tier
+              const color = (TIER_VISUAL[t.tier_id] || TIER_VISUAL.TIER1).color
+              const c = TIER_COLORS[color]
+              const Icon = (TIER_VISUAL[t.tier_id] || TIER_VISUAL.TIER1).icon
               return (
-                <div key={t.id} className={`relative rounded-xl border p-4 flex flex-col ring-1 transition ${isCurrent ? `${c.card} ${TIER_RING[t.color]}` : 'border-gray-700/50 bg-gray-700/10 opacity-50 ring-gray-700/30'}`}>
+                <div key={t.tier_id} className={`relative rounded-xl border p-4 flex flex-col ring-1 transition ${isCurrent ? `${c.card} ${TIER_RING[color]}` : 'border-gray-700/50 bg-gray-700/10 opacity-50 ring-gray-700/30'}`}>
                   {isCurrent && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                       <span className="bg-green-500 text-gray-900 text-xs font-bold px-3 py-0.5 rounded-full whitespace-nowrap">YOUR PLAN</span>
                     </div>
                   )}
                   <div className="flex items-center gap-2 mb-3 mt-1">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${isCurrent ? TIER_ICON_BG[t.color] : 'bg-gray-700 text-gray-600'}`}>
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${isCurrent ? TIER_ICON_BG[color] : 'bg-gray-700 text-gray-600'}`}>
                       <Icon size={18} />
                     </div>
                     <div>
@@ -274,10 +269,13 @@ function GymDashboard() {
   const queryClient = useQueryClient()
   const [showTierInfo, setShowTierInfo] = useState(false)
   const { data, isLoading } = useQuery({ queryKey: ['dashboard'], queryFn: async () => { const { data } = await api.get('/dashboard/'); return data }, refetchInterval: 60000 })
+  // Plan copy, shared with the superadmin Tiers page — edits there show up here.
+  const { data: tiers = [] } = useQuery({ queryKey: ['tiers'], queryFn: async () => (await api.get('/gyms/tiers/')).data })
 
   const tier = user?.gym_tier || 'TIER1'
-  const tierMeta = TIER_META[tier]
-  const TierIcon = tierMeta.icon
+  const visual = TIER_VISUAL[tier] || TIER_VISUAL.TIER1
+  const TierIcon = visual.icon
+  const tierInfo = tiers.find((t) => t.tier_id === tier)
   const waEnabled = tier === 'TIER2_WA' || tier === 'TIER3'
   const outOfCredits = !!useWaCredits(waEnabled)?.exhausted
 
@@ -301,8 +299,8 @@ function GymDashboard() {
           <p className="text-gray-500 text-sm mt-1">Overview of your gym's performance</p>
         </div>
         <div className="flex items-center gap-1.5 mt-1">
-          <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ring-1 ${tierMeta.color}`}>
-            <TierIcon size={11} /> {ALL_TIERS.find(t => t.id === tier)?.label} — {tierMeta.label}
+          <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ring-1 ${TIER_PILL[visual.color]}`}>
+            <TierIcon size={11} /> {tierInfo?.label || tier}{tierInfo?.name ? ` — ${tierInfo.name}` : ''}
           </span>
           <button
             onClick={() => setShowTierInfo(true)}
@@ -313,7 +311,7 @@ function GymDashboard() {
           </button>
         </div>
       </div>
-      {showTierInfo && <TierInfoModal tier={tier} onClose={() => setShowTierInfo(false)} />}
+      {showTierInfo && <TierInfoModal tier={tier} tiers={tiers} onClose={() => setShowTierInfo(false)} />}
 
       {waEnabled && <WhatsAppCreditBanner />}
 

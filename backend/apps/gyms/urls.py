@@ -4,6 +4,7 @@ from .views import (
     ResetGymAdminPasswordView, RenewGymView,
     GymPaymentListCreateView, GymPaymentDetailView,
     WhatsAppBillingView, WhatsAppCreditListView, WhatsAppTopupView,
+    TierInfoListView, TierInfoDetailView,
 )
 
 urlpatterns = [
@@ -18,4 +19,6 @@ urlpatterns = [
     path('whatsapp-billing/', WhatsAppBillingView.as_view(), name='wa_billing'),
     path('whatsapp-credits/', WhatsAppCreditListView.as_view(), name='wa_credit_list'),
     path('<int:pk>/whatsapp-topup/', WhatsAppTopupView.as_view(), name='wa_topup'),
+    path('tiers/', TierInfoListView.as_view(), name='tier_info_list'),
+    path('tiers/<str:tier_id>/', TierInfoDetailView.as_view(), name='tier_info_detail'),
 ]
