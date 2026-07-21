@@ -63,7 +63,11 @@ class BackgroundMode(models.TextChoices):
 class Gym(models.Model):
     name = models.CharField(max_length=200)
     address = models.TextField(blank=True)
+    # phone: the gym's own contact, entered by the gym from Settings and printed on
+    # payment slips. owner_phone: the superadmin's private contact for the gym owner
+    # (never shown to members / on slips).
     phone = models.CharField(max_length=20, blank=True)
+    owner_phone = models.CharField(max_length=20, blank=True)
     logo = models.ImageField(upload_to='gym_logos/', null=True, blank=True)
     is_active = models.BooleanField(default=True)
     joining_date = models.DateField(null=True, blank=True)

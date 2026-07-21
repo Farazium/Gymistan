@@ -322,6 +322,8 @@ export default function Settings() {
   const { user, setUser } = useAuthStore()
   const [name, setName] = useState(user?.name || '')
   const [gymName, setGymName] = useState(user?.gym_name || '')
+  const [gymPhone, setGymPhone] = useState(user?.gym_phone || '')
+  const [gymAddress, setGymAddress] = useState(user?.gym_address || '')
   const [currentPw, setCurrentPw] = useState('')
   const [newPw, setNewPw] = useState('')
   const [confirmPw, setConfirmPw] = useState('')
@@ -355,13 +357,21 @@ export default function Settings() {
   })
 
   const gymMutation = useMutation({
-    mutationFn: ({ gymName: n, logo }) => {
+    mutationFn: ({ name: n, phone, address, logo }) => {
       const form = new FormData()
       if (n !== undefined) form.append('name', n)
+      if (phone !== undefined) form.append('phone', phone)
+      if (address !== undefined) form.append('address', address)
       if (logo) form.append('logo', logo)
       return api.patch(`/gyms/${user.gym}/`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
     },
-    onSuccess: ({ data }) => setUser({ ...user, gym_name: data.name, gym_logo: data.logo || user.gym_logo }),
+    onSuccess: ({ data }) => setUser({
+      ...user,
+      gym_name: data.name,
+      gym_phone: data.phone,
+      gym_address: data.address,
+      gym_logo: data.logo || user.gym_logo,
+    }),
     onError: () => toast.error('Failed to update gym'),
   })
 
@@ -440,13 +450,17 @@ export default function Settings() {
   })
 
   const nameChanged = name.trim() && name !== user?.name
-  const gymChanged = !!user?.gym && gymName.trim() && gymName !== user?.gym_name
+  const gymChanged = !!user?.gym && (
+    (gymName.trim() && gymName !== user?.gym_name) ||
+    gymPhone !== (user?.gym_phone || '') ||
+    gymAddress !== (user?.gym_address || '')
+  )
 
   const handleSave = async () => {
     if (!nameChanged && !gymChanged) return
     try {
       if (nameChanged) await profileMutation.mutateAsync()
-      if (gymChanged) await gymMutation.mutateAsync({ gymName })
+      if (gymChanged) await gymMutation.mutateAsync({ name: gymName, phone: gymPhone, address: gymAddress })
       toast.success('Settings saved')
     } catch { /* per-mutation onError already toasted */ }
   }
@@ -463,7 +477,7 @@ export default function Settings() {
     if (!file) return
     if (!file.type.startsWith('image/')) { toast.error('Please choose an image file'); e.target.value = ''; return }
     if (file.size > 2 * 1024 * 1024) { toast.error('Image must be under 2 MB'); e.target.value = ''; return }
-    gymMutation.mutate({ gymName: undefined, logo: file })
+    gymMutation.mutate({ logo: file })
     toast.success('Logo updated')
   }
 
@@ -494,6 +508,18 @@ export default function Settings() {
         {user?.gym && (
           <Row label="Gym Name">
             <input className="input" value={gymName} onChange={(e) => setGymName(e.target.value)} />
+          </Row>
+        )}
+
+        {user?.gym && (
+          <Row label="Phone" hint="Your gym's contact — printed on payment slips">
+            <input className="input" value={gymPhone} onChange={(e) => setGymPhone(e.target.value)} placeholder="e.g. 0300 1234567" />
+          </Row>
+        )}
+
+        {user?.gym && (
+          <Row label="Address" hint="Printed on payment slips">
+            <input className="input" value={gymAddress} onChange={(e) => setGymAddress(e.target.value)} placeholder="Gym address" />
           </Row>
         )}
 

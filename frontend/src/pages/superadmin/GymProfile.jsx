@@ -195,7 +195,7 @@ export default function GymProfile() {
     queryFn: async () => {
       const { data } = await api.get(`/gyms/${id}/stats/`)
       setGymName(data.gym.name || '')
-      setGymPhone(data.gym.phone || '')
+      setGymPhone(data.gym.owner_phone || '')
       setGymAddress(data.gym.address || '')
       setGymSubscription(data.gym.subscription_amount || '')
       setWaRate(data.gym.whatsapp_rate || '')
@@ -205,7 +205,7 @@ export default function GymProfile() {
   })
 
   const editMutation = useMutation({
-    mutationFn: () => api.patch(`/gyms/${id}/`, { name: gymName, phone: gymPhone, address: gymAddress, subscription_amount: gymSubscription || null, whatsapp_rate: waRate || null }),
+    mutationFn: () => api.patch(`/gyms/${id}/`, { name: gymName, owner_phone: gymPhone, address: gymAddress, subscription_amount: gymSubscription || null, whatsapp_rate: waRate || null }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['gym-stats', id] })
       queryClient.invalidateQueries({ queryKey: ['gyms'] })
@@ -284,7 +284,7 @@ export default function GymProfile() {
                 <Pencil size={13} /> Edit
               </button>
             ) : (
-              <button onClick={() => { setEditingGym(false); setGymName(gym.name); setGymPhone(gym.phone || ''); setGymAddress(gym.address || '') }} className="no-fx flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 transition">
+              <button onClick={() => { setEditingGym(false); setGymName(gym.name); setGymPhone(gym.owner_phone || ''); setGymAddress(gym.address || '') }} className="no-fx flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 transition">
                 <X size={13} /> Cancel
               </button>
             )}
@@ -293,7 +293,7 @@ export default function GymProfile() {
           {!editingGym ? (
             <div>
               <InfoRow icon={Building2} label="Gym Name" value={gym.name} />
-              <InfoRow icon={Phone} label="Phone" value={gym.phone} />
+              <InfoRow icon={Phone} label="Owner Contact" value={gym.owner_phone} />
               <InfoRow icon={MapPin} label="Address" value={gym.address} />
               <InfoRow icon={Calendar} label="Created" value={new Date(gym.created_at).toLocaleDateString('en-PK')} />
             </div>
@@ -304,8 +304,8 @@ export default function GymProfile() {
                 <input className="input" value={gymName} onChange={(e) => setGymName(e.target.value)} />
               </div>
               <div>
-                <label className="label">Phone</label>
-                <input className="input" value={gymPhone} onChange={(e) => setGymPhone(e.target.value)} />
+                <label className="label">Owner Contact</label>
+                <input className="input" placeholder="Private — your contact for the owner" value={gymPhone} onChange={(e) => setGymPhone(e.target.value)} />
               </div>
               <div>
                 <label className="label">Address</label>

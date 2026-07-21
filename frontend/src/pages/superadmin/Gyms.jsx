@@ -44,8 +44,8 @@ function GymForm({ onSuccess }) {
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="label">Phone</label>
-          <input className="input" {...register('phone')} />
+          <label className="label">Owner Contact</label>
+          <input className="input" placeholder="Private — your contact for the owner" {...register('owner_phone')} />
         </div>
         <div>
           <label className="label">Address</label>
@@ -180,7 +180,7 @@ export default function Gyms() {
           <Table>
             <Thead>
               <Th>Gym Name</Th>
-              <Th>Phone</Th>
+              <Th>Owner Contact</Th>
               <Th>Members</Th>
               <Th>Status</Th>
               <Th>Joined</Th>
@@ -205,7 +205,7 @@ export default function Gyms() {
                       </div>
                     </div>
                   </Td>
-                  <Td>{g.phone || '—'}</Td>
+                  <Td>{g.owner_phone || '—'}</Td>
                   <Td>{g.member_count}</Td>
                   <Td>
                     {(() => { const s = gymStatus(g); return (

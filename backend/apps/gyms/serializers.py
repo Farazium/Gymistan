@@ -56,7 +56,7 @@ class GymSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Gym
-        fields = ['id', 'name', 'address', 'phone', 'logo', 'is_active', 'joining_date', 'expiry_date', 'subscription_amount', 'tier', 'whatsapp_rate', 'theme_color', 'card_color', 'background_mode', 'background_image', 'created_at', 'updated_at', 'member_count', 'user_count', 'wa_allowance', 'wa_used', 'wa_remaining', 'wa_percent_used']
+        fields = ['id', 'name', 'address', 'phone', 'owner_phone', 'logo', 'is_active', 'joining_date', 'expiry_date', 'subscription_amount', 'tier', 'whatsapp_rate', 'theme_color', 'card_color', 'background_mode', 'background_image', 'created_at', 'updated_at', 'member_count', 'user_count', 'wa_allowance', 'wa_used', 'wa_remaining', 'wa_percent_used']
         # Credits move only through top-ups and sends, never a gym PATCH.
         read_only_fields = ['wa_allowance', 'wa_used']
 
@@ -70,7 +70,8 @@ class GymSerializer(serializers.ModelSerializer):
 class CreateGymSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=200)
     address = serializers.CharField(required=False, allow_blank=True)
-    phone = serializers.CharField(required=False, allow_blank=True)
+    # The superadmin's private contact for the gym owner (not the slip phone).
+    owner_phone = serializers.CharField(required=False, allow_blank=True)
     trial_days = serializers.IntegerField(required=False, default=30, min_value=0)
     expiry_date = serializers.DateField(required=False, allow_null=True)
     subscription_amount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True, min_value=Decimal('0'))
@@ -92,7 +93,7 @@ class CreateGymSerializer(serializers.Serializer):
         gym = Gym.objects.create(
             name=validated_data['name'],
             address=validated_data.get('address', ''),
-            phone=validated_data.get('phone', ''),
+            owner_phone=validated_data.get('owner_phone', ''),
             joining_date=today,
             expiry_date=expiry_date,
             subscription_amount=validated_data.get('subscription_amount'),

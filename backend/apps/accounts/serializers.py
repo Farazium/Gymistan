@@ -18,6 +18,8 @@ def guard_assignable_role(serializer, role):
 
 class UserSerializer(serializers.ModelSerializer):
     gym_name = serializers.CharField(source='gym.name', read_only=True)
+    gym_phone = serializers.CharField(source='gym.phone', read_only=True)
+    gym_address = serializers.CharField(source='gym.address', read_only=True)
     gym_logo = serializers.ImageField(source='gym.logo', read_only=True)
     gym_tier = serializers.CharField(source='gym.tier', read_only=True)
     gym_theme = serializers.CharField(source='gym.theme_color', read_only=True)
@@ -27,7 +29,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'name', 'email', 'role', 'is_active', 'gym', 'gym_name', 'gym_logo', 'gym_tier', 'gym_theme', 'gym_card', 'gym_background_mode', 'gym_background_image', 'created_at']
+        fields = ['id', 'name', 'email', 'role', 'is_active', 'gym', 'gym_name', 'gym_phone', 'gym_address', 'gym_logo', 'gym_tier', 'gym_theme', 'gym_card', 'gym_background_mode', 'gym_background_image', 'created_at']
 
 
 class LoginSerializer(serializers.Serializer):
