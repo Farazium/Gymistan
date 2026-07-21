@@ -258,10 +258,17 @@ class DevicePushView(APIView):
         trainers = list(Trainer.objects.filter(gym=gym).order_by('name'))
         everyone = members + trainers
 
+        # Reserve every device id already in use in this gym — including those held
+        # by soft-deleted members, which still count against the unique constraint
+        # (a deleted member keeps their id so a restore can re-push them). Building
+        # `used` only from the active roster would hand a new member an id a deleted
+        # one already owns, and the save would hit uniq_member_device_id.
         used = set()
-        for p in everyone:
-            if p.device_user_id and p.device_user_id.isdigit():
-                used.add(int(p.device_user_id))
+        member_ids = Member.objects.filter(gym=gym).exclude(device_user_id='').values_list('device_user_id', flat=True)
+        trainer_ids = Trainer.objects.filter(gym=gym).exclude(device_user_id='').values_list('device_user_id', flat=True)
+        for duid in list(member_ids) + list(trainer_ids):
+            if duid and str(duid).isdigit():
+                used.add(int(duid))
 
         nxt = 1
         assigned = 0
