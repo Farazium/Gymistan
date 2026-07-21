@@ -204,9 +204,9 @@ const TIER_ICON_BG = {
   yellow: 'bg-yellow-500/20 text-yellow-400',
 }
 
-function TierInfoModal({ tier, tiers, onClose }) {
+function TierInfoModal({ tier, tiers, isOpen, onClose }) {
   return (
-    <Modal isOpen onClose={onClose} title="Subscription Plans" size="xl">
+    <Modal isOpen={isOpen} onClose={onClose} title="Subscription Plans" size="xl">
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         {tiers.map((t) => {
               const isCurrent = t.tier_id === tier
@@ -302,7 +302,7 @@ function GymDashboard() {
           </button>
         </div>
       </div>
-      {showTierInfo && <TierInfoModal tier={tier} tiers={tiers} onClose={() => setShowTierInfo(false)} />}
+      <TierInfoModal tier={tier} tiers={tiers} isOpen={showTierInfo} onClose={() => setShowTierInfo(false)} />
 
       {waEnabled && <WhatsAppCreditBanner />}
 
