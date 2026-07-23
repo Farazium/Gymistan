@@ -206,21 +206,21 @@ export default function MemberProfile() {
                   {photoUrl && (
                     <button
                       onClick={() => { setShowPhotoMenu(false); setViewPhoto(true) }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-gray-200 hover:bg-primary-500/10 hover:text-primary-300 transition text-left"
+                      className="no-fx w-full flex items-center gap-2.5 px-3 py-2 text-xs text-gray-200 hover:bg-primary-500/10 hover:text-primary-300 transition text-left"
                     >
                       <Eye size={14} className="text-primary-400" /> View
                     </button>
                   )}
                   <button
                     onClick={() => { setShowPhotoMenu(false); photoRef.current.click() }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-gray-200 hover:bg-primary-500/10 hover:text-primary-300 transition text-left border-t border-primary-500/20 first:border-t-0"
+                    className="no-fx w-full flex items-center gap-2.5 px-3 py-2 text-xs text-gray-200 hover:bg-primary-500/10 hover:text-primary-300 transition text-left border-t border-primary-500/20 first:border-t-0"
                   >
                     <ImageUp size={14} className="text-primary-400" /> Update
                   </button>
                   {photoUrl && (
                     <button
                       onClick={() => { setShowPhotoMenu(false); if (confirm('Remove this photo?')) removePhotoMutation.mutate() }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300 transition text-left border-t border-primary-500/20"
+                      className="no-fx w-full flex items-center gap-2.5 px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300 transition text-left border-t border-primary-500/20"
                     >
                       <Trash2 size={14} /> Remove
                     </button>
