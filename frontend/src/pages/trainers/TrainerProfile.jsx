@@ -212,7 +212,7 @@ export default function TrainerProfile() {
             <button
               key={m.id}
               onClick={() => navigate(`/members/${m.id}`)}
-              className="no-fx w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-700/40 transition text-left"
+              className="no-fx w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-primary-500/10 transition text-left"
             >
               {m.member_id && <span className="font-mono text-xs text-gray-400 bg-gray-700/50 px-1.5 py-0.5 rounded shrink-0">{String(m.member_id).padStart(5, '0')}</span>}
               <div className="flex-1 min-w-0">
