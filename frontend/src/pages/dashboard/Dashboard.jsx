@@ -370,7 +370,7 @@ function GymDashboard() {
                           onClick={() => sendReminder.mutate(m.id)}
                           disabled={sending || outOfCredits}
                           title={outOfCredits ? 'Out of WhatsApp messages — top up to send' : 'Send WhatsApp renewal reminder'}
-                          className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg border border-green-500/30 text-green-400 hover:bg-green-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg border border-green-500/30 text-green-400 hover:text-white hover:bg-green-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed [--btn-fill:34_197_94] [--btn-edge:21_128_61]"
                         >
                           {sending ? <Loader2 size={13} className="animate-spin" /> : <MessageCircle size={13} />}
                           {sending ? 'Sending' : 'Remind'}
