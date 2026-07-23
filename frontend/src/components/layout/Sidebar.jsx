@@ -4,6 +4,7 @@ import {
   Building2, LogOut, Dumbbell, Boxes, Settings, Fingerprint, Wallet, BarChart2, UserCog, MessageCircle
 } from 'lucide-react'
 import useAuthStore from '../../store/authStore'
+import { API_ORIGIN } from '../../api/axios'
 import toast from 'react-hot-toast'
 
 const navItems = [
@@ -94,7 +95,7 @@ export default function Sidebar() {
           >
             <div className="w-8 h-8 bg-gray-700 rounded-full overflow-hidden flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
               {user?.gym_logo
-                ? <img src={`http://localhost:8000${user.gym_logo}`} alt="logo" className="w-full h-full object-cover" />
+                ? <img src={`${API_ORIGIN}${user.gym_logo}`} alt="logo" className="w-full h-full object-cover" />
                 : user?.name?.[0]?.toUpperCase()
               }
             </div>

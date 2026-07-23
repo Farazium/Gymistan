@@ -2,7 +2,7 @@ import { useRef, useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, MoreVertical, Eye, ImageUp, Trash2, Phone, User, Package, Calendar, MapPin, FileText, Ban, Fingerprint } from 'lucide-react'
-import api from '../../api/axios'
+import api, { API_ORIGIN } from '../../api/axios'
 import toast from 'react-hot-toast'
 import useAuthStore from '../../store/authStore'
 import AttendanceCalendar from '../../components/ui/AttendanceCalendar'
@@ -172,7 +172,7 @@ export default function MemberProfile() {
   )
 
   const photoUrl = member.photo
-    ? (member.photo.startsWith('http') ? member.photo : `http://localhost:8000${member.photo}`)
+    ? (member.photo.startsWith('http') ? member.photo : `${API_ORIGIN}${member.photo}`)
     : null
 
   return (

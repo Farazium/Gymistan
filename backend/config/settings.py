@@ -11,6 +11,10 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'change-me-in-production')
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost').split(',')
 
+# Origins Django accepts CSRF-protected POSTs from (admin login, form posts). Must be
+# full scheme+host entries, e.g. https://gymistan.dev — required once served over HTTPS.
+CSRF_TRUSTED_ORIGINS = [o for o in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',') if o]
+
 DJANGO_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -125,6 +129,15 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# nginx terminates TLS and forwards plain HTTP upstream, so Django only learns the
+# original scheme from this header — without it request.is_secure() is always False.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Cookies go HTTPS-only in production. Kept env-overridable so the site can still be
+# exercised over plain HTTP (bare server IP) before the certificate is issued.
+SESSION_COOKIE_SECURE = os.getenv('SECURE_COOKIES', str(not DEBUG)) == 'True'
+CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
 
 WHATSAPP_TOKEN = os.getenv('WHATSAPP_TOKEN', '')
 WHATSAPP_PHONE_NUMBER_ID = os.getenv('WHATSAPP_PHONE_NUMBER_ID', '')

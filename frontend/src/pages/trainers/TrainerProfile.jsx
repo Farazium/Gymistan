@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { ArrowLeft, UserCog, Phone, Calendar, CreditCard, Users, Wallet, Fingerprint, Banknote, MoreVertical, Eye, ImageUp, Trash2 } from 'lucide-react'
-import api from '../../api/axios'
+import api, { API_ORIGIN } from '../../api/axios'
 import StatCard from '../../components/ui/StatCard'
 import Modal from '../../components/ui/Modal'
 import EnrollModal from '../../components/EnrollModal'
@@ -197,7 +197,7 @@ export default function TrainerProfile() {
 
   const ss = t.salary_status || {}
   const photoUrl = t.photo
-    ? (t.photo.startsWith('http') ? t.photo : `http://localhost:8000${t.photo}`)
+    ? (t.photo.startsWith('http') ? t.photo : `${API_ORIGIN}${t.photo}`)
     : null
 
   const assignedMembersCard = (

@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { Building2, Camera, Image as ImageIcon, Check, ChevronRight, MessageCircle, MoreVertical, Sparkles, Upload } from 'lucide-react'
 import Cropper from 'react-easy-crop'
 import 'react-easy-crop/react-easy-crop.css'
-import api from '../../api/axios'
+import api, { API_ORIGIN } from '../../api/axios'
 import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
 import Modal from '../../components/ui/Modal'
@@ -348,7 +348,7 @@ export default function Settings() {
 
   const changePaperWidth = (w) => { setPaperWidthState(w); setPaperWidth(w) }
 
-  const gymLogoUrl = user?.gym_logo ? `http://localhost:8000${user.gym_logo}` : null
+  const gymLogoUrl = user?.gym_logo ? `${API_ORIGIN}${user.gym_logo}` : null
 
   const profileMutation = useMutation({
     mutationFn: () => api.patch('/auth/me/', { name }),
