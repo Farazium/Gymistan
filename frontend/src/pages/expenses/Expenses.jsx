@@ -131,15 +131,13 @@ export default function Expenses() {
     groups[groups.length - 1].items.push(e)
   })
 
-  const total = expenses.reduce((sum, e) => sum + Number(e.amount), 0)
-
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-primary-400">Expenses</h1>
           <p className="text-gray-500 text-sm mt-1">
-            {expenses.length} entries — Total: <span className="font-semibold text-red-500">{fmt(total)}</span>
+            {expenses.length} entries
           </p>
         </div>
         <div className="flex gap-2">

@@ -125,7 +125,6 @@ function SalesDrawer({ open, onClose }) {
   })
 
   const sales = data || []
-  const total = sales.reduce((s, x) => s + Number(x.amount), 0)
 
   // Group into months (sales already arrive newest-first, so order is preserved).
   const months = []
@@ -152,7 +151,7 @@ function SalesDrawer({ open, onClose }) {
         <div className="flex items-center justify-between p-4 border-b border-gray-700 shrink-0">
           <div>
             <h2 className="text-lg font-bold text-primary-400 flex items-center gap-2"><Receipt size={18} /> Sales</h2>
-            <p className="text-xs text-gray-400 mt-0.5">{sales.length} sales · {fmt(total)}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{sales.length} sales</p>
           </div>
           <div className="flex items-center gap-1">
             {sales.length > 0 && (

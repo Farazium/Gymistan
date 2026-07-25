@@ -100,15 +100,13 @@ export default function Payments() {
     groups[groups.length - 1].items.push(p)
   })
 
-  const total = payments.reduce((sum, p) => sum + Number(p.amount_paid), 0)
-
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-primary-400">Payments</h1>
           <p className="text-gray-500 text-sm mt-1">
-            {payments.length} records — Total: <span className="font-semibold text-green-500">{fmt(total)}</span>
+            {payments.length} records
           </p>
         </div>
         <div className="flex gap-2">
