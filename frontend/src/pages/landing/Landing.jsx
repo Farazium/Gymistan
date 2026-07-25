@@ -26,7 +26,7 @@ const CONTACT = {
   // on its own — button, icon and footer link included. Null means we have no
   // number to send anyone to yet, so the page contacts by email instead.
   whatsapp: null,
-  email: 'hello@gymistan.dev',
+  email: 'contact@gymistan.dev',
 }
 
 // Where a "talk to us" CTA points: WhatsApp when there's a number, a pre-filled
