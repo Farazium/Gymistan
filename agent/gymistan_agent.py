@@ -85,6 +85,23 @@ def ask(prompt, default=''):
     return val or default
 
 
+def claim_single_instance():
+    """Refuse to be the second copy running on this PC.
+
+    Two agents on one device is not harmless: both hold its live capture and both
+    report the same scan, so the Live screen shows every entry twice. Binding a
+    port is the check — the OS releases it the moment the process ends, so a
+    crash or a hard power-off can never leave a stale lock behind, the way a
+    lock file would."""
+    guard = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        guard.bind(('127.0.0.1', 47318))
+        guard.listen(1)
+    except OSError:
+        return None
+    return guard          # held for the life of the process, deliberately
+
+
 # ---------------------------------------------------------------- device
 def local_subnet():
     """This machine's own /24, which is the network the device is on too."""
@@ -508,6 +525,15 @@ def sync_once(server, cfg, state):
 
 def main():
     banner()
+
+    guard = claim_single_instance()
+    if guard is None:
+        print('  This agent is already running on this PC.')
+        print('  Look for its window in the taskbar - you do not need a second one.')
+        print()
+        input('  Press Enter to close.')
+        return
+
     cfg = load_config()
     if not cfg.get('token'):
         cfg = first_run_setup()

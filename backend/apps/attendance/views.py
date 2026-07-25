@@ -849,12 +849,10 @@ class AgentLiveScanView(APIView):
             if at.tzinfo is not None:
                 at = timezone.localtime(at).replace(tzinfo=None)
 
+            punched_at = timezone.make_aware(at)
             person = resolve_person(cfg.gym, duid)
             if person is None:
-                LiveScan.objects.create(gym=cfg.gym, device_user_id=duid,
-                                        name=f'ID {duid}', kind='unknown',
-                                        status='unknown',
-                                        punched_at=timezone.make_aware(at))
+                fields = {'name': f'ID {duid}', 'kind': 'unknown', 'status': 'unknown'}
             else:
                 kind, obj = person
                 if kind == 'member':
@@ -862,9 +860,20 @@ class AgentLiveScanView(APIView):
                     expiry = obj.expiry_date
                 else:
                     state, expiry = 'trainer', None
-                LiveScan.objects.create(gym=cfg.gym, device_user_id=duid, name=obj.name,
-                                        kind=kind, status=state, expiry=expiry,
-                                        punched_at=timezone.make_aware(at))
+                fields = {'name': obj.name, 'kind': kind, 'status': state, 'expiry': expiry}
+
+            # One scan, one card. A person is a single event at a single instant,
+            # so the punch identifies itself — and that guards against the same
+            # scan arriving twice, whether an agent retried after a dropped reply
+            # or someone left a second copy of it running on another PC.
+            _, fresh = LiveScan.objects.get_or_create(
+                gym=cfg.gym, device_user_id=duid, punched_at=punched_at,
+                defaults=fields,
+            )
+            if not fresh:
+                continue
+            if person is not None:
+                kind, obj = person
                 # A scan is attendance too, so the sheet doesn't wait for the
                 # next punch sync to catch up.
                 record_punch(cfg.gym, kind, obj, at)
