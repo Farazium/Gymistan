@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, Wifi, WifiOff, Users, Check, UserPlus, Search, Loader2,
-  Laptop, Copy, Eye, EyeOff, RotateCcw, Download } from 'lucide-react'
+  Laptop, Copy, Eye, EyeOff, RotateCcw, Download, ChevronDown } from 'lucide-react'
 import api from '../../api/axios'
 import toast from 'react-hot-toast'
 
@@ -20,6 +20,7 @@ export default function DevicePanel() {
   const [showUsers, setShowUsers] = useState(false)
   const [conn, setConn] = useState(null) // null | {online, message}
   const [showCode, setShowCode] = useState(false)
+  const [showDirect, setShowDirect] = useState(false)
   const [copied, setCopied] = useState(false)
   // A ticking clock, so "Running" decays to "Stopped" on its own while the panel
   // is open rather than waiting for something else to trigger a re-render.
@@ -219,9 +220,27 @@ export default function DevicePanel() {
         </div>
       </div>
 
-      {/* Connection settings */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-semibold text-gray-200 flex items-center gap-2"><Wifi size={15} /> Connection</h3>
+      {/* Direct connection — only meaningful when the backend shares a network
+          with the device, which a hosted gym never does. Left in place for a
+          gym-local install, but folded away behind a disclosure so its ping
+          failing doesn't read as something being broken. */}
+      <div className="border-t border-gray-700/60 pt-4 space-y-3">
+        <button
+          onClick={() => setShowDirect((v) => !v)}
+          className="no-fx flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-gray-200 transition"
+        >
+          <Wifi size={15} />
+          Direct connection (advanced)
+          <ChevronDown size={14} className={`transition-transform ${showDirect ? 'rotate-180' : ''}`} />
+        </button>
+        {!showDirect && (
+          <p className="text-xs text-gray-500">
+            Only works when Gymistan runs on the gym's own network. Hosted online it
+            cannot reach your device — the agent above is what does.
+          </p>
+        )}
+      </div>
+      <div className={showDirect ? 'space-y-3' : 'hidden'}>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="label">Device Name</label>
