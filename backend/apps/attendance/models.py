@@ -41,12 +41,84 @@ class DeviceConfig(models.Model):
     # Serial of the device the agent found, so a gym can confirm which unit is
     # reporting (and so a swapped device is visible rather than silent).
     agent_serial = models.CharField(max_length=64, blank=True)
+    # While this is in the future the agent keeps the device's live capture open
+    # and streams scans up. The Live screen renews it as long as someone is
+    # watching, so it lapses on its own when they walk away.
+    live_until = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'device_config'
 
     def __str__(self):
         return f'{self.gym.name} device @ {self.ip or "unset"}'
+
+
+class DeviceCommand(models.Model):
+    """A job for the gym's agent to run on the device.
+
+    Everything the app wants to DO to a device — enrol a finger, push the roster,
+    read the enrolled users — used to be a direct call from the server. Hosted in
+    the cloud that is impossible, so those calls become rows here instead: the app
+    queues one, the agent picks it up within a few seconds, runs it on the LAN and
+    posts the outcome back."""
+
+    class Kind(models.TextChoices):
+        PUSH_USERS = 'PUSH_USERS', 'Push members to device'
+        LIST_USERS = 'LIST_USERS', 'List device users'
+        ENROLL = 'ENROLL', 'Enrol a fingerprint'
+        REMOVE_FP = 'REMOVE_FP', 'Remove a fingerprint'
+        FP_STATUS = 'FP_STATUS', 'Check fingerprint'
+
+    class State(models.TextChoices):
+        PENDING = 'PENDING', 'Waiting for the agent'
+        RUNNING = 'RUNNING', 'Running on the device'
+        DONE = 'DONE', 'Done'
+        FAILED = 'FAILED', 'Failed'
+
+    gym = models.ForeignKey(Gym, on_delete=models.CASCADE, related_name='device_commands')
+    kind = models.CharField(max_length=20, choices=Kind.choices)
+    payload = models.JSONField(default=dict, blank=True)
+    state = models.CharField(max_length=10, choices=State.choices, default=State.PENDING)
+    # Whatever the agent saw: the user list, an enrolment's progress, an error.
+    result = models.JSONField(default=dict, blank=True)
+    message = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    claimed_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'device_commands'
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['gym', 'state'])]
+
+    def __str__(self):
+        return f'{self.gym.name} · {self.kind} · {self.state}'
+
+
+class LiveScan(models.Model):
+    """One line in the live entrance feed.
+
+    The old Live screen held the device's capture socket open inside the web
+    process, which only worked when the server sat on the gym's network. Now the
+    agent holds that socket and streams each scan up here; the screen reads these
+    rows. They are disposable — pruned as they age, since nothing but the live
+    view ever looks at them (attendance itself is recorded separately)."""
+    gym = models.ForeignKey(Gym, on_delete=models.CASCADE, related_name='live_scans')
+    device_user_id = models.CharField(max_length=32, blank=True)
+    name = models.CharField(max_length=200)
+    kind = models.CharField(max_length=10)     # member | trainer | unknown
+    status = models.CharField(max_length=10)   # active | expired | trainer | unknown
+    expiry = models.DateField(null=True, blank=True)
+    punched_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'live_scans'
+        ordering = ['id']
+        indexes = [models.Index(fields=['gym', 'id'])]
+
+    def __str__(self):
+        return f'{self.name} @ {self.punched_at:%H:%M:%S}'
 
 
 class Attendance(models.Model):

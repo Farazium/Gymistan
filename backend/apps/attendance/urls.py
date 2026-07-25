@@ -2,7 +2,8 @@ from django.urls import path
 from .views import (AttendanceView, MarkAttendanceView, DeviceConfigView,
                     DeviceSyncView, DeviceUsersView, DeviceLiveView, DevicePushView,
                     DeviceEnrollView, DeviceFingerprintStatusView, DevicePingView,
-                    AgentIngestView, AgentTokenResetView)
+                    AgentIngestView, AgentTokenResetView, AgentCommandsView,
+                    AgentLiveScanView)
 
 urlpatterns = [
     path('', AttendanceView.as_view(), name='attendance'),
@@ -18,4 +19,6 @@ urlpatterns = [
     # The gym-PC agent's endpoint. Token-authenticated, not JWT — see AgentIngestView.
     path('device/ingest/', AgentIngestView.as_view(), name='device_ingest'),
     path('device/agent-token/', AgentTokenResetView.as_view(), name='device_agent_token'),
+    path('device/commands/', AgentCommandsView.as_view(), name='device_commands'),
+    path('device/live-scan/', AgentLiveScanView.as_view(), name='device_live_scan'),
 ]

@@ -10,7 +10,8 @@ from apps.gyms.models import AT_TIERS
 from apps.members.models import Member
 from apps.trainers.models import Trainer
 from apps.members.serializers import compute_status
-from .models import Attendance, DeviceConfig, new_agent_token
+from .models import (Attendance, DeviceConfig, DeviceCommand, LiveScan,
+                     new_agent_token)
 from .serializers import DeviceConfigSerializer
 from .services import record_punch, record_punches, resolve_person
 from .zk_service import (sync_device, pull_device_users, push_users,
@@ -269,8 +270,9 @@ class DevicePushView(APIView):
     def post(self, request):
         gym = request.user.gym
         cfg, _ = DeviceConfig.objects.get_or_create(gym=gym)
-        if not cfg.ip:
-            return Response({'message': 'No device IP configured'}, status=status.HTTP_400_BAD_REQUEST)
+        via_agent = agent_online(cfg)
+        if not via_agent and not cfg.ip:
+            return no_agent_response(cfg)
 
         members = list(Member.objects.filter(gym=gym, is_deleted=False).order_by('name'))
         trainers = list(Trainer.objects.filter(gym=gym).order_by('name'))
@@ -302,10 +304,19 @@ class DevicePushView(APIView):
         people = [(p.device_user_id, p.name) for p in everyone if p.device_user_id]
         if not people:
             return Response({'message': 'No one to push'})
-        try:
-            pushed, errors = push_users(cfg.ip, cfg.port, cfg.password, people)
-        except Exception as e:
-            return Response({'message': f'Failed: {e}'}, status=status.HTTP_502_BAD_GATEWAY)
+        if via_agent:
+            cmd = await_command(queue_command(gym, DeviceCommand.Kind.PUSH_USERS,
+                                              {'people': [list(p) for p in people]}))
+            if cmd.state != DeviceCommand.State.DONE:
+                return Response({'message': cmd.message or 'The agent could not reach the device'},
+                                status=status.HTTP_502_BAD_GATEWAY)
+            pushed = cmd.result.get('pushed', len(people))
+            errors = cmd.result.get('errors', [])
+        else:
+            try:
+                pushed, errors = push_users(cfg.ip, cfg.port, cfg.password, people)
+            except Exception as e:
+                return Response({'message': f'Failed: {e}'}, status=status.HTTP_502_BAD_GATEWAY)
 
         msg = f'Pushed {pushed} people to the device'
         if assigned:
@@ -327,6 +338,19 @@ class DeviceFingerprintStatusView(APIView):
         person = get_person(gym, kind, pid)
         if not person:
             return Response({'message': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if agent_online(cfg):
+            if not person.device_user_id:
+                return Response({'enrolled': bool(person.has_fingerprint), 'checked': False})
+            cmd = await_command(queue_command(gym, DeviceCommand.Kind.FP_STATUS,
+                                              {'uid': person.device_user_id}))
+            if cmd.state != DeviceCommand.State.DONE:
+                return Response({'enrolled': bool(person.has_fingerprint), 'checked': False})
+            enrolled = bool(cmd.result.get('enrolled'))
+            if enrolled != person.has_fingerprint:
+                person.has_fingerprint = enrolled
+                person.save(update_fields=['has_fingerprint'])
+            return Response({'enrolled': enrolled, 'checked': True})
 
         # Can't ask the device — fall back to what we last recorded.
         if not person.device_user_id or not cfg.ip or not _HAS_ZK:
@@ -355,8 +379,9 @@ class DeviceEnrollView(APIView):
     def post(self, request):
         gym = request.user.gym
         cfg, _ = DeviceConfig.objects.get_or_create(gym=gym)
-        if not cfg.ip:
-            return Response({'message': 'No device IP configured'}, status=status.HTTP_400_BAD_REQUEST)
+        via_agent = agent_online(cfg)
+        if not via_agent and not cfg.ip:
+            return no_agent_response(cfg)
         kind = request.data.get('type') or 'member'
         pid = request.data.get('id') or request.data.get('member_id')
         person = get_person(gym, kind, pid)
@@ -368,6 +393,22 @@ class DeviceEnrollView(APIView):
             finger = 0
 
         uid = ensure_person_id(person)
+
+        if via_agent:
+            # One enrolment at a time: a stale job would have the device waiting
+            # for a finger nobody is going to place.
+            DeviceCommand.objects.filter(
+                gym=gym, kind=DeviceCommand.Kind.ENROLL,
+                state__in=[DeviceCommand.State.PENDING, DeviceCommand.State.RUNNING],
+            ).update(state=DeviceCommand.State.FAILED, message='Superseded',
+                     finished_at=timezone.now())
+            queue_command(gym, DeviceCommand.Kind.ENROLL, {
+                'uid': uid, 'name': person.name, 'finger': finger,
+                'type': kind, 'id': person.id,
+            })
+            return Response({'message': 'Ask them to place their finger on the sensor',
+                             'started': True, 'device_user_id': uid})
+
         started, detail = start_enroll(gym.id, cfg.ip, cfg.port, cfg.password,
                                        uid, person.name, finger, kind=kind, person_id=person.id)
         if not started:
@@ -376,12 +417,32 @@ class DeviceEnrollView(APIView):
                          'started': True, 'device_user_id': uid})
 
     def get(self, request):
-        return Response(enroll_status(request.user.gym.id))
+        gym = request.user.gym
+        cfg, _ = DeviceConfig.objects.get_or_create(gym=gym)
+        if agent_online(cfg):
+            cmd = (DeviceCommand.objects
+                   .filter(gym=gym, kind=DeviceCommand.Kind.ENROLL)
+                   .order_by('-created_at').first())
+            if not cmd:
+                return Response({'state': 'idle'})
+            state = {DeviceCommand.State.PENDING: 'running',   # queued still reads as busy
+                     DeviceCommand.State.RUNNING: 'running',
+                     DeviceCommand.State.DONE: 'done',
+                     DeviceCommand.State.FAILED: 'failed'}[cmd.state]
+            return Response({'state': state, 'message': cmd.message})
+        return Response(enroll_status(gym.id))
 
     def patch(self, request):
         """Cancel a running enrollment (the modal was closed)."""
         gym = request.user.gym
         cfg, _ = DeviceConfig.objects.get_or_create(gym=gym)
+        if agent_online(cfg):
+            DeviceCommand.objects.filter(
+                gym=gym, kind=DeviceCommand.Kind.ENROLL,
+                state__in=[DeviceCommand.State.PENDING, DeviceCommand.State.RUNNING],
+            ).update(state=DeviceCommand.State.FAILED, message='Cancelled',
+                     finished_at=timezone.now())
+            return Response({'cancelled': True})
         cancel_enroll(gym.id, cfg.ip, cfg.port, cfg.password)
         return Response({'cancelled': True})
 
@@ -397,6 +458,15 @@ class DeviceEnrollView(APIView):
         person = get_person(gym, kind, pid)
         if not person or not person.device_user_id:
             return Response({'message': 'Not on the device'}, status=status.HTTP_404_NOT_FOUND)
+        if agent_online(cfg):
+            cmd = await_command(queue_command(gym, DeviceCommand.Kind.REMOVE_FP, {
+                'uid': person.device_user_id, 'type': kind, 'id': person.id,
+            }))
+            if cmd.state != DeviceCommand.State.DONE:
+                return Response({'message': cmd.message or 'The agent could not reach the device'},
+                                status=status.HTTP_502_BAD_GATEWAY)
+            return Response({'removed': True})
+
         # Free the device from the live monitor before we touch it.
         stop_monitor(gym.id)
         time.sleep(3.5)
@@ -419,9 +489,34 @@ class DeviceLiveView(APIView):
     def get(self, request):
         gym = request.user.gym
         cfg, _ = DeviceConfig.objects.get_or_create(gym=gym)
+
+        if agent_online(cfg):
+            # Renew the window rather than switching live "on": the agent holds
+            # the device's capture socket only while someone is actually watching,
+            # and it lapses by itself the moment this screen stops asking.
+            cfg.live_until = timezone.now() + datetime.timedelta(seconds=20)
+            cfg.save(update_fields=['live_until'])
+
+            try:
+                after = int(request.query_params.get('after', 0))
+            except (TypeError, ValueError):
+                after = 0
+            rows = LiveScan.objects.filter(gym=gym, id__gt=after).order_by('id')[:50]
+            events = [{
+                'seq': r.id,
+                'time': timezone.localtime(r.punched_at).strftime('%H:%M:%S'),
+                'kind': r.kind,
+                'name': r.name,
+                'status': r.status,
+                'expiry': r.expiry.isoformat() if r.expiry else None,
+            } for r in rows]
+            latest = LiveScan.objects.filter(gym=gym).order_by('-id').values_list('id', flat=True).first()
+            return Response({'enabled': True, 'seq': latest or after,
+                             'events': events, 'error': None})
+
         if not cfg.ip or not _HAS_ZK:
             return Response({'enabled': False, 'seq': 0, 'events': [],
-                             'error': None if cfg.ip else 'No device configured'})
+                             'error': 'The gym PC agent is not running' if not cfg.ip else None})
 
         # A fingerprint enrollment is using the device — don't grab it back, or
         # we'd break the enrollment and log its scans as attendance.
@@ -480,12 +575,19 @@ class DeviceUsersView(APIView):
     def get(self, request):
         gym = request.user.gym
         cfg, _ = DeviceConfig.objects.get_or_create(gym=gym)
-        if not cfg.ip:
-            return Response({'message': 'No device IP configured'}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            users = pull_device_users(cfg.ip, port=cfg.port, password=cfg.password)
-        except Exception as e:
-            return Response({'message': f'Failed: {e}'}, status=status.HTTP_502_BAD_GATEWAY)
+        if agent_online(cfg):
+            cmd = await_command(queue_command(gym, DeviceCommand.Kind.LIST_USERS))
+            if cmd.state != DeviceCommand.State.DONE:
+                return Response({'message': cmd.message or 'The agent could not reach the device'},
+                                status=status.HTTP_502_BAD_GATEWAY)
+            users = cmd.result.get('users', [])
+        elif not cfg.ip:
+            return no_agent_response(cfg)
+        else:
+            try:
+                users = pull_device_users(cfg.ip, port=cfg.port, password=cfg.password)
+            except Exception as e:
+                return Response({'message': f'Failed: {e}'}, status=status.HTTP_502_BAD_GATEWAY)
 
         for u in users:
             person = resolve_person(gym, u['user_id'])
@@ -614,3 +716,161 @@ class AgentIngestView(APIView):
             'malformed': malformed,
             'since': _watermark_str(cfg.last_sync),
         })
+
+
+# ---------------------------------------------------------------------------
+# Command queue — how the app reaches a device it cannot dial directly.
+# ---------------------------------------------------------------------------
+COMMAND_WAIT = 25          # seconds the browser will hold while the agent works
+AGENT_ALIVE = 180          # a gym is "agent-connected" if seen within this
+
+
+def agent_online(cfg):
+    return bool(cfg.agent_last_seen and
+                (timezone.now() - cfg.agent_last_seen).total_seconds() < AGENT_ALIVE)
+
+
+def queue_command(gym, kind, payload=None):
+    return DeviceCommand.objects.create(gym=gym, kind=kind, payload=payload or {})
+
+
+def await_command(cmd, seconds=COMMAND_WAIT):
+    """Block until the agent finishes a job, or give up.
+
+    The screens that call this (read the device's users, check a finger) were
+    synchronous when the server could dial the device itself, and they read far
+    better that way than as a job the user has to come back to. The agent polls
+    every couple of seconds, so this usually returns quickly."""
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        cmd.refresh_from_db()
+        if cmd.state in (DeviceCommand.State.DONE, DeviceCommand.State.FAILED):
+            return cmd
+        time.sleep(0.7)
+    cmd.refresh_from_db()
+    return cmd
+
+
+def no_agent_response(cfg):
+    """The one error worth being clear about: nothing is going to happen until
+    somebody starts the agent at the gym."""
+    return Response(
+        {'message': 'The gym PC agent is not running, so the device cannot be '
+                    'reached. Start GymistanAgent on the gym PC and try again.',
+         'agent_offline': True},
+        status=status.HTTP_503_SERVICE_UNAVAILABLE,
+    )
+
+
+class AgentCommandsView(APIView):
+    """The agent's work queue. Token-authenticated, same as ingest."""
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def _config(self, request):
+        return AgentIngestView._config(AgentIngestView(), request)
+
+    def get(self, request):
+        """Claim the oldest waiting job, and say whether the Live screen is open."""
+        cfg, err = self._config(request)
+        if err:
+            return err
+        cfg.agent_last_seen = timezone.now()
+        cfg.save(update_fields=['agent_last_seen'])
+
+        live = bool(cfg.live_until and cfg.live_until > timezone.now())
+
+        cmd = (DeviceCommand.objects
+               .filter(gym=cfg.gym, state=DeviceCommand.State.PENDING)
+               .order_by('created_at').first())
+        if not cmd:
+            return Response({'command': None, 'live': live})
+
+        cmd.state = DeviceCommand.State.RUNNING
+        cmd.claimed_at = timezone.now()
+        cmd.save(update_fields=['state', 'claimed_at'])
+        return Response({
+            'live': live,
+            'command': {'id': cmd.id, 'kind': cmd.kind, 'payload': cmd.payload},
+        })
+
+    def post(self, request):
+        """The outcome of a claimed job."""
+        cfg, err = self._config(request)
+        if err:
+            return err
+        cmd = DeviceCommand.objects.filter(gym=cfg.gym, id=request.data.get('id')).first()
+        if not cmd:
+            return Response({'detail': 'Unknown command'}, status=status.HTTP_404_NOT_FOUND)
+
+        ok = bool(request.data.get('ok'))
+        cmd.result = request.data.get('result') or {}
+        cmd.message = str(request.data.get('message') or '')[:255]
+        cmd.finished_at = timezone.now()
+        # ENROLL reports progress before it finishes; keep it RUNNING until the
+        # agent says the person is done placing their finger.
+        if cmd.kind == DeviceCommand.Kind.ENROLL and request.data.get('running'):
+            cmd.state = DeviceCommand.State.RUNNING
+            cmd.finished_at = None
+        else:
+            cmd.state = DeviceCommand.State.DONE if ok else DeviceCommand.State.FAILED
+        cmd.save()
+
+        # An enrolment that worked is the one command that changes our own records.
+        if ok and cmd.kind in (DeviceCommand.Kind.ENROLL, DeviceCommand.Kind.REMOVE_FP) \
+                and cmd.state == DeviceCommand.State.DONE:
+            person = get_person(cfg.gym, cmd.payload.get('type'), cmd.payload.get('id'))
+            if person:
+                person.has_fingerprint = (cmd.kind == DeviceCommand.Kind.ENROLL)
+                person.save(update_fields=['has_fingerprint'])
+
+        return Response({'ok': True})
+
+
+class AgentLiveScanView(APIView):
+    """Scans streamed up while the Live screen is open."""
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        cfg, err = AgentIngestView._config(AgentIngestView(), request)
+        if err:
+            return err
+        cfg.agent_last_seen = timezone.now()
+        cfg.save(update_fields=['agent_last_seen'])
+
+        made = 0
+        for item in (request.data.get('scans') or [])[:100]:
+            try:
+                duid = str(item['uid']).strip()
+                at = datetime.datetime.fromisoformat(str(item['at']))
+            except (KeyError, TypeError, ValueError):
+                continue
+            if at.tzinfo is not None:
+                at = timezone.localtime(at).replace(tzinfo=None)
+
+            person = resolve_person(cfg.gym, duid)
+            if person is None:
+                LiveScan.objects.create(gym=cfg.gym, device_user_id=duid,
+                                        name=f'ID {duid}', kind='unknown',
+                                        status='unknown',
+                                        punched_at=timezone.make_aware(at))
+            else:
+                kind, obj = person
+                if kind == 'member':
+                    state = 'expired' if compute_status(obj) == 'EXPIRED' else 'active'
+                    expiry = obj.expiry_date
+                else:
+                    state, expiry = 'trainer', None
+                LiveScan.objects.create(gym=cfg.gym, device_user_id=duid, name=obj.name,
+                                        kind=kind, status=state, expiry=expiry,
+                                        punched_at=timezone.make_aware(at))
+                # A scan is attendance too, so the sheet doesn't wait for the
+                # next punch sync to catch up.
+                record_punch(cfg.gym, kind, obj, at)
+            made += 1
+
+        # These rows exist only to be shown once; keep the table from growing.
+        cutoff = timezone.now() - datetime.timedelta(hours=6)
+        LiveScan.objects.filter(gym=cfg.gym, created_at__lt=cutoff).delete()
+        return Response({'recorded': made})
