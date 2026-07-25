@@ -8,6 +8,7 @@ import anime from 'animejs/lib/anime.es.js'
 import { Starfield, CursorGlow, DumbbellField } from '../../components/space/Scene'
 import { PREFERS_REDUCED_MOTION, BRAND_ACCENT, spawnRipple } from '../../components/space/effects'
 import useAuthStore from '../../store/authStore'
+import { isDemo, exitDemo } from '../../demo'
 import Modal from '../../components/ui/Modal'
 import TermsContent from './TermsContent'
 import toast from 'react-hot-toast'
@@ -28,6 +29,15 @@ export default function Login() {
 
   // Stop the warp loop if we unmount (i.e. once we've navigated onward).
   useEffect(() => () => { warpingRef.current = false }, [])
+
+  // Arriving at the sign-in form is an unambiguous "I want the real product",
+  // so a tab still carrying the demo flag has to shed it here. Otherwise the
+  // demo adapter — which accepts any credentials and answers as the sample
+  // gym's owner — would swallow the login, and someone typing their own
+  // password would land in a gym that isn't theirs.
+  useEffect(() => {
+    if (isDemo()) exitDemo('/login')
+  }, [])
 
   // Green tick that draws itself in on a successful sign-in, then calls done().
   const playSuccess = (done) => {

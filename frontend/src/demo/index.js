@@ -15,11 +15,18 @@ export const isDemo = () =>
 export const markDemo = () => sessionStorage.setItem(KEY, '1')
 
 /* Leaving drops only the tab's own demo state. A real session the same person
-   has signed into (which lives in localStorage) is deliberately left alone. */
-export function exitDemo() {
+   has signed into (which lives in localStorage) is deliberately left alone.
+
+   The reload is not optional. While the flag is set, api/axios.js has the demo
+   adapter installed, and the demo answers /auth/login/ for ANY credentials — so
+   a real sign-in attempt in a tab that has been in demo mode would never reach
+   the server, and would hand back the sample gym's owner instead of the person
+   who typed their password. Clearing the flag is only half of it; the adapter
+   is chosen once at module load, so the page has to load again. */
+export function exitDemo(to = '/') {
   sessionStorage.removeItem('auth-storage')
   sessionStorage.removeItem(KEY)
-  window.location.replace('/')
+  window.location.replace(to)
 }
 
 /* A little latency, so the app's own loading states (skeletons, spinners,
