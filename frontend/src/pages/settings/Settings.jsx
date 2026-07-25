@@ -207,7 +207,12 @@ function Section({ title, description, children, as = 'div', ...props }) {
   )
 }
 
-const fmtMoney = (n) => `PKR ${Number(n).toLocaleString('en-PK', { maximumFractionDigits: 0 })}`
+// Money arrives from the API as a decimal string. The public demo deliberately
+// withholds the real per-message price and sends a placeholder instead, so
+// anything non-numeric is printed as-is rather than rendering "PKR NaN".
+const fmtMoney = (n) => (Number.isFinite(Number(n))
+  ? `PKR ${Number(n).toLocaleString('en-PK', { maximumFractionDigits: 0 })}`
+  : `PKR ${n}`)
 
 const fmtFull = (d) => d ? new Date(d).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
 
@@ -257,7 +262,7 @@ function WhatsAppBillingCard() {
               ? 'No messages bought yet — contact Gymistan to buy a pack.'
               : c.exhausted
                 ? 'Pack finished — WhatsApp messaging is paused until you top up.'
-                : `@ PKR ${Number(c.rate)}/msg · unused messages carry over to your next top-up`}
+                : `@ ${fmtMoney(c.rate)}/msg · unused messages carry over to your next top-up`}
           </p>
         </div>
 
@@ -300,7 +305,7 @@ function WhatsAppBillingCard() {
                     <td className="py-2.5 px-3 text-gray-300 text-right">+{t.messages}</td>
                     <td className="py-2.5 px-3 text-gray-400 text-right">{t.carried_over || '—'}</td>
                     <td className="py-2.5 px-3 text-gray-300 text-right">{t.allowance_after}</td>
-                    <td className="py-2.5 px-3 text-gray-400 text-right">PKR {Number(t.rate)}</td>
+                    <td className="py-2.5 px-3 text-gray-400 text-right">{fmtMoney(t.rate)}</td>
                     <td className="py-2.5 pl-3 font-semibold text-gray-100 text-right">{fmtMoney(t.amount)}</td>
                   </tr>
                 ))}

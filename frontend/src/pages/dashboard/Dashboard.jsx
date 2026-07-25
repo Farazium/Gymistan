@@ -265,6 +265,12 @@ function GymDashboard() {
   const tier = user?.gym_tier || 'TIER1'
   const visual = TIER_VISUAL[tier] || TIER_VISUAL.TIER1
   const TierIcon = visual.icon
+  // Bottom row: two inventory cards plus up to two plan-gated ones. Size the row
+  // to how many there actually are, so a Starter gym doesn't get a half-empty
+  // four-column grid. Full class names (never concatenated) so Tailwind sees them.
+  const bottomRowCols = ['lg:grid-cols-2', 'lg:grid-cols-3', 'lg:grid-cols-4'][
+    (data?.attendance ? 1 : 0) + (data?.whatsapp ? 1 : 0)
+  ]
   const tierInfo = tiers.find((t) => t.tier_id === tier)
   const tierColor = tierInfo?.color || visual.color
   const waEnabled = tier === 'TIER2_WA' || tier === 'TIER3'
@@ -320,10 +326,30 @@ function GymDashboard() {
         <StatCard title="Inventory Products" value={data.inventory.total_products} subtitle={data.inventory.low_stock_count > 0 ? `⚠ ${data.inventory.low_stock_count} low stock` : 'All stocked'} icon={Boxes} color={data.inventory.low_stock_count > 0 ? 'yellow' : 'primary'} />
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Inventory, then the plan-gated stats. The API sends the attendance and
+          WhatsApp blocks only for tiers that include those features, so their
+          presence — not a tier check here — is what decides whether a card shows. */}
+      <div className={`grid grid-cols-2 ${bottomRowCols} gap-4`}>
         <StatCard title="Inventory Stock Value" value={fmt(data.inventory.stock_value)} subtitle="At selling price" icon={Boxes} color="primary" />
         <StatCard title="Inventory Sales (Month)" value={fmt(data.inventory.revenue_this_month)} subtitle="From product sales" icon={ShoppingCart} color="green" />
-        <StatCard title="Inventory Profit (Month)" value={fmt(data.inventory.profit_this_month)} subtitle="Sales minus cost" icon={DollarSign} color={data.inventory.profit_this_month >= 0 ? 'green' : 'red'} />
+        {data.attendance && (
+          <StatCard
+            title="Attendance Today"
+            value={data.attendance.present_today}
+            subtitle={`${data.attendance.rate}% of ${data.attendance.total_members} members`}
+            icon={Fingerprint}
+            color="primary"
+          />
+        )}
+        {data.whatsapp && (
+          <StatCard
+            title="Receipts Sent"
+            value={data.whatsapp.receipts_this_month}
+            subtitle={`${data.whatsapp.receipts_total} all-time`}
+            icon={MessageCircle}
+            color="green"
+          />
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'react-hot-toast'
 import AppLayout from './components/layout/AppLayout'
+import Landing from './pages/landing/Landing'
+import DemoBoot from './pages/demo/DemoBoot'
 import Login from './pages/auth/Login'
 import Dashboard from './pages/dashboard/Dashboard'
 import Members from './pages/members/Members'
@@ -21,6 +23,7 @@ import Trainers from './pages/trainers/Trainers'
 import TrainerProfile from './pages/trainers/TrainerProfile'
 import Attendance from './pages/attendance/Attendance'
 import Settings from './pages/settings/Settings'
+import useAuthStore from './store/authStore'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30000 } },
@@ -64,12 +67,24 @@ function useButtonCursorFill() {
   }, [])
 }
 
+// An unknown URL sends signed-in users to their dashboard and everyone else to
+// the landing page — a stranger who mistypes a path should meet the product, not
+// a sign-in form.
+function NotFoundRedirect() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  return <Navigate to={isAuthenticated ? '/dashboard' : '/'} replace />
+}
+
 export default function App() {
   useButtonCursorFill()
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
+          {/* Public: the marketing page at the root, and the door into the
+              sample-data demo. Everything below /login is the product. */}
+          <Route path="/" element={<Landing />} />
+          <Route path="/demo" element={<DemoBoot />} />
           <Route path="/login" element={<Login />} />
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
@@ -90,7 +105,7 @@ export default function App() {
             <Route path="/admin/whatsapp-credits" element={<WhatsAppCredits />} />
             <Route path="/admin/tiers" element={<Tiers />} />
           </Route>
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<NotFoundRedirect />} />
         </Routes>
       </BrowserRouter>
       <Toaster position="top-right" toastOptions={{ duration: 3000 }} />

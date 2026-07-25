@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import useAuthStore from '../../store/authStore'
 import { API_ORIGIN } from '../../api/axios'
+import { isDemo, exitDemo } from '../../demo'
 import toast from 'react-hot-toast'
 
 const navItems = [
@@ -34,6 +35,9 @@ export default function Sidebar() {
   const hasWhatsApp = ['TIER2_WA', 'TIER3'].includes(user?.gym_tier)
 
   const handleLogout = () => {
+    // In the demo there is no account to sign out of — logging out means leaving
+    // the sample gym and going back to the landing page.
+    if (isDemo()) { exitDemo(); return }
     logout()
     navigate('/login')
     toast.success('Logged out')

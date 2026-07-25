@@ -1,6 +1,11 @@
+// Hover: the accent picks out the border and blooms a soft glow under the card
+// as it lifts — the same treatment (and the same values) as the feature cards on
+// the landing page, so a stat tile reads the same way wherever it appears.
+const HOVER = 'transition-all duration-300 hover:-translate-y-1 hover:border-primary-500/40 hover:shadow-lg hover:shadow-primary-500/10'
+
 export default function StatCard({ title, value, subtitle, icon: Icon, trend }) {
   return (
-    <div className="card p-5">
+    <div className={`card p-5 ${HOVER}`}>
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm text-gray-500 font-medium">{title}</p>

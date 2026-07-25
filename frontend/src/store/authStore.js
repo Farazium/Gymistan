@@ -1,6 +1,20 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import api from '../api/axios'
+import { isDemo } from '../demo'
+
+/* Where the signed-in user is persisted. A demo runs in sessionStorage, so it
+   lives and dies with its tab and can never overwrite a real session the same
+   person has open in another one. The choice is made per call, not once at
+   module load, because the demo flag is set after this store is created. */
+const authStorage = createJSONStorage(() => {
+  const store = () => (isDemo() ? sessionStorage : localStorage)
+  return {
+    getItem: (k) => store().getItem(k),
+    setItem: (k, v) => store().setItem(k, v),
+    removeItem: (k) => store().removeItem(k),
+  }
+})
 
 const useAuthStore = create(
   persist(
@@ -15,6 +29,11 @@ const useAuthStore = create(
         set({ user: data.user, isAuthenticated: true })
         return data.user
       },
+
+      // Public demo: sign in as the sample gym's owner with no request at all.
+      // Nothing is written to localStorage — the demo flag is already set by the
+      // time this runs, so persist() puts this user in sessionStorage instead.
+      startDemo: (user) => set({ user, isAuthenticated: true }),
 
       logout: () => {
         localStorage.removeItem('access_token')
@@ -41,6 +60,7 @@ const useAuthStore = create(
     }),
     {
       name: 'auth-storage',
+      storage: authStorage,
       partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
     }
   )

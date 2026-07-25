@@ -99,6 +99,16 @@
   }
 }
 
+/* The whole product is dark, so say so. Inside the app this changes little —
+   nothing scrolls the window there, a pane does, and the rules below style it.
+   The landing page scrolls the document itself, and the viewport's own scrollbar
+   is drawn by the browser from the page's colour scheme, not from `*` — without
+   this it comes out in light mode and looks nothing like the app's. Native
+   controls (date pickers, select popups) follow the same declaration. */
+:root {
+  color-scheme: dark;
+}
+
 /* System-wide sober scrollbar. Transparent track so it blends with whatever's
    behind it (page background or a card's surface color), with a soft inset pill
    thumb — no heavy OS-gray bar anywhere in the app. */
@@ -234,6 +244,35 @@ button:not(.no-fx)::before {
 button:not(.no-fx):hover::before { opacity: 1; transform: scale(1); }
 @media (prefers-reduced-motion: reduce) {
   button:not(.no-fx)::before { transition: opacity 0.2s ease; }
+}
+
+/* Fill-from-the-side, for the landing page's call-to-action links.
+   The app-wide fill-from-cursor above only ever applies to real <button>
+   elements; the landing CTAs are <Link>/<a>, so they'd otherwise hover flat.
+   Here the accent sweeps in from the left edge instead, which pairs with the
+   arrow those buttons nudge to the right. Same isolated stacking context trick,
+   so the fill paints above the background but under the label. */
+.fill-from-side {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.fill-from-side::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg, rgb(var(--p500)), rgb(var(--p600)));
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.45s cubic-bezier(0.33, 1, 0.68, 1);
+  pointer-events: none;
+}
+.fill-from-side:hover::before {
+  transform: scaleX(1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .fill-from-side::before { transition: none; }
 }
 
 /* Sidebar's selected tab: a slow shimmer glinting over its (brighter) tint.

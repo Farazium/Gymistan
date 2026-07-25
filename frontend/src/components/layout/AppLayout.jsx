@@ -3,9 +3,11 @@ import { Outlet, Navigate, useLocation } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import LiveEntrance from '../LiveEntrance'
 import AnimatedBackground from '../AnimatedBackground'
+import DemoBanner from '../DemoBanner'
 import useAuthStore from '../../store/authStore'
 import { applyTheme, applySurface } from '../../utils/theme'
 import { mediaUrl } from '../../utils/mediaUrl'
+import { isDemo } from '../../demo'
 
 export default function AppLayout() {
   const { isAuthenticated, refreshUser, user } = useAuthStore()
@@ -22,6 +24,7 @@ export default function AppLayout() {
   }, [user?.gym_theme, user?.gym_card])
 
   if (!isAuthenticated) return <Navigate to="/login" replace />
+  const demo = isDemo()
 
   // Background: packaged image, the animated starfield, or the gym's upload.
   const mode = user?.gym_background_mode || 'default'
@@ -44,6 +47,7 @@ export default function AppLayout() {
               />
             )}
         <div className="relative z-10 h-full overflow-y-auto">
+          {demo && <DemoBanner />}
           <div key={location.pathname} className="page-enter p-6 max-w-7xl mx-auto">
             <Outlet />
           </div>

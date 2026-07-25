@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { isDemo, demoAdapter } from '../demo'
 
 // Base URL for the API, and the bare origin (no /api) for building media URLs
 // like uploaded logos and background images.
@@ -8,6 +9,11 @@ export const API_ORIGIN = API_BASE.replace(/\/api\/?$/, '')
 const api = axios.create({
   baseURL: API_BASE,
 })
+
+// Public demo: answer every call from the in-browser sample gym instead of the
+// network, so the tour is the real app running on static data. Swapped in here —
+// at the single point every page already goes through — so no page needs to know.
+if (isDemo()) api.defaults.adapter = demoAdapter
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token')

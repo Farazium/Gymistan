@@ -11,7 +11,8 @@ from apps.members.queries import active_q, expired_q, expiring_soon_q
 from apps.payments.models import Payment
 from apps.expenses.models import Expense
 from apps.inventory.models import Product, StockLog
-from apps.gyms.models import Gym, GymPayment
+from apps.attendance.models import Attendance
+from apps.gyms.models import Gym, GymPayment, WhatsAppUsage, WA_TIERS, AT_TIERS
 from apps.accounts.permissions import IsGymMember, IsSuperAdmin
 
 
@@ -105,7 +106,34 @@ class DashboardView(APIView):
         # INVENTORY expenses, so cost of goods is captured there, not subtracted twice).
         net_profit = total_revenue_this_month - float(expenses_this_month)
 
+        # Plan-gated blocks. Both are omitted (None) rather than zeroed for gyms
+        # whose tier doesn't include the feature, so the dashboard can tell "not
+        # on your plan" apart from "nobody came in today".
+        attendance = None
+        if gym.tier in AT_TIERS:
+            present_today = Attendance.objects.filter(
+                gym=gym, date=today, member__isnull=False
+            ).count()
+            roster = members.count()
+            attendance = {
+                'present_today': present_today,
+                'total_members': roster,
+                'rate': round(present_today / roster * 100) if roster else 0,
+            }
+
+        whatsapp = None
+        if gym.tier in WA_TIERS:
+            receipts = WhatsAppUsage.objects.filter(
+                gym=gym, category=WhatsAppUsage.Category.RECEIPT,
+            )
+            whatsapp = {
+                'receipts_total': receipts.count(),
+                'receipts_this_month': receipts.filter(sent_at__date__gte=month_start).count(),
+            }
+
         return Response({
+            'attendance': attendance,
+            'whatsapp': whatsapp,
             'members': {
                 'active': active_members,
                 'expired': expired_members,
