@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { RefreshCw, Wifi, WifiOff, Users, Check, UserPlus, Search, Loader2 } from 'lucide-react'
+import { RefreshCw, Wifi, WifiOff, Users, Check, UserPlus, Search, Loader2,
+  Laptop, Copy, Eye, EyeOff, RotateCcw, Download } from 'lucide-react'
 import api from '../../api/axios'
 import toast from 'react-hot-toast'
 
@@ -18,10 +19,22 @@ export default function DevicePanel() {
   const [form, setForm] = useState(null)
   const [showUsers, setShowUsers] = useState(false)
   const [conn, setConn] = useState(null) // null | {online, message}
+  const [showCode, setShowCode] = useState(false)
+  const [copied, setCopied] = useState(false)
+  // A ticking clock, so "Running" decays to "Stopped" on its own while the panel
+  // is open rather than waiting for something else to trigger a re-render.
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30_000)
+    return () => clearInterval(id)
+  }, [])
 
   const { data: cfg } = useQuery({
     queryKey: ['device-config'],
     queryFn: async () => (await api.get('/attendance/device/')).data,
+    // The agent checks in every minute; refetch so its status is current while
+    // someone is actually looking at this panel.
+    refetchInterval: 30_000,
   })
 
   // Seed the editable form as soon as the config is known — whether it came from
@@ -32,6 +45,26 @@ export default function DevicePanel() {
   if (cfg && form === null) {
     setForm({ name: cfg.name, ip: cfg.ip, port: cfg.port, password: cfg.password })
   }
+
+  const copyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(cfg.agent_token)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      toast.error('Could not copy — select the code and copy it by hand')
+    }
+  }
+
+  const resetToken = useMutation({
+    mutationFn: () => api.post('/attendance/device/agent-token/'),
+    onSuccess: () => {
+      toast.success('New setup code issued')
+      qc.invalidateQueries({ queryKey: ['device-config'] })
+      setShowCode(true)
+    },
+    onError: () => toast.error('Could not issue a new code'),
+  })
 
   const ping = useMutation({
     mutationFn: (body) => api.post('/attendance/device/ping/', body || {}),
@@ -99,10 +132,93 @@ export default function DevicePanel() {
 
   if (!cfg || !form) return <div className="py-8 text-center text-gray-400">Loading…</div>
 
-  const ok = (cfg.last_sync_status || '').startsWith('OK')
+  const status = cfg.last_sync_status || ''
+  const ok = status.startsWith('OK') || status.startsWith('Agent')
+
+  // The agent checks in every minute, so anything inside three is comfortably
+  // alive; beyond that it has stopped, and the gym needs to know rather than
+  // wonder why today's attendance is empty.
+  const seenAt = cfg.agent_last_seen ? new Date(cfg.agent_last_seen) : null
+  const agentOnline = seenAt && (now - seenAt) < 3 * 60 * 1000
 
   return (
     <div className="space-y-6">
+      {/* Gym PC agent — the only way a cloud-hosted Gymistan can read a device
+          that sits on the gym's own network. Kept at the top because for every
+          hosted gym this IS the connection; the IP fields below only do anything
+          when the backend happens to share a network with the device. */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h3 className="text-sm font-semibold text-gray-200 flex items-center gap-2">
+            <Laptop size={15} /> Gym PC Agent
+          </h3>
+          <span className={`inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full ring-1 ${
+            agentOnline
+              ? 'bg-green-500/15 text-green-300 ring-green-500/30'
+              : seenAt
+                ? 'bg-red-500/15 text-red-300 ring-red-500/30'
+                : 'bg-gray-500/15 text-gray-400 ring-gray-500/30'
+          }`}>
+            {agentOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
+            {agentOnline ? 'Running' : seenAt ? `Stopped — last seen ${timeAgo(cfg.agent_last_seen)}` : 'Not set up yet'}
+          </span>
+        </div>
+
+        <p className="text-xs text-gray-400 leading-relaxed">
+          Your device sits on the gym's own network, which Gymistan cannot reach from
+          the internet. A small program on any PC at the gym reads the device and sends
+          attendance up. Nothing on the device changes, and nothing is exposed online.
+        </p>
+
+        <div>
+          <label className="label">Setup code</label>
+          <div className="flex items-center gap-2">
+            <input
+              className="input font-mono text-xs"
+              readOnly
+              type={showCode ? 'text' : 'password'}
+              value={cfg.agent_token || ''}
+              onFocus={(e) => e.target.select()}
+            />
+            <button onClick={() => setShowCode((v) => !v)} className="btn-secondary !px-2.5" title={showCode ? 'Hide' : 'Show'}>
+              {showCode ? <EyeOff size={15} /> : <Eye size={15} />}
+            </button>
+            <button onClick={copyCode} className="btn-secondary !px-2.5" title="Copy">
+              {copied ? <Check size={15} className="text-green-400" /> : <Copy size={15} />}
+            </button>
+            <button
+              onClick={() => { if (confirm('Issue a new setup code? The agent already running at the gym will stop working until you paste the new code into it.')) resetToken.mutate() }}
+              disabled={resetToken.isPending}
+              className="btn-danger !px-2.5"
+              title="Issue a new code"
+            >
+              <RotateCcw size={15} className={resetToken.isPending ? 'animate-spin' : ''} />
+            </button>
+          </div>
+          <p className="text-[11px] text-gray-500 mt-1.5">
+            Treat this like a password — it lets a PC send attendance for your gym.
+          </p>
+        </div>
+
+        <ol className="text-xs text-gray-400 space-y-1.5 list-decimal list-inside leading-relaxed">
+          <li>On a PC at the gym that stays on, download and run <span className="text-gray-300 font-medium">GymistanAgent</span>.</li>
+          <li>Paste the setup code above when it asks. It finds the device by itself.</li>
+          <li>Leave it running. Attendance arrives here within a minute of each scan.</li>
+        </ol>
+
+        <div className="flex items-center gap-3 flex-wrap">
+          <a href="/GymistanAgent.exe" className="btn-primary" download>
+            <Download size={15} /> Download agent
+          </a>
+          {cfg.agent_serial && (
+            <span className="text-[11px] text-gray-500">
+              Reporting device: <span className="text-gray-400 font-mono">{cfg.agent_serial}</span>
+              {cfg.agent_version && ` · agent v${cfg.agent_version}`}
+            </span>
+          )}
+        </div>
+      </div>
+
       {/* Connection settings */}
       <div className="space-y-3">
         <h3 className="text-sm font-semibold text-gray-200 flex items-center gap-2"><Wifi size={15} /> Connection</h3>

@@ -4,14 +4,15 @@ from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from apps.accounts.permissions import IsGymMember, HasAttendance
+from apps.gyms.models import AT_TIERS
 from apps.members.models import Member
 from apps.trainers.models import Trainer
 from apps.members.serializers import compute_status
-from .models import Attendance, DeviceConfig
+from .models import Attendance, DeviceConfig, new_agent_token
 from .serializers import DeviceConfigSerializer
-from .services import record_punch, resolve_person
+from .services import record_punch, record_punches, resolve_person
 from .zk_service import (sync_device, pull_device_users, push_users,
                          delete_fingerprint, device_has_fingerprint, ping_device)
 from .live import get_monitor, current_seq, stop_monitor, monitor_running, _HAS_ZK
@@ -188,6 +189,20 @@ class DeviceConfigView(APIView):
         return Response(ser.data)
 
 
+class AgentTokenResetView(APIView):
+    """Reissue this gym's setup code. Whatever the old PC held stops working the
+    moment this returns — the way to retire a machine you no longer control."""
+    permission_classes = [IsAuthenticated, IsGymMember, HasAttendance]
+
+    def post(self, request):
+        cfg, _ = DeviceConfig.objects.get_or_create(gym=request.user.gym)
+        cfg.agent_token = new_agent_token()
+        cfg.agent_last_seen = None
+        cfg.agent_version = ''
+        cfg.save(update_fields=['agent_token', 'agent_last_seen', 'agent_version'])
+        return Response(DeviceConfigSerializer(cfg).data)
+
+
 class DevicePingView(APIView):
     """Test whether the configured device is reachable right now. Used by the
     settings panel to show a live online/offline status after saving. Fails fast
@@ -233,7 +248,10 @@ class DeviceSyncView(APIView):
             return Response({'message': cfg.last_sync_status}, status=status.HTTP_502_BAD_GATEWAY)
 
         if summary.get('latest'):
-            cfg.last_sync = summary['latest']
+            # record_punches works in naive local; store it aware so the column
+            # stays consistent with everything else Django writes.
+            latest = summary['latest']
+            cfg.last_sync = timezone.make_aware(latest) if timezone.is_naive(latest) else latest
         cfg.last_sync_count = summary['applied']
         cfg.last_sync_status = (f"OK — {summary['applied']} new punches "
                                 f"({summary['skipped_unknown']} unknown ids)")
@@ -477,3 +495,122 @@ class DeviceUsersView(APIView):
             else:
                 u['mapped_to'] = None
         return Response({'users': users})
+
+
+def _watermark_str(dt):
+    """The watermark as naive local wall-clock — the same clock the device speaks,
+    so the agent can compare it to a punch without timezone arithmetic. Accepts
+    either an aware value (as stored) or a naive one (as record_punches returns)."""
+    if dt is None:
+        return None
+    if timezone.is_aware(dt):
+        dt = timezone.localtime(dt)
+    return dt.replace(tzinfo=None).isoformat()
+
+
+class AgentIngestView(APIView):
+    """The gym-PC agent's door into the API.
+
+    A cloud backend can never open a connection to a device sitting on a gym's
+    private network, so the direction is reversed: a small agent runs on a PC at
+    the gym, reads the device over the LAN, and posts punches up here.
+
+    Authentication is the gym's own agent token, not a JWT — the agent lives on a
+    machine at the gym, and a gym PC must never hold an admin login. The token
+    identifies exactly one gym and can do exactly one thing: deliver punches.
+
+    GET  → the watermark, so the agent only has to send what we haven't seen.
+    POST → punches. Idempotent: record_punch upserts, so a retry after a dropped
+           response can't double-count, and the watermark only ever moves forward.
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    MAX_PUNCHES = 5000  # a first sync of a long-running device, with room to spare
+
+    def _config(self, request):
+        token = (request.headers.get('X-Agent-Token') or '').strip()
+        if not token:
+            return None, Response({'detail': 'Missing setup code'},
+                                  status=status.HTTP_401_UNAUTHORIZED)
+        cfg = DeviceConfig.objects.select_related('gym').filter(agent_token=token).first()
+        if not cfg:
+            return None, Response({'detail': 'Setup code not recognised'},
+                                  status=status.HTTP_401_UNAUTHORIZED)
+        if cfg.gym.tier not in AT_TIERS:
+            return None, Response({'detail': "This gym's plan doesn't include attendance"},
+                                  status=status.HTTP_403_FORBIDDEN)
+        if not cfg.gym.is_active:
+            return None, Response({'detail': 'This gym is not active'},
+                                  status=status.HTTP_403_FORBIDDEN)
+        return cfg, None
+
+    def _touch(self, cfg, request, fields):
+        """Record that the agent called in, whatever the call was for."""
+        cfg.agent_last_seen = timezone.now()
+        cfg.agent_version = str(request.data.get('agent_version') or
+                                request.query_params.get('agent_version') or '')[:20]
+        serial = str(request.data.get('serial') or request.query_params.get('serial') or '')[:64]
+        if serial:
+            cfg.agent_serial = serial
+        cfg.save(update_fields=[*fields, 'agent_last_seen', 'agent_version', 'agent_serial'])
+
+    def get(self, request):
+        cfg, err = self._config(request)
+        if err:
+            return err
+        self._touch(cfg, request, [])
+        return Response({
+            'gym': cfg.gym.name,
+            # Naive local wall-clock, matching what the device reports and what
+            # record_punches compares against.
+            'since': _watermark_str(cfg.last_sync),
+        })
+
+    def post(self, request):
+        cfg, err = self._config(request)
+        if err:
+            return err
+
+        raw = request.data.get('punches')
+        if not isinstance(raw, list):
+            return Response({'detail': 'punches must be a list'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        if len(raw) > self.MAX_PUNCHES:
+            return Response({'detail': f'Too many punches in one call (max {self.MAX_PUNCHES})'},
+                            status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
+
+        punches, malformed = [], 0
+        for item in raw:
+            try:
+                uid = str(item['uid']).strip()
+                dt = datetime.datetime.fromisoformat(str(item['at']))
+            except (KeyError, TypeError, ValueError):
+                malformed += 1
+                continue
+            if dt.tzinfo is not None:          # keep everything naive-local
+                dt = timezone.localtime(dt).replace(tzinfo=None)
+            if uid:
+                punches.append((uid, dt))
+
+        summary = record_punches(cfg.gym, punches, since=cfg.last_sync)
+
+        if summary.get('latest'):
+            # record_punches works in naive local wall-clock; store it aware so
+            # the column holds one kind of value and localtime() can read it back.
+            latest = summary['latest']
+            cfg.last_sync = timezone.make_aware(latest) if timezone.is_naive(latest) else latest
+        cfg.last_sync_at = timezone.now()
+        cfg.last_sync_count = summary['applied']
+        cfg.last_sync_status = (f"Agent - {summary['applied']} new punches "
+                                f"({summary['skipped_unknown']} unknown ids)")
+        self._touch(cfg, request, ['last_sync', 'last_sync_at',
+                                   'last_sync_count', 'last_sync_status'])
+
+        return Response({
+            'applied': summary['applied'],
+            'skipped_unknown': summary['skipped_unknown'],
+            'skipped_old': summary['skipped_old'],
+            'malformed': malformed,
+            'since': _watermark_str(cfg.last_sync),
+        })

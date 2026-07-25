@@ -1,7 +1,8 @@
 from django.urls import path
 from .views import (AttendanceView, MarkAttendanceView, DeviceConfigView,
                     DeviceSyncView, DeviceUsersView, DeviceLiveView, DevicePushView,
-                    DeviceEnrollView, DeviceFingerprintStatusView, DevicePingView)
+                    DeviceEnrollView, DeviceFingerprintStatusView, DevicePingView,
+                    AgentIngestView, AgentTokenResetView)
 
 urlpatterns = [
     path('', AttendanceView.as_view(), name='attendance'),
@@ -14,4 +15,7 @@ urlpatterns = [
     path('device/push/', DevicePushView.as_view(), name='device_push'),
     path('device/enroll/', DeviceEnrollView.as_view(), name='device_enroll'),
     path('device/fingerprint/', DeviceFingerprintStatusView.as_view(), name='device_fingerprint'),
+    # The gym-PC agent's endpoint. Token-authenticated, not JWT — see AgentIngestView.
+    path('device/ingest/', AgentIngestView.as_view(), name='device_ingest'),
+    path('device/agent-token/', AgentTokenResetView.as_view(), name='device_agent_token'),
 ]

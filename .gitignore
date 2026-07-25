@@ -34,3 +34,11 @@ Desktop.ini
 
 # Postman
 *.postman_collection.json
+
+# Attendance agent build output — the .exe is 12MB and is rebuilt from source,
+# so it is published to the server rather than carried in the repo. The settings
+# file holds a gym's setup code, which is a credential.
+agent/build/
+agent/dist/
+agent/*.spec
+agent/gymistan-agent.json
