@@ -120,7 +120,12 @@ export default function TermsContent() {
 
       <p className="text-gray-500 text-xs mt-6 pt-4 border-t border-gray-700">
         Questions about these Terms? Contact your Gymistan provider at{' '}
-        <span className="text-primary-300">support@gymistan.pk</span>.
+        <a
+          href="mailto:support@gymistan.dev"
+          className="text-primary-300 underline underline-offset-2 hover:text-primary-200 transition"
+        >
+          support@gymistan.dev
+        </a>.
       </p>
     </div>
   )

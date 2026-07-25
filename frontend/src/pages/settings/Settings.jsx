@@ -1,12 +1,13 @@
 import { useState, useRef, useCallback } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Building2, Camera, Image as ImageIcon, Check, ChevronRight, MessageCircle, MoreVertical, Sparkles, Upload } from 'lucide-react'
+import { Building2, Camera, Image as ImageIcon, Check, ChevronRight, FileText, Mail, MessageCircle, MoreVertical, Sparkles, Upload } from 'lucide-react'
 import Cropper from 'react-easy-crop'
 import 'react-easy-crop/react-easy-crop.css'
 import api, { API_ORIGIN } from '../../api/axios'
 import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
 import Modal from '../../components/ui/Modal'
+import TermsContent from '../auth/TermsContent'
 import AnimatedBackground from '../../components/AnimatedBackground'
 import { getCroppedBlob } from '../../utils/cropImage'
 import { mediaUrl } from '../../utils/mediaUrl'
@@ -193,6 +194,10 @@ function BackgroundModal({ isOpen, onClose, mode, currentUrl, busy, onSelectMode
   )
 }
 
+// Where gyms write in for help. The subject line carries the gym's name so a
+// reply doesn't have to start by asking who is writing.
+const SUPPORT_EMAIL = 'support@gymistan.dev'
+
 // A titled group of setting rows.
 function Section({ title, description, children, as = 'div', ...props }) {
   const Tag = as
@@ -335,6 +340,7 @@ export default function Settings() {
   const [theme, setTheme] = useState(user?.gym_theme || DEFAULT_THEME)
   const [surface, setSurface] = useState(user?.gym_card || DEFAULT_SURFACE)
   const [colorModal, setColorModal] = useState(null) // 'accent' | 'card' | null
+  const [showTerms, setShowTerms] = useState(false)
   // Superadmin has no gym to persist appearance on, so their theme/card/background
   // are saved device-locally (localStorage) and mirrored onto the user in-session.
   const isSA = user?.role === 'SUPERADMIN'
@@ -632,6 +638,29 @@ export default function Settings() {
           </button>
         </div>
       </Section>
+
+      {/* Help & Support */}
+      <Section title="Help & Support" description="Reach the Gymistan team, or re-read the terms">
+        <Row label="Email Support" hint="Questions, problems, or a feature you'd like to see">
+          <a
+            href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Support — ${user?.gym_name || 'Gymistan'}`)}`}
+            className="btn-primary justify-center px-4"
+          >
+            <Mail size={15} />
+            {SUPPORT_EMAIL}
+          </a>
+        </Row>
+        <Row label="Terms & Conditions" hint="The terms you accepted when you signed in">
+          <button type="button" onClick={() => setShowTerms(true)} className="btn-secondary justify-center px-4">
+            <FileText size={15} />
+            View
+          </button>
+        </Row>
+      </Section>
+
+      <Modal isOpen={showTerms} onClose={() => setShowTerms(false)} title="Terms & Conditions" size="lg">
+        <TermsContent />
+      </Modal>
 
       <Modal isOpen={colorModal === 'accent'} onClose={() => setColorModal(null)} title="Accent Color" size="md">
         <p className="text-xs text-gray-500 mb-4">Used for buttons, links, active menu and highlights.</p>
