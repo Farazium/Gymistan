@@ -48,14 +48,42 @@ DEVICE_TIMEOUT = 10
 # running as a plain script it is the interpreter, so fall back to __file__.
 BASE_DIR = os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, 'gymistan-agent.json')
-
+LOG_PATH = os.path.join(BASE_DIR, 'gymistan-agent.log')
 
 # ---------------------------------------------------------------- presentation
+def has_console():
+    """False in the windowed build, where stdout is not attached to anything."""
+    return sys.stdout is not None and sys.stdout.isatty()
+
+
 def log(msg):
-    print(f'[{datetime.now():%H:%M:%S}] {msg}', flush=True)
+    """Say it on screen when there is a screen, and always write it down.
+
+    The agent runs invisibly on a gym PC, so the file is the only account of what
+    it did — the first thing to read when someone asks why attendance stopped."""
+    line = f'[{datetime.now():%Y-%m-%d %H:%M:%S}] {msg}'
+    if sys.stdout is not None:
+        try:
+            print(line, flush=True)
+        except Exception:
+            pass
+    try:
+        # Trimmed rather than rotated: nobody is going to manage log files at a
+        # gym, and a few thousand lines is plenty of history to diagnose from.
+        if LOG_PATH and os.path.exists(LOG_PATH) and os.path.getsize(LOG_PATH) > 512_000:
+            with open(LOG_PATH, encoding='utf-8', errors='replace') as fh:
+                keep = fh.readlines()[-2000:]
+            with open(LOG_PATH, 'w', encoding='utf-8') as fh:
+                fh.writelines(keep)
+        with open(LOG_PATH, 'a', encoding='utf-8') as fh:
+            fh.write(line + chr(10))
+    except (OSError, TypeError):
+        pass
 
 
 def banner():
+    if not has_console():
+        return
     print()
     print('  Gymistan Attendance Agent  v' + VERSION)
     print('  ' + '-' * 40)
@@ -81,8 +109,56 @@ def save_config(cfg):
 
 
 def ask(prompt, default=''):
-    val = input(prompt).strip()
-    return val or default
+    """Take an answer however this copy was started.
+
+    The agent is built windowless so it can sit quietly on a gym PC, which means
+    there is no console to type into. Setup still has to ask one question, so it
+    asks in a dialog box instead — tkinter, which ships with Python, rather than
+    another dependency to carry."""
+    if has_console():
+        return input(prompt).strip() or default
+
+    import tkinter as tk
+    from tkinter import simpledialog
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes('-topmost', True)
+    try:
+        val = simpledialog.askstring('Gymistan Attendance Agent',
+                                     prompt.strip().rstrip(':'), parent=root)
+    finally:
+        root.destroy()
+    return (val or '').strip() or default
+
+
+def say(title, message):
+    """Tell the person something when there is no window to print it in."""
+    log(message.replace(chr(10), ' '))
+    if has_console():
+        return
+    import tkinter as tk
+    from tkinter import messagebox
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes('-topmost', True)
+    try:
+        messagebox.showinfo(title, message, parent=root)
+    finally:
+        root.destroy()
+
+
+def confirm(title, message):
+    if has_console():
+        return not ask(message + ' [Y/n]: ', 'y').lower().startswith('n')
+    import tkinter as tk
+    from tkinter import messagebox
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes('-topmost', True)
+    try:
+        return bool(messagebox.askyesno(title, message, parent=root))
+    finally:
+        root.destroy()
 
 
 def claim_single_instance():
@@ -426,43 +502,37 @@ def offer_autostart():
     start this thing after a power cut."""
     if autostart_enabled():
         return
-    print()
-    answer = ask('  Start automatically when this PC turns on? [Y/n]: ', 'y')
-    if answer.lower().startswith('n'):
-        log('Skipped. You can turn it on later by deleting gymistan-agent.json '
-            'and running setup again.')
+    if not confirm('Gymistan Attendance Agent',
+                   'Start automatically whenever this PC is switched on?\n\n'
+                   'Recommended — otherwise somebody has to start it by hand '
+                   'after every restart.'):
+        log('Auto-start skipped.')
         return
     ok, detail = enable_autostart()
     if ok:
-        log('Done - this will start by itself whenever the PC is switched on.')
+        log('Auto-start enabled — runs by itself whenever the PC is switched on.')
     else:
-        log('Could not set that up automatically: ' + detail)
-        log('You can still start it by hand from this folder.')
+        log('Could not set up auto-start: ' + detail)
 
 
 # ---------------------------------------------------------------- setup
 def first_run_setup():
-    print('  Setup — this happens once.\n')
-    print('  In Gymistan, open Attendance -> Device and copy the setup code.\n')
+    token = ask('Paste the setup code from Gymistan\n(Attendance → Device):')
+    if not token:
+        return None
 
-    token = ''
-    while not token:
-        token = ask('  Paste the setup code: ')
-
-    server = ask(f'  Gymistan address [{DEFAULT_SERVER}]: ', DEFAULT_SERVER)
+    server = ask('Gymistan address (leave this as it is):', DEFAULT_SERVER) or DEFAULT_SERVER
     if not server.startswith('http'):
         server = 'https://' + server
 
-    print()
     log('Checking the setup code ...')
     try:
         info = Server(server, token).watermark()
         log(f'Connected to Gymistan - gym: {info.get("gym", "?")}')
     except Exception as err:
-        log('Could not connect: ' + explain(err))
+        say('Setup failed', 'Could not connect to Gymistan.\n\n' + explain(err))
         return None
 
-    print()
     candidates = scan_for_device()
     ip = ''
     for host in candidates:
@@ -473,17 +543,23 @@ def first_run_setup():
             break
     if not ip:
         log('No device found automatically.')
-        ip = ask('  Enter the device IP by hand (e.g. 192.168.1.201): ')
-        if not device_identity(ip):
-            log('Could not talk to a device at that address.')
+        ip = ask('No device was found on this network.\n\n'
+                 'Enter the device IP address (e.g. 192.168.1.201):')
+        if not ip or not device_identity(ip):
+            say('Setup failed',
+                'Could not reach a device at that address.\n\n'
+                'Check that the device is switched on and connected to the same '
+                'network as this PC.')
             return None
 
     cfg = {'server': server, 'token': token, 'device_ip': ip, 'device_password': 0}
     save_config(cfg)
-    print()
-    log('Setup complete. Settings saved next to this program.')
+    log('Setup complete.')
     offer_autostart()
-    print()
+    say('Gymistan Attendance Agent',
+        f'Setup complete — watching your device at {ip}.\n\n'
+        'This runs quietly in the background; there is no window to keep open.\n\n'
+        'To check on it, open Attendance → Device in Gymistan.')
     return cfg
 
 
@@ -528,17 +604,15 @@ def main():
 
     guard = claim_single_instance()
     if guard is None:
-        print('  This agent is already running on this PC.')
-        print('  Look for its window in the taskbar - you do not need a second one.')
-        print()
-        input('  Press Enter to close.')
+        say('Gymistan Attendance Agent',
+            'The agent is already running on this PC.\n\n'
+            'You do not need to start it again.')
         return
 
     cfg = load_config()
     if not cfg.get('token'):
         cfg = first_run_setup()
         if not cfg:
-            input('  Press Enter to close.')
             return
 
     import threading
@@ -591,7 +665,12 @@ if __name__ == '__main__':
     try:
         main()
     except KeyboardInterrupt:
-        print('\n  Stopped.')
-    except Exception as fatal:          # never die with a bare stack trace
-        print(f'\n  Unexpected problem: {fatal}')
-        input('  Press Enter to close.')
+        log('Stopped.')
+    except Exception as fatal:
+        # Windowless, so a stack trace would vanish with the process. Write it
+        # down and put it in front of somebody.
+        log(f'Stopped unexpectedly: {fatal}')
+        say('Gymistan Attendance Agent',
+            f'The agent stopped unexpectedly.\n\n{fatal}\n\n'
+            'Start it again. If it keeps happening, send us '
+            'gymistan-agent.log from the same folder.')
