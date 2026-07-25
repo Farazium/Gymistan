@@ -141,6 +141,10 @@ export default function DevicePanel() {
   // wonder why today's attendance is empty.
   const seenAt = cfg.agent_last_seen ? new Date(cfg.agent_last_seen) : null
   const agentOnline = seenAt && (now - seenAt) < 3 * 60 * 1000
+  // Either route counts: the agent (hosted) or a direct IP (backend on the
+  // gym's own network). Gating these on the IP alone left the buttons dead for
+  // every hosted gym, which is all of them.
+  const reachable = agentOnline || !!cfg.ip
 
   return (
     <div className="space-y-6">
@@ -289,8 +293,8 @@ export default function DevicePanel() {
               <p className={`text-xs mt-0.5 ${ok ? 'text-green-400' : 'text-red-400'}`}>{cfg.last_sync_status}</p>
             )}
           </div>
-          <button onClick={() => sync.mutate()} disabled={sync.isPending || !cfg.ip}
-            className="btn-primary" title={!cfg.ip ? 'Set an IP first' : ''}>
+          <button onClick={() => sync.mutate()} disabled={sync.isPending || !reachable}
+            className="btn-primary" title={!reachable ? 'Start the agent on the gym PC first' : ''}>
             <RefreshCw size={15} className={sync.isPending ? 'animate-spin' : ''} /> Sync Now
           </button>
         </div>
@@ -305,9 +309,10 @@ export default function DevicePanel() {
           keypad. Anyone without a device ID gets one automatically. Each person then just places their
           finger on the sensor once to enroll (or taps their card).
         </p>
-        <button onClick={() => push.mutate()} disabled={push.isPending || !cfg.ip || allPushed}
+        <button onClick={() => push.mutate()} disabled={push.isPending || !reachable || allPushed}
           className="btn-primary"
-          title={!cfg.ip ? 'Set an IP first' : allPushed ? 'Everyone is already on the device' : ''}>
+          title={!reachable ? 'Start the agent on the gym PC first'
+            : allPushed ? 'Everyone is already on the device' : ''}>
           <UserPlus size={15} className={push.isPending ? 'animate-pulse' : ''} />
           {push.isPending ? 'Pushing…' : allPushed ? 'Everyone on device' : 'Push everyone to device'}
         </button>

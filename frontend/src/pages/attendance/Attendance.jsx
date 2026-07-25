@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { Users, Dumbbell, ChevronLeft, ChevronRight, Check, X, Settings, Download, CalendarDays, Radio, RefreshCw, Wifi, WifiOff } from 'lucide-react'
 import api from '../../api/axios'
@@ -89,17 +89,27 @@ export default function Attendance() {
     queryKey: ['device-config'],
     queryFn: async () => (await api.get('/attendance/device/')).data,
   })
-  const hasDevice = !!devCfg?.ip
+  // A hosted gym reaches its device through the agent and has no IP at all, so
+  // the light has to follow whichever route the gym is actually using — keyed on
+  // the IP alone it read "offline" forever next to a perfectly healthy agent.
+  const agentSeen = devCfg?.agent_last_seen ? new Date(devCfg.agent_last_seen) : null
+  const [clock, setClock] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setClock(Date.now()), 30_000)
+    return () => clearInterval(id)
+  }, [])
+  const agentUp = !!agentSeen && (clock - agentSeen) < 3 * 60 * 1000
+  const hasDevice = !!devCfg?.ip || !!agentSeen
   const { data: pingData, isFetching: pinging } = useQuery({
     queryKey: ['device-ping'],
     queryFn: async () => (await api.post('/attendance/device/ping/')).data,
-    enabled: hasDevice,
+    enabled: !!devCfg?.ip && !agentUp,
     refetchInterval: 30000,
     refetchOnWindowFocus: true,
     staleTime: 20000,
     retry: false,
   })
-  const deviceOnline = !!pingData?.online
+  const deviceOnline = agentUp || !!pingData?.online
   const checkingDevice = pinging && !pingData
 
   const stats = data?.stats || {}
@@ -134,7 +144,10 @@ export default function Attendance() {
         <div className="flex gap-2">
           {hasDevice && (
             <span className="relative flex items-center p-2"
-              title={pingData?.message || (checkingDevice ? 'Checking device…' : deviceOnline ? 'Device connected' : 'Device offline')}>
+              title={agentUp ? 'Connected through the gym PC agent'
+                : (pingData?.message || (checkingDevice ? 'Checking device…'
+                  : deviceOnline ? 'Device connected'
+                  : 'Not connected — start the agent on the gym PC'))}>
               {deviceOnline
                 ? <Wifi size={18} className="text-green-400" />
                 : <WifiOff size={18} className="text-gray-500" />}
