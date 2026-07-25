@@ -102,8 +102,22 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ),
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 20,
+    # NO default pagination — deliberately.
+    #
+    # This used to be PageNumberPagination with PAGE_SIZE 20, which silently
+    # truncated every list in the app: a gym with 40 payments saw only the 20
+    # newest, and nothing in the UI said so. Searching appeared to "find" the
+    # missing rows because the server filters before it paginates, so an older
+    # payment could surface in a search yet be invisible in the list.
+    #
+    # The screens these endpoints feed are whole-dataset views — they filter and
+    # sort client-side, total the rows, and export them to Excel — so a page of
+    # 20 doesn't just hide records, it makes the totals and the exports wrong.
+    # There is no page-2 control anywhere in the frontend to reach the rest.
+    #
+    # If a gym ever grows a list big enough for the payload to hurt (payments is
+    # the one that grows), the fix is a real date/period filter on that screen —
+    # not a page size that quietly drops rows.
 }
 
 SIMPLE_JWT = {
