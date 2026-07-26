@@ -37,7 +37,7 @@ except ImportError:
     print('Missing libraries. Run:  pip install pyzk requests')
     sys.exit(1)
 
-VERSION = '1.8'
+VERSION = '1.9'
 DEFAULT_SERVER = 'https://gymistan.dev'
 DEVICE_PORT = 4370
 POLL_SECONDS = 60            # how often punches are swept up
@@ -209,42 +209,18 @@ def _answer_stop_requests(guard):
     threading.Thread(target=wait, daemon=True).start()
 
 
-def _stop_other_agents():
-    """Close agents running from somewhere other than here.
-
-    The polite request only works on versions that know how to answer it, and
-    the copy being replaced is by definition the older one. So this is the
-    fallback: match on the executable's path, never the name, because a one-file
-    build runs as two processes sharing that name and killing by name would take
-    this process down with it. Nothing is lost by stopping an agent — the sync
-    watermark lives on the server, not here."""
-    import subprocess
-    # normcase lowercases and settles on backslashes, matching what ToLower()
-    # gives us on the other side. Nothing is escaped: inside PowerShell's single
-    # quotes a backslash is just a backslash, and doubling them made this
-    # comparison fail — so every agent looked like someone else's, including
-    # this one, and stopping "the others" stopped us too.
-    ours = os.path.normcase(os.path.abspath(sys.executable)).replace("'", "''")
-    script = (
-        "Get-CimInstance Win32_Process -Filter \"Name = 'GymistanAgent.exe'\" | "
-        "Where-Object { $_.ExecutablePath -and "
-        f"$_.ExecutablePath.ToLower() -ne '{ours}'"
-        " } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"
-    )
-    try:
-        subprocess.run(['powershell', '-NoProfile', '-Command', script],
-                       timeout=30, capture_output=True,
-                       creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
-    except Exception as err:
-        log('Could not stop the other agent: ' + str(err))
-
-
 def ask_running_agent_to_stop(timeout=25):
-    """Get the running agent to let go, and wait for its port to come free.
+    """Ask the agent already running to let go, and wait for its port to free.
 
-    Asks first, and only insists if asking gets nowhere. Returns None if the port
-    never frees — better to leave the working agent alone than to end up with two
-    of them fighting over the device."""
+    Asking is the only way this is done. There used to be a fallback that hunted
+    down and killed the other process, and it had to go: Defender's machine
+    learning read the strings it carried — enumerating processes, force-stopping
+    them — as malware and quarantined the whole program. Proven by scanning two
+    builds differing only in that code. An antivirus deleting the agent is a far
+    worse failure than an update that occasionally asks for a restart.
+
+    It was never load-bearing anyway: it only existed for agents too old to
+    answer, and every version that can be asked to update knows how to reply."""
     try:
         with socket.create_connection(('127.0.0.1', GUARD_PORT), timeout=5) as sock:
             sock.sendall(b'stop')
@@ -256,16 +232,10 @@ def ask_running_agent_to_stop(timeout=25):
         pass    # it may have already gone; the retry below settles it either way
 
     deadline = time.monotonic() + timeout
-    insisted = False
     while time.monotonic() < deadline:
         guard = _bind_guard()
         if guard:
             return guard
-        # Give the polite route a few seconds; an older build cannot answer it.
-        if not insisted and time.monotonic() > deadline - timeout + 6:
-            log('It did not answer, so stopping it directly.')
-            _stop_other_agents()
-            insisted = True
         time.sleep(0.5)
     return None
 
