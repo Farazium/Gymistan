@@ -35,7 +35,7 @@ except ImportError:
     print('Missing libraries. Run:  pip install pyzk requests')
     sys.exit(1)
 
-VERSION = '1.2'
+VERSION = '1.3'
 DEFAULT_SERVER = 'https://gymistan.dev'
 DEVICE_PORT = 4370
 POLL_SECONDS = 60            # how often punches are swept up
@@ -453,14 +453,19 @@ def explain(err):
 
 
 # ---------------------------------------------------------------- self-update
-def _updater_script(exe, new_exe):
-    """A tiny script that swaps the program over once we have let go of it.
+def _updater_script(exe, new_exe, pid):
+    """A tiny script that swaps the program over once this process is gone.
 
     A running .exe cannot overwrite itself on Windows, so the last thing this
-    process does is hand the job to cmd and quit. The script waits for the file
-    to come free, keeps the old copy aside until the new one is in place, starts
-    it, then deletes itself. Bounded, so a swap that can never happen gives up
-    and leaves the working agent exactly where it was."""
+    process does is hand the job to cmd and quit.
+
+    It waits on the PID, not on the file. Windows lets you RENAME a running
+    executable — only deleting is refused — so a loop that waits for the move to
+    succeed finishes while the old process is still alive. Starting the new copy
+    at that moment races the old one tearing down the temp folder PyInstaller
+    unpacked itself into, and the new process dies with 'Failed to load Python
+    DLL'. Waiting for the process to actually exit, then pausing for that cleanup
+    to finish, is the difference between an update and a dead agent."""
     path = os.path.join(BASE_DIR, 'gymistan-update.cmd')
     # cmd's del/move treat a forward slash as the start of a switch, so give them
     # nothing but backslashes even if we were handed a mixed path.
@@ -472,15 +477,18 @@ def _updater_script(exe, new_exe):
         w('@echo off')
         w('setlocal')
         w('set TRIES=0')
-        w(':wait')
+        w(':waitproc')
         w('set /a TRIES+=1')
-        w('if %TRIES% GTR 30 goto giveup')
+        w('if %TRIES% GTR 60 goto giveup')
+        w(f'tasklist /FI "PID eq {pid}" /NH 2>nul | find "{pid}" >nul')
+        w('if not errorlevel 1 (')
+        w('  timeout /t 1 /nobreak >nul')
+        w('  goto waitproc')
+        w(')')
+        # The process is gone; give its unpacked temp folder a moment to go too.
+        w('timeout /t 3 /nobreak >nul')
         w(f'del "{old_exe}" >nul 2>&1')
         w(f'move /y "{exe}" "{old_exe}" >nul 2>&1')
-        w(f'if exist "{exe}" (')
-        w('  timeout /t 1 /nobreak >nul')
-        w('  goto wait')
-        w(')')
         w(f'move /y "{new_exe}" "{exe}" >nul 2>&1')
         w(f'if not exist "{exe}" (')
         # Putting the old one back matters more than the update succeeding.
@@ -550,7 +558,7 @@ def maybe_self_update(latest, url, server_base, cfg=None):
         except OSError:
             pass
 
-    script = _updater_script(exe, new_exe)
+    script = _updater_script(exe, new_exe, os.getpid())
     log('Restarting into the new version ...')
     import subprocess
     subprocess.Popen(['cmd', '/c', script],
