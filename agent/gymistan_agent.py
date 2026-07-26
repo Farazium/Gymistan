@@ -23,8 +23,10 @@ import concurrent.futures
 import ipaddress
 import json
 import os
+import shutil
 import socket
 import sys
+import threading
 import time
 from datetime import datetime
 
@@ -35,7 +37,7 @@ except ImportError:
     print('Missing libraries. Run:  pip install pyzk requests')
     sys.exit(1)
 
-VERSION = '1.3'
+VERSION = '1.7'
 DEFAULT_SERVER = 'https://gymistan.dev'
 DEVICE_PORT = 4370
 POLL_SECONDS = 60            # how often punches are swept up
@@ -161,21 +163,111 @@ def confirm(title, message):
         root.destroy()
 
 
-def claim_single_instance():
-    """Refuse to be the second copy running on this PC.
+GUARD_PORT = 47318
 
-    Two agents on one device is not harmless: both hold its live capture and both
-    report the same scan, so the Live screen shows every entry twice. Binding a
-    port is the check — the OS releases it the moment the process ends, so a
-    crash or a hard power-off can never leave a stale lock behind, the way a
-    lock file would."""
+
+def _bind_guard():
+    """Only one agent per PC. Two would both hold the device's live capture and
+    both report every scan, so the Live screen would announce each member twice.
+
+    A port, not a lock file: the OS frees it the moment the process ends, so a
+    crash or a power cut can never leave a lock behind that stops the agent from
+    ever starting again."""
     guard = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        guard.bind(('127.0.0.1', 47318))
+        guard.bind(('127.0.0.1', GUARD_PORT))
         guard.listen(1)
+        return guard
     except OSError:
+        guard.close()
         return None
-    return guard          # held for the life of the process, deliberately
+
+
+def _answer_stop_requests(guard):
+    """Stand down when a newer copy asks for the job.
+
+    This is how updating works. Replacing a running .exe on Windows is a mess of
+    locked files and Task Manager — no task for someone running a gym — so the
+    new copy simply asks this one to stop and carries on from wherever it was
+    downloaded to. Nothing has to be moved or renamed."""
+    def wait():
+        while True:
+            try:
+                conn, _ = guard.accept()
+            except OSError:
+                return
+            try:
+                conn.recv(16)
+                conn.sendall(b'ok')
+            except OSError:
+                pass
+            finally:
+                conn.close()
+            log('A newer agent asked to take over. Stopping.')
+            os._exit(0)     # immediate: the newcomer is waiting on this port
+
+    threading.Thread(target=wait, daemon=True).start()
+
+
+def _stop_other_agents():
+    """Close agents running from somewhere other than here.
+
+    The polite request only works on versions that know how to answer it, and
+    the copy being replaced is by definition the older one. So this is the
+    fallback: match on the executable's path, never the name, because a one-file
+    build runs as two processes sharing that name and killing by name would take
+    this process down with it. Nothing is lost by stopping an agent — the sync
+    watermark lives on the server, not here."""
+    import subprocess
+    # normcase lowercases and settles on backslashes, matching what ToLower()
+    # gives us on the other side. Nothing is escaped: inside PowerShell's single
+    # quotes a backslash is just a backslash, and doubling them made this
+    # comparison fail — so every agent looked like someone else's, including
+    # this one, and stopping "the others" stopped us too.
+    ours = os.path.normcase(os.path.abspath(sys.executable)).replace("'", "''")
+    script = (
+        "Get-CimInstance Win32_Process -Filter \"Name = 'GymistanAgent.exe'\" | "
+        "Where-Object { $_.ExecutablePath -and "
+        f"$_.ExecutablePath.ToLower() -ne '{ours}'"
+        " } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"
+    )
+    try:
+        subprocess.run(['powershell', '-NoProfile', '-Command', script],
+                       timeout=30, capture_output=True,
+                       creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+    except Exception as err:
+        log('Could not stop the other agent: ' + str(err))
+
+
+def ask_running_agent_to_stop(timeout=25):
+    """Get the running agent to let go, and wait for its port to come free.
+
+    Asks first, and only insists if asking gets nowhere. Returns None if the port
+    never frees — better to leave the working agent alone than to end up with two
+    of them fighting over the device."""
+    try:
+        with socket.create_connection(('127.0.0.1', GUARD_PORT), timeout=5) as sock:
+            sock.sendall(b'stop')
+            try:
+                sock.recv(16)
+            except OSError:
+                pass
+    except OSError:
+        pass    # it may have already gone; the retry below settles it either way
+
+    deadline = time.monotonic() + timeout
+    insisted = False
+    while time.monotonic() < deadline:
+        guard = _bind_guard()
+        if guard:
+            return guard
+        # Give the polite route a few seconds; an older build cannot answer it.
+        if not insisted and time.monotonic() > deadline - timeout + 6:
+            log('It did not answer, so stopping it directly.')
+            _stop_other_agents()
+            insisted = True
+        time.sleep(0.5)
+    return None
 
 
 # ---------------------------------------------------------------- device
@@ -452,120 +544,39 @@ def explain(err):
     return str(err) or err.__class__.__name__
 
 
-# ---------------------------------------------------------------- self-update
-def _updater_script(exe, new_exe, pid):
-    """A tiny script that swaps the program over once this process is gone.
+def adopt_previous_settings():
+    """Find the settings of the install this copy is replacing and take them on.
 
-    A running .exe cannot overwrite itself on Windows, so the last thing this
-    process does is hand the job to cmd and quit.
-
-    It waits on the PID, not on the file. Windows lets you RENAME a running
-    executable — only deleting is refused — so a loop that waits for the move to
-    succeed finishes while the old process is still alive. Starting the new copy
-    at that moment races the old one tearing down the temp folder PyInstaller
-    unpacked itself into, and the new process dies with 'Failed to load Python
-    DLL'. Waiting for the process to actually exit, then pausing for that cleanup
-    to finish, is the difference between an update and a dead agent."""
-    path = os.path.join(BASE_DIR, 'gymistan-update.cmd')
-    # cmd's del/move treat a forward slash as the start of a switch, so give them
-    # nothing but backslashes even if we were handed a mixed path.
-    exe = os.path.normpath(exe).replace('/', chr(92))
-    new_exe = os.path.normpath(new_exe).replace('/', chr(92))
-    old_exe = exe + '.old'
-    with open(path, 'w', encoding='utf-8') as fh:
-        w = lambda line: print(line, file=fh)
-        w('@echo off')
-        w('setlocal')
-        w('set TRIES=0')
-        w(':waitproc')
-        w('set /a TRIES+=1')
-        w('if %TRIES% GTR 60 goto giveup')
-        w(f'tasklist /FI "PID eq {pid}" /NH 2>nul | find "{pid}" >nul')
-        w('if not errorlevel 1 (')
-        w('  timeout /t 1 /nobreak >nul')
-        w('  goto waitproc')
-        w(')')
-        # The process is gone; give its unpacked temp folder a moment to go too.
-        w('timeout /t 3 /nobreak >nul')
-        w(f'del "{old_exe}" >nul 2>&1')
-        w(f'move /y "{exe}" "{old_exe}" >nul 2>&1')
-        w(f'move /y "{new_exe}" "{exe}" >nul 2>&1')
-        w(f'if not exist "{exe}" (')
-        # Putting the old one back matters more than the update succeeding.
-        w(f'  move /y "{old_exe}" "{exe}" >nul 2>&1')
-        w(')')
-        w(f'start "" "{exe}"')
-        w(f'del "{old_exe}" >nul 2>&1')
-        w('goto done')
-        w(':giveup')
-        w(f'del "{new_exe}" >nul 2>&1')
-        w(':done')
-        w('del "%~f0" >nul 2>&1')
-    return path
-
-
-def maybe_self_update(latest, url, server_base, cfg=None):
-    """Replace this program with the current build, without anyone at the gym
-    touching a file. Returns True when an update is on its way and we should
-    stand aside.
-
-    This exists because the manual path is not one a gym can walk: the download
-    arrives as 'GymistanAgent (1).exe', the running copy holds the original
-    open, and replacing it means Task Manager."""
-    if not latest or latest == VERSION or not getattr(sys, 'frozen', False):
-        return False
-
-    # If we already fetched this version and are still not running it, the
-    # download and the advertised version disagree. Trying again would restart
-    # the agent forever, so say so once and carry on working.
-    if cfg is not None and cfg.get('update_tried') == latest:
-        if not cfg.get('update_warned'):
-            log(f'Update to v{latest} did not take effect; staying on v{VERSION}. '
-                'Attendance is unaffected.')
-            cfg['update_warned'] = True
-            try:
-                save_config(cfg)
-            except OSError:
-                pass
-        return False
-
-    exe = sys.executable
-    new_exe = exe + '.new'
-    log(f'A newer agent is available (v{latest}). Updating ...')
+    The new agent is usually run straight from the Downloads folder, so its
+    settings file is not beside it. The start-up shortcut knows where the old
+    one lived, which is enough to bring the setup code and device across —
+    otherwise a routine update would send someone hunting for a setup code."""
+    path = _startup_file()
+    if not path or not os.path.exists(path):
+        return {}
     try:
-        full = url if url.startswith('http') else server_base.rstrip('/') + url
-        with requests.get(full, timeout=300, stream=True) as r:
-            r.raise_for_status()
-            with open(new_exe, 'wb') as fh:
-                for chunk in r.iter_content(chunk_size=262144):
-                    fh.write(chunk)
-        # Half a download is worse than no download; refuse anything implausible.
-        if os.path.getsize(new_exe) < 1_000_000:
-            raise ValueError('downloaded file looks incomplete')
-    except Exception as err:
-        log('Update download failed, carrying on with this version: ' + explain(err))
-        try:
-            os.remove(new_exe)
-        except OSError:
-            pass
-        return False
+        text = open(path, encoding='utf-8', errors='replace').read()
+    except OSError:
+        return {}
 
-    if cfg is not None:
-        cfg['update_tried'] = latest
-        cfg.pop('update_warned', None)
-        try:
-            save_config(cfg)
-        except OSError:
-            pass
+    old_dir = None
+    for line in text.splitlines():
+        if line.lower().startswith('cd /d'):
+            old_dir = line[5:].strip().strip('"')
+            break
+    if not old_dir or os.path.normcase(old_dir) == os.path.normcase(BASE_DIR):
+        return {}
 
-    script = _updater_script(exe, new_exe, os.getpid())
-    log('Restarting into the new version ...')
-    import subprocess
-    subprocess.Popen(['cmd', '/c', script],
-                     creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0)
-                     | getattr(subprocess, 'DETACHED_PROCESS', 0),
-                     close_fds=True)
-    return True
+    old_cfg = os.path.join(old_dir, 'gymistan-agent.json')
+    if not os.path.exists(old_cfg):
+        return {}
+    try:
+        shutil.copyfile(old_cfg, CONFIG_PATH)
+        log(f'Brought the existing settings across from {old_dir}.')
+        return load_config()
+    except OSError as err:
+        log('Could not copy the previous settings: ' + str(err))
+        return {}
 
 
 # ---------------------------------------------------------------- auto-start
@@ -727,20 +738,45 @@ def sync_once(server, cfg, state):
 def main():
     banner()
 
-    guard = claim_single_instance()
+    guard = _bind_guard()
+    took_over = False
     if guard is None:
-        say('Gymistan Attendance Agent',
-            'The agent is already running on this PC.\n\n'
-            'You do not need to start it again.')
-        return
+        # Another agent has the job. This copy was almost certainly just
+        # downloaded to replace it, so offer exactly that — the alternative is
+        # asking a gym to close a running program and rename a locked file.
+        if not confirm('Gymistan Attendance Agent',
+                       'An agent is already running on this PC.\n\n'
+                       'Replace it with this one?'):
+            return
+        guard = ask_running_agent_to_stop()
+        if guard is None:
+            say('Gymistan Attendance Agent',
+                'The agent already running would not stop.\n\n'
+                'Restart the PC and open this program again.')
+            return
+        took_over = True
+
+    _answer_stop_requests(guard)
 
     cfg = load_config()
+    if not cfg.get('token') and took_over:
+        # Take on the settings of the copy being replaced, so nobody has to find
+        # a setup code again just because the new download landed elsewhere.
+        cfg = adopt_previous_settings()
     if not cfg.get('token'):
         cfg = first_run_setup()
         if not cfg:
             return
 
-    import threading
+    if took_over:
+        # Point start-up at this copy, or the next reboot would bring back the
+        # very version that was just replaced.
+        enable_autostart()
+        say('Gymistan Attendance Agent',
+            'Done — this version is running now.\n\n'
+            'It starts by itself when the PC is switched on, and there is no '
+            'window to keep open.')
+
     server = Server(cfg['server'], cfg['token'])
     if autostart_enabled():
         log('Starts automatically with this PC.')
@@ -761,13 +797,6 @@ def main():
             # Jobs are asked for often because somebody is standing at the device
             # waiting; punches are swept far less often because nothing is.
             info = server.next_command()
-
-            # Checked before anything else: if we are behind, the kindest thing
-            # is to step aside now rather than start work we cannot finish.
-            if maybe_self_update(info.get('agent_latest'),
-                                 info.get('agent_url', '/GymistanAgent.exe'),
-                                 cfg['server'], cfg):
-                return
 
             if info.get('live'):
                 live_deadline[0] = time.monotonic() + 30
