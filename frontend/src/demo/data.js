@@ -31,11 +31,17 @@ export const addDays = (d, n) => {
   x.setDate(x.getDate() + n)
   return x
 }
-export const addMonths = (d, n) => {
+// `anchorDay` (optional) restores a day an earlier clamp shortened — a 31st
+// membership resting on 28 Feb renews to 31 Mar — and is only applied when `d` is
+// the last day of its month, so a deliberate mid-month date keeps its day.
+export const addMonths = (d, n, anchorDay = null) => {
   const x = new Date(d)
-  const day = x.getDate()
+  let day = x.getDate()
+  const lastOfMonth = new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate()
+  if (anchorDay && day === lastOfMonth) day = Math.max(day, anchorDay)
+  x.setDate(1) // avoid setMonth rolling over on a short target month
   x.setMonth(x.getMonth() + n)
-  if (x.getDate() < day) x.setDate(0) // clamp for short months
+  x.setDate(Math.min(day, new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate()))
   return x
 }
 export const monthKey = (d) => iso(d).slice(0, 7)

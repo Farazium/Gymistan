@@ -874,9 +874,18 @@ export async function handle({ method, path, params, body }) {
     const prevExpiry = member.expiry_date
     let newExpiry = null
     if (status === 'PAID' && pkg) {
-      // Renew from the later of today and the current expiry, like the backend.
-      const base = prevExpiry && prevExpiry > iso(T) ? new Date(`${prevExpiry}T00:00:00`) : T
-      newExpiry = iso(addMonths(base, pkg.duration_months))
+      // Extend from the current expiry, stepping whole periods if it has lapsed,
+      // so the day-of-month anchor is kept — same as the backend's renew_from.
+      // The joining day is the anchor, so a clamped 31st recovers on long months.
+      const base = prevExpiry ? new Date(`${prevExpiry}T00:00:00`) : T
+      const anchorDay = member.join_date ? Number(member.join_date.slice(8, 10)) : null
+      let periods = 1
+      let next = addMonths(base, pkg.duration_months, anchorDay)
+      while (iso(next) <= iso(T) && periods < 120) {
+        periods += 1
+        next = addMonths(base, pkg.duration_months * periods, anchorDay)
+      }
+      newExpiry = iso(next)
       member.expiry_date = newExpiry
       member.reminder_sent_for = null
     }

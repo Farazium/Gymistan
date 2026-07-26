@@ -32,7 +32,10 @@ class PaymentListCreateView(generics.ListCreateAPIView):
         payment = serializer.save(gym=self.request.user.gym, collected_by=self.request.user)
         if payment.status == 'PAID' and payment.package:
             member = payment.member
-            new_expiry = renew_from(member.expiry_date, payment.package.duration_months)
+            new_expiry = renew_from(
+                member.expiry_date, payment.package.duration_months,
+                anchor_day=member.join_date.day if member.join_date else None,
+            )
             payment.prev_expiry = member.expiry_date
             payment.new_expiry = new_expiry
             payment.save(update_fields=['prev_expiry', 'new_expiry'])

@@ -14,30 +14,7 @@ import { exportToExcel } from '../../utils/exportExcel'
 import { apiErrorMessage } from '../../utils/apiError'
 import { invalidateFinance } from '../../utils/invalidateFinance'
 import { useWaCredits } from '../../utils/waCredits'
-
-function calcExpiryISO(isoDate, status, pkgMonths) {
-  if (!isoDate || isoDate.length < 10) return ''
-  const [y, m, d] = isoDate.split('-').map(Number)
-  if (!y || !m || !d) return ''
-  const months = pkgMonths || 1
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-  let yy = y, mm = m
-  for (let i = 0; i < 120; i++) {
-    mm += months
-    while (mm > 12) { yy += 1; mm -= 12 }
-    const candidate = new Date(yy, mm - 1, d)
-    if (candidate > today) {
-      if (status === 'EXPIRED') {
-        mm -= months
-        while (mm < 1) { yy -= 1; mm += 12 }
-        const exp = new Date(yy, mm - 1, d)
-        return `${exp.getFullYear()}-${String(exp.getMonth()+1).padStart(2,'0')}-${String(exp.getDate()).padStart(2,'0')}`
-      }
-      return `${candidate.getFullYear()}-${String(candidate.getMonth()+1).padStart(2,'0')}-${String(candidate.getDate()).padStart(2,'0')}`
-    }
-  }
-  return ''
-}
+import { calcExpiryISO } from '../../utils/expiry'
 
 function RestoreForm({ member, onSubmit, isPending }) {
   const { user } = useAuthStore()

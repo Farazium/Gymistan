@@ -7,40 +7,7 @@ import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
 import { useWaCredits } from '../../utils/waCredits'
 import EnrollModal from '../../components/EnrollModal'
-
-function calcExpiryISO(isoDate, status, pkgMonths) {
-  if (!isoDate || isoDate.length < 10) return ''
-  const [y, m, d] = isoDate.split('-').map(Number)
-  if (!y || !m || !d) return ''
-  const months = pkgMonths || 1
-
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-
-  // Roll forward from join date in pkg-month cycles until we pass today
-  let yy = y, mm = m
-  for (let i = 0; i < 120; i++) {
-    mm += months
-    while (mm > 12) { yy += 1; mm -= 12 }
-    const candidate = new Date(yy, mm - 1, d) // JS handles day overflow (e.g. Jan 31 + 1mo)
-    if (candidate > today) {
-      if (status === 'EXPIRED') {
-        // Step back one cycle — that's the most recent past expiry
-        mm -= months
-        while (mm < 1) { yy -= 1; mm += 12 }
-        const exp = new Date(yy, mm - 1, d)
-        return `${exp.getFullYear()}-${String(exp.getMonth()+1).padStart(2,'0')}-${String(exp.getDate()).padStart(2,'0')}`
-      }
-      return `${candidate.getFullYear()}-${String(candidate.getMonth()+1).padStart(2,'0')}-${String(candidate.getDate()).padStart(2,'0')}`
-    }
-  }
-  return ''
-}
-
-function calcExpiryDisplay(isoDate, status, pkgMonths) {
-  const iso = calcExpiryISO(isoDate, status, pkgMonths)
-  if (!iso) return ''
-  return new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-}
+import { calcExpiryISO, calcExpiryDisplay } from '../../utils/expiry'
 
 export default function MemberForm({ member, onSuccess, defaultMemberId }) {
   const { user } = useAuthStore()
