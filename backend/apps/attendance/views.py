@@ -736,7 +736,7 @@ class AgentIngestView(APIView):
 # The agent build we ship today. An older one still syncs punches perfectly well,
 # so this is not a hard gate — it only lets the panel offer an update, and lets a
 # job it cannot understand say so in words a gym can act on.
-CURRENT_AGENT_VERSION = '1.7'
+CURRENT_AGENT_VERSION = '1.8'
 AGENT_DOWNLOAD_URL = '/GymistanAgent.exe'
 
 COMMAND_WAIT = 25          # seconds the browser will hold while the agent works
@@ -794,7 +794,11 @@ class AgentCommandsView(APIView):
         if err:
             return err
         cfg.agent_last_seen = timezone.now()
-        cfg.save(update_fields=['agent_last_seen'])
+        cfg.agent_version = str(request.query_params.get('agent_version') or cfg.agent_version)[:20]
+        serial = str(request.query_params.get('serial') or '')[:64]
+        if serial:
+            cfg.agent_serial = serial
+        cfg.save(update_fields=['agent_last_seen', 'agent_version', 'agent_serial'])
 
         live = bool(cfg.live_until and cfg.live_until > timezone.now())
 

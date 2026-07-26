@@ -37,7 +37,7 @@ except ImportError:
     print('Missing libraries. Run:  pip install pyzk requests')
     sys.exit(1)
 
-VERSION = '1.7'
+VERSION = '1.8'
 DEFAULT_SERVER = 'https://gymistan.dev'
 DEVICE_PORT = 4370
 POLL_SECONDS = 60            # how often punches are swept up
@@ -307,13 +307,19 @@ def scan_for_device():
     return found
 
 
+DEVICE_SERIAL = ''      # remembered once known, so every poll can report it
+
+
 def device_identity(ip, password=0):
     """Confirm it really is a ZKTeco unit, and get its serial for the record."""
+    global DEVICE_SERIAL
     conn = None
     try:
         conn = ZK(ip, port=DEVICE_PORT, timeout=DEVICE_TIMEOUT,
                   password=password, ommit_ping=True).connect()
-        return {'name': conn.get_device_name(), 'serial': conn.get_serialnumber()}
+        ident = {'name': conn.get_device_name(), 'serial': conn.get_serialnumber()}
+        DEVICE_SERIAL = ident['serial'] or DEVICE_SERIAL
+        return ident
     except Exception:
         return None
     finally:
@@ -492,9 +498,10 @@ class Server:
         r.raise_for_status()
         return r.json()
 
-    def next_command(self):
+    def next_command(self, serial=''):
         r = requests.get(self.url.replace('/ingest/', '/commands/'),
-                         headers=self.headers, timeout=30)
+                         headers=self.headers, timeout=30,
+                         params={'agent_version': VERSION, 'serial': serial})
         r.raise_for_status()
         return r.json()
 
@@ -786,6 +793,7 @@ def main():
         # the only place that asks.
         log('Tip: this does not start by itself yet. Delete gymistan-agent.json '
             'and run setup again to turn that on.')
+    device_identity(cfg['device_ip'], cfg.get('device_password', 0))
     log(f'Watching device at {cfg["device_ip"]} - checking every {POLL_SECONDS}s.')
     state = {}
     last_sync = 0.0
@@ -796,7 +804,7 @@ def main():
         try:
             # Jobs are asked for often because somebody is standing at the device
             # waiting; punches are swept far less often because nothing is.
-            info = server.next_command()
+            info = server.next_command(DEVICE_SERIAL)
 
             if info.get('live'):
                 live_deadline[0] = time.monotonic() + 30
