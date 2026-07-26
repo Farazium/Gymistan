@@ -736,7 +736,8 @@ class AgentIngestView(APIView):
 # The agent build we ship today. An older one still syncs punches perfectly well,
 # so this is not a hard gate — it only lets the panel offer an update, and lets a
 # job it cannot understand say so in words a gym can act on.
-CURRENT_AGENT_VERSION = '1.1'
+CURRENT_AGENT_VERSION = '1.2'
+AGENT_DOWNLOAD_URL = '/GymistanAgent.exe'
 
 COMMAND_WAIT = 25          # seconds the browser will hold while the agent works
 AGENT_ALIVE = 180          # a gym is "agent-connected" if seen within this
@@ -797,17 +798,24 @@ class AgentCommandsView(APIView):
 
         live = bool(cfg.live_until and cfg.live_until > timezone.now())
 
+        # Told on every poll, so an agent that is behind can replace itself
+        # without anyone at the gym touching a file. See the agent's updater:
+        # a running .exe cannot overwrite itself, so it hands off to a script.
+        latest = {'agent_latest': CURRENT_AGENT_VERSION,
+                  'agent_url': AGENT_DOWNLOAD_URL}
+
         cmd = (DeviceCommand.objects
                .filter(gym=cfg.gym, state=DeviceCommand.State.PENDING)
                .order_by('created_at').first())
         if not cmd:
-            return Response({'command': None, 'live': live})
+            return Response({'command': None, 'live': live, **latest})
 
         cmd.state = DeviceCommand.State.RUNNING
         cmd.claimed_at = timezone.now()
         cmd.save(update_fields=['state', 'claimed_at'])
         return Response({
             'live': live,
+            **latest,
             'command': {'id': cmd.id, 'kind': cmd.kind, 'payload': cmd.payload},
         })
 

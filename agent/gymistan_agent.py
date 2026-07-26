@@ -35,7 +35,7 @@ except ImportError:
     print('Missing libraries. Run:  pip install pyzk requests')
     sys.exit(1)
 
-VERSION = '1.1'
+VERSION = '1.2'
 DEFAULT_SERVER = 'https://gymistan.dev'
 DEVICE_PORT = 4370
 POLL_SECONDS = 60            # how often punches are swept up
@@ -452,6 +452,88 @@ def explain(err):
     return str(err) or err.__class__.__name__
 
 
+# ---------------------------------------------------------------- self-update
+def _updater_script(exe, new_exe):
+    """A tiny script that swaps the program over once we have let go of it.
+
+    A running .exe cannot overwrite itself on Windows, so the last thing this
+    process does is hand the job to cmd and quit. The script waits for the file
+    to come free, keeps the old copy aside until the new one is in place, starts
+    it, then deletes itself. Bounded, so a swap that can never happen gives up
+    and leaves the working agent exactly where it was."""
+    path = os.path.join(BASE_DIR, 'gymistan-update.cmd')
+    old_exe = exe + '.old'
+    with open(path, 'w', encoding='utf-8') as fh:
+        w = lambda line: print(line, file=fh)
+        w('@echo off')
+        w('setlocal')
+        w('set TRIES=0')
+        w(':wait')
+        w('set /a TRIES+=1')
+        w('if %TRIES% GTR 30 goto giveup')
+        w(f'del "{old_exe}" >nul 2>&1')
+        w(f'move /y "{exe}" "{old_exe}" >nul 2>&1')
+        w(f'if exist "{exe}" (')
+        w('  timeout /t 1 /nobreak >nul')
+        w('  goto wait')
+        w(')')
+        w(f'move /y "{new_exe}" "{exe}" >nul 2>&1')
+        w(f'if not exist "{exe}" (')
+        # Putting the old one back matters more than the update succeeding.
+        w(f'  move /y "{old_exe}" "{exe}" >nul 2>&1')
+        w(')')
+        w(f'start "" "{exe}"')
+        w(f'del "{old_exe}" >nul 2>&1')
+        w('goto done')
+        w(':giveup')
+        w(f'del "{new_exe}" >nul 2>&1')
+        w(':done')
+        w('del "%~f0" >nul 2>&1')
+    return path
+
+
+def maybe_self_update(latest, url, server_base):
+    """Replace this program with the current build, without anyone at the gym
+    touching a file. Returns True when an update is on its way and we should
+    stand aside.
+
+    This exists because the manual path is not one a gym can walk: the download
+    arrives as 'GymistanAgent (1).exe', the running copy holds the original
+    open, and replacing it means Task Manager."""
+    if not latest or latest == VERSION or not getattr(sys, 'frozen', False):
+        return False
+
+    exe = sys.executable
+    new_exe = exe + '.new'
+    log(f'A newer agent is available (v{latest}). Updating ...')
+    try:
+        full = url if url.startswith('http') else server_base.rstrip('/') + url
+        with requests.get(full, timeout=300, stream=True) as r:
+            r.raise_for_status()
+            with open(new_exe, 'wb') as fh:
+                for chunk in r.iter_content(chunk_size=262144):
+                    fh.write(chunk)
+        # Half a download is worse than no download; refuse anything implausible.
+        if os.path.getsize(new_exe) < 1_000_000:
+            raise ValueError('downloaded file looks incomplete')
+    except Exception as err:
+        log('Update download failed, carrying on with this version: ' + explain(err))
+        try:
+            os.remove(new_exe)
+        except OSError:
+            pass
+        return False
+
+    script = _updater_script(exe, new_exe)
+    log('Restarting into the new version ...')
+    import subprocess
+    subprocess.Popen(['cmd', '/c', script],
+                     creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0)
+                     | getattr(subprocess, 'DETACHED_PROCESS', 0),
+                     close_fds=True)
+    return True
+
+
 # ---------------------------------------------------------------- auto-start
 def _startup_dir():
     """Windows' per-user Startup folder — anything here runs at sign-in. Per-user
@@ -645,6 +727,13 @@ def main():
             # Jobs are asked for often because somebody is standing at the device
             # waiting; punches are swept far less often because nothing is.
             info = server.next_command()
+
+            # Checked before anything else: if we are behind, the kindest thing
+            # is to step aside now rather than start work we cannot finish.
+            if maybe_self_update(info.get('agent_latest'),
+                                 info.get('agent_url', '/GymistanAgent.exe'),
+                                 cfg['server']):
+                return
 
             if info.get('live'):
                 live_deadline[0] = time.monotonic() + 30
