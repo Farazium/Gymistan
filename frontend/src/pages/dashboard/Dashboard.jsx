@@ -10,7 +10,8 @@ import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
 import useAuthStore from '../../store/authStore'
 import { fmtCurrency as fmt } from '../../utils/format'
 import { CREDIT_TONES, CREDIT_MESSAGES, CREDIT_HINTS, useWaCredits } from '../../utils/waCredits'
-import { SUPPORT_EMAIL, mailto } from '../../utils/contact'
+import { SUPPORT_EMAIL } from '../../utils/contact'
+import EmailLink from '../../components/ui/EmailLink'
 
 
 // Prepaid-message warning, top of the dashboard. Stays hidden until 80% of the
@@ -253,12 +254,11 @@ function TierInfoModal({ tier, tiers, isOpen, onClose }) {
       </div>
       <p className="text-xs text-gray-500 text-center mt-4">
         To upgrade, write to us at{' '}
-        <a
-          href={mailto(SUPPORT_EMAIL, `Upgrade — ${user?.gym_name || 'Gymistan'}`)}
+        <EmailLink
+          email={SUPPORT_EMAIL}
+          subject={`Upgrade — ${user?.gym_name || 'Gymistan'}`}
           className="text-primary-300 underline underline-offset-2 hover:text-primary-200 transition"
-        >
-          {SUPPORT_EMAIL}
-        </a>.
+        />.
       </p>
     </Modal>
   )

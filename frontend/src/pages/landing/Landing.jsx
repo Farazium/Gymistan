@@ -19,7 +19,8 @@ import {
 import anime from 'animejs/lib/anime.es.js'
 import { Starfield, CursorGlow, DumbbellField } from '../../components/space/Scene'
 import { PREFERS_REDUCED_MOTION, BRAND_ACCENT, spawnRipple } from '../../components/space/effects'
-import { CONTACT_EMAIL, mailto } from '../../utils/contact'
+import { CONTACT_EMAIL, mailto, copyEmail } from '../../utils/contact'
+import EmailLink from '../../components/ui/EmailLink'
 
 const CONTACT = {
   // TODO(gymistan): put the real business WhatsApp here (digits only, e.g.
@@ -39,6 +40,11 @@ const contactLink = (subject, message) => (CONTACT.whatsapp
 // A WhatsApp link belongs in its own tab; a mailto hands off to the mail client
 // and would only leave an empty tab behind, so it stays in place.
 const CONTACT_TARGET = CONTACT.whatsapp ? { target: '_blank', rel: 'noreferrer' } : {}
+
+// In email mode a visitor without a mail app would click a CTA and see nothing
+// happen, which reads as a broken page on the one page that has to sell. Copy
+// the address so the click always answers.
+const CONTACT_CLICK = CONTACT.whatsapp ? undefined : () => copyEmail(CONTACT.email)
 
 // Every trailing arrow on the page nudges forward when its button is hovered.
 // One constant so they all travel the same distance at the same speed; the
@@ -688,6 +694,7 @@ function Plans() {
                 `Assalam-o-Alaikum, I'd like pricing for the Gymistan ${plan.name} plan.`,
               )}
               {...CONTACT_TARGET}
+              onClick={CONTACT_CLICK}
               className={`group ${plan.recommended ? 'btn-primary fill-from-side' : BTN_GHOST} mt-6 w-full justify-center`}
             >
               Get pricing
@@ -791,6 +798,7 @@ function ClosingCta() {
                 'Assalam-o-Alaikum, I want to know more about Gymistan for my gym.',
               )}
               {...CONTACT_TARGET}
+              onClick={CONTACT_CLICK}
               className={`group ${BTN_GHOST} !px-6 !py-3 text-base`}
             >
               {CONTACT.whatsapp ? <MessageCircle size={17} /> : <Mail size={17} />}
@@ -845,9 +853,9 @@ function Footer() {
               </li>
             )}
             <li>
-              <a href={mailto(CONTACT.email, 'Gymistan')} className="inline-flex items-center gap-2 text-gray-400 transition hover:text-primary-300">
+              <EmailLink email={CONTACT.email} subject="Gymistan" className="inline-flex items-center gap-2 text-gray-400 transition hover:text-primary-300">
                 <Mail size={14} /> {CONTACT.email}
-              </a>
+              </EmailLink>
             </li>
           </ul>
         </div>

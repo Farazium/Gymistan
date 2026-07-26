@@ -11,7 +11,7 @@ import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
 import { apiErrorMessage } from '../../utils/apiError'
 import { CREDIT_TONES } from '../../utils/waCredits'
-import { mailto } from '../../utils/contact'
+import EmailLink from '../../components/ui/EmailLink'
 
 const fmt = (n) => `PKR ${Number(n).toLocaleString('en-PK')}`
 const WA_TIERS = ['TIER2_WA', 'TIER3']
@@ -350,7 +350,7 @@ export default function GymProfile() {
                 <>
                   <InfoRow icon={User} label="Admin Name" value={admin.name} />
                   <InfoRow icon={KeyRound} label="Email" value={admin.email && (
-                    <a href={mailto(admin.email)} className="hover:text-primary-300 transition">{admin.email}</a>
+                    <EmailLink email={admin.email} className="hover:text-primary-300 transition" />
                   )} />
                 </>
               ) : (

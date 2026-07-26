@@ -14,7 +14,8 @@ import { mediaUrl } from '../../utils/mediaUrl'
 import { applyTheme, applySurface, PRESETS, SURFACE_PRESETS, DEFAULT_THEME, DEFAULT_SURFACE } from '../../utils/theme'
 import { isPrintingEnabled, setPrintingEnabled, getPaperWidth, setPaperWidth } from '../../utils/printReceipt'
 import { CREDIT_TONES } from '../../utils/waCredits'
-import { SUPPORT_EMAIL, mailto } from '../../utils/contact'
+import { SUPPORT_EMAIL } from '../../utils/contact'
+import EmailLink from '../../components/ui/EmailLink'
 
 // One settings row: label (+ optional hint) on the left, control on the right.
 function Row({ label, hint, children }) {
@@ -641,13 +642,14 @@ export default function Settings() {
           so a reply doesn't have to start by asking who is writing. */}
       <Section title="Help & Support" description="Reach the Gymistan team, or re-read the terms">
         <Row label="Email Support" hint="Questions, problems, or a feature you'd like to see">
-          <a
-            href={mailto(SUPPORT_EMAIL, `Support — ${user?.gym_name || 'Gymistan'}`)}
+          <EmailLink
+            email={SUPPORT_EMAIL}
+            subject={`Support — ${user?.gym_name || 'Gymistan'}`}
             className="btn-primary justify-center px-4"
           >
             <Mail size={15} />
             {SUPPORT_EMAIL}
-          </a>
+          </EmailLink>
         </Row>
         <Row label="Terms & Conditions" hint="The terms you accepted when you signed in">
           <button type="button" onClick={() => setShowTerms(true)} className="btn-secondary justify-center px-4">
