@@ -68,6 +68,7 @@ class DeviceCommand(models.Model):
         ENROLL = 'ENROLL', 'Enrol a fingerprint'
         REMOVE_FP = 'REMOVE_FP', 'Remove a fingerprint'
         FP_STATUS = 'FP_STATUS', 'Check fingerprint'
+        SYNC_NOW = 'SYNC_NOW', 'Sweep punches now'
 
     class State(models.TextChoices):
         PENDING = 'PENDING', 'Waiting for the agent'

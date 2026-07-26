@@ -298,7 +298,7 @@ export default function DevicePanel() {
             <RefreshCw size={15} className={sync.isPending ? 'animate-spin' : ''} /> Sync Now
           </button>
         </div>
-        {!cfg.ip && <p className="text-xs text-gray-500">Set the device IP above to enable syncing.</p>}
+        {!reachable && <p className="text-xs text-gray-500">Start the agent on the gym PC to enable syncing.</p>}
       </div>
 
       {/* Push members to device */}
@@ -325,7 +325,7 @@ export default function DevicePanel() {
       <div className="border-t border-gray-700/60 pt-4 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-gray-200 flex items-center gap-2"><Users size={15} /> Enrollment</h3>
-          <button onClick={() => setShowUsers(true)} disabled={!cfg.ip}
+          <button onClick={() => setShowUsers(true)} disabled={!reachable}
             className="text-xs px-3 py-1.5 rounded-lg bg-gray-700/60 text-gray-200 disabled:opacity-40 [--btn-fill:55_65_81] [--btn-edge:31_41_55]">
             Load device users
           </button>

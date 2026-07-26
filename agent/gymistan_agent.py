@@ -328,6 +328,15 @@ def run_command(server, cfg, cmd):
         conn.disable_device()
         if kind == 'ENROLL':
             result = do_enroll(cfg, payload, conn, server, cmd_id)
+        elif kind == 'SYNC_NOW':
+            # Somebody pressed Sync Now rather than waiting out the minute.
+            punches = [(str(l.user_id), l.timestamp) for l in (conn.get_attendance() or [])]
+            info = server.watermark()
+            cutoff = datetime.fromisoformat(info['since']) if info.get('since') else None
+            fresh = [(u, t) for u, t in punches if cutoff is None or t > cutoff]
+            sent = server.send(fresh, serial=cfg.get('serial', '')) if fresh else {}
+            result = {'on_device': len(punches), 'sent': len(fresh),
+                      'applied': sent.get('applied', 0)}
         else:
             handler = COMMANDS.get(kind)
             if not handler:

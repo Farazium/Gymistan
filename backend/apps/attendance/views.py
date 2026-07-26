@@ -236,8 +236,20 @@ class DeviceSyncView(APIView):
     def post(self, request):
         gym = request.user.gym
         cfg, _ = DeviceConfig.objects.get_or_create(gym=gym)
+
+        if agent_online(cfg):
+            # The agent sweeps on its own every minute; this just asks it to go
+            # now rather than making someone wait out the cycle.
+            cmd = await_command(queue_command(gym, DeviceCommand.Kind.SYNC_NOW))
+            if cmd.state != DeviceCommand.State.DONE:
+                return Response({'message': cmd.message or 'The agent could not reach the device'},
+                                status=status.HTTP_502_BAD_GATEWAY)
+            cfg.refresh_from_db()
+            return Response({'message': cfg.last_sync_status or 'Synced',
+                             'summary': cmd.result})
+
         if not cfg.ip:
-            return Response({'message': 'No device IP configured'}, status=status.HTTP_400_BAD_REQUEST)
+            return no_agent_response(cfg)
 
         cfg.last_sync_at = timezone.now()
         try:
