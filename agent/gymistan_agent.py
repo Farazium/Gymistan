@@ -462,6 +462,10 @@ def _updater_script(exe, new_exe):
     it, then deletes itself. Bounded, so a swap that can never happen gives up
     and leaves the working agent exactly where it was."""
     path = os.path.join(BASE_DIR, 'gymistan-update.cmd')
+    # cmd's del/move treat a forward slash as the start of a switch, so give them
+    # nothing but backslashes even if we were handed a mixed path.
+    exe = os.path.normpath(exe).replace('/', chr(92))
+    new_exe = os.path.normpath(new_exe).replace('/', chr(92))
     old_exe = exe + '.old'
     with open(path, 'w', encoding='utf-8') as fh:
         w = lambda line: print(line, file=fh)
@@ -492,7 +496,7 @@ def _updater_script(exe, new_exe):
     return path
 
 
-def maybe_self_update(latest, url, server_base):
+def maybe_self_update(latest, url, server_base, cfg=None):
     """Replace this program with the current build, without anyone at the gym
     touching a file. Returns True when an update is on its way and we should
     stand aside.
@@ -501,6 +505,20 @@ def maybe_self_update(latest, url, server_base):
     arrives as 'GymistanAgent (1).exe', the running copy holds the original
     open, and replacing it means Task Manager."""
     if not latest or latest == VERSION or not getattr(sys, 'frozen', False):
+        return False
+
+    # If we already fetched this version and are still not running it, the
+    # download and the advertised version disagree. Trying again would restart
+    # the agent forever, so say so once and carry on working.
+    if cfg is not None and cfg.get('update_tried') == latest:
+        if not cfg.get('update_warned'):
+            log(f'Update to v{latest} did not take effect; staying on v{VERSION}. '
+                'Attendance is unaffected.')
+            cfg['update_warned'] = True
+            try:
+                save_config(cfg)
+            except OSError:
+                pass
         return False
 
     exe = sys.executable
@@ -523,6 +541,14 @@ def maybe_self_update(latest, url, server_base):
         except OSError:
             pass
         return False
+
+    if cfg is not None:
+        cfg['update_tried'] = latest
+        cfg.pop('update_warned', None)
+        try:
+            save_config(cfg)
+        except OSError:
+            pass
 
     script = _updater_script(exe, new_exe)
     log('Restarting into the new version ...')
@@ -732,7 +758,7 @@ def main():
             # is to step aside now rather than start work we cannot finish.
             if maybe_self_update(info.get('agent_latest'),
                                  info.get('agent_url', '/GymistanAgent.exe'),
-                                 cfg['server']):
+                                 cfg['server'], cfg):
                 return
 
             if info.get('live'):
