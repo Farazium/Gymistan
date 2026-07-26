@@ -211,9 +211,17 @@ export default function DevicePanel() {
           <li>Leave it running. Attendance arrives here within a minute of each scan.</li>
         </ol>
 
+        {cfg.agent_update_available && (
+          <p className="text-xs text-amber-300 bg-amber-500/10 border border-amber-400/25 rounded-lg px-3 py-2">
+            A newer agent is available. Download it below and run it on the gym PC —
+            your settings are kept, so it won't ask you to set it up again.
+          </p>
+        )}
+
         <div className="flex items-center gap-3 flex-wrap">
           <a href="/GymistanAgent.exe" className="btn-primary" download>
-            <Download size={15} /> Download agent
+            <Download size={15} />
+            {cfg.agent_update_available ? 'Update agent' : 'Download agent'}
           </a>
           {cfg.agent_serial && (
             <span className="text-[11px] text-gray-500">

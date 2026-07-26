@@ -733,6 +733,11 @@ class AgentIngestView(APIView):
 # ---------------------------------------------------------------------------
 # Command queue — how the app reaches a device it cannot dial directly.
 # ---------------------------------------------------------------------------
+# The agent build we ship today. An older one still syncs punches perfectly well,
+# so this is not a hard gate — it only lets the panel offer an update, and lets a
+# job it cannot understand say so in words a gym can act on.
+CURRENT_AGENT_VERSION = '1.1'
+
 COMMAND_WAIT = 25          # seconds the browser will hold while the agent works
 AGENT_ALIVE = 180          # a gym is "agent-connected" if seen within this
 
@@ -817,7 +822,14 @@ class AgentCommandsView(APIView):
 
         ok = bool(request.data.get('ok'))
         cmd.result = request.data.get('result') or {}
-        cmd.message = str(request.data.get('message') or '')[:255]
+        message = str(request.data.get('message') or '')
+        # An agent that predates a job reports it as "Unknown job SYNC_NOW",
+        # which tells a gym owner nothing. Translate it here rather than in the
+        # agent, so the ones already installed get the better wording too.
+        if message.startswith('Unknown job'):
+            message = ('The agent on the gym PC is out of date. Download it again '
+                       'from Attendance → Device and run it.')
+        cmd.message = message[:255]
         cmd.finished_at = timezone.now()
         # ENROLL reports progress before it finishes; keep it RUNNING until the
         # agent says the person is done placing their finger.

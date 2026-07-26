@@ -35,7 +35,7 @@ except ImportError:
     print('Missing libraries. Run:  pip install pyzk requests')
     sys.exit(1)
 
-VERSION = '1.0'
+VERSION = '1.1'
 DEFAULT_SERVER = 'https://gymistan.dev'
 DEVICE_PORT = 4370
 POLL_SECONDS = 60            # how often punches are swept up
