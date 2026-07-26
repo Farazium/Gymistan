@@ -14,6 +14,7 @@ import { mediaUrl } from '../../utils/mediaUrl'
 import { applyTheme, applySurface, PRESETS, SURFACE_PRESETS, DEFAULT_THEME, DEFAULT_SURFACE } from '../../utils/theme'
 import { isPrintingEnabled, setPrintingEnabled, getPaperWidth, setPaperWidth } from '../../utils/printReceipt'
 import { CREDIT_TONES } from '../../utils/waCredits'
+import { SUPPORT_EMAIL, mailto } from '../../utils/contact'
 
 // One settings row: label (+ optional hint) on the left, control on the right.
 function Row({ label, hint, children }) {
@@ -193,10 +194,6 @@ function BackgroundModal({ isOpen, onClose, mode, currentUrl, busy, onSelectMode
     </Modal>
   )
 }
-
-// Where gyms write in for help. The subject line carries the gym's name so a
-// reply doesn't have to start by asking who is writing.
-const SUPPORT_EMAIL = 'support@gymistan.dev'
 
 // A titled group of setting rows.
 function Section({ title, description, children, as = 'div', ...props }) {
@@ -640,10 +637,12 @@ export default function Settings() {
       </Section>
 
       {/* Help & Support */}
+      {/* Where gyms write in for help. The subject line carries the gym's name
+          so a reply doesn't have to start by asking who is writing. */}
       <Section title="Help & Support" description="Reach the Gymistan team, or re-read the terms">
         <Row label="Email Support" hint="Questions, problems, or a feature you'd like to see">
           <a
-            href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Support — ${user?.gym_name || 'Gymistan'}`)}`}
+            href={mailto(SUPPORT_EMAIL, `Support — ${user?.gym_name || 'Gymistan'}`)}
             className="btn-primary justify-center px-4"
           >
             <Mail size={15} />

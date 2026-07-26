@@ -10,6 +10,7 @@ import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
 import useAuthStore from '../../store/authStore'
 import { fmtCurrency as fmt } from '../../utils/format'
 import { CREDIT_TONES, CREDIT_MESSAGES, CREDIT_HINTS, useWaCredits } from '../../utils/waCredits'
+import { SUPPORT_EMAIL, mailto } from '../../utils/contact'
 
 
 // Prepaid-message warning, top of the dashboard. Stays hidden until 80% of the
@@ -205,6 +206,7 @@ const TIER_ICON_BG = {
 }
 
 function TierInfoModal({ tier, tiers, isOpen, onClose }) {
+  const { user } = useAuthStore()
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Subscription Plans" size="xl">
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
@@ -249,7 +251,15 @@ function TierInfoModal({ tier, tiers, isOpen, onClose }) {
               )
             })}
       </div>
-      <p className="text-xs text-gray-500 text-center mt-4">Contact your Gymistan admin to upgrade.</p>
+      <p className="text-xs text-gray-500 text-center mt-4">
+        To upgrade, write to us at{' '}
+        <a
+          href={mailto(SUPPORT_EMAIL, `Upgrade — ${user?.gym_name || 'Gymistan'}`)}
+          className="text-primary-300 underline underline-offset-2 hover:text-primary-200 transition"
+        >
+          {SUPPORT_EMAIL}
+        </a>.
+      </p>
     </Modal>
   )
 }

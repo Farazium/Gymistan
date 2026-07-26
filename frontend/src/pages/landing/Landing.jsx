@@ -19,6 +19,7 @@ import {
 import anime from 'animejs/lib/anime.es.js'
 import { Starfield, CursorGlow, DumbbellField } from '../../components/space/Scene'
 import { PREFERS_REDUCED_MOTION, BRAND_ACCENT, spawnRipple } from '../../components/space/effects'
+import { CONTACT_EMAIL, mailto } from '../../utils/contact'
 
 const CONTACT = {
   // TODO(gymistan): put the real business WhatsApp here (digits only, e.g.
@@ -26,14 +27,18 @@ const CONTACT = {
   // on its own — button, icon and footer link included. Null means we have no
   // number to send anyone to yet, so the page contacts by email instead.
   whatsapp: null,
-  email: 'contact@gymistan.dev',
+  email: CONTACT_EMAIL,
 }
 
 // Where a "talk to us" CTA points: WhatsApp when there's a number, a pre-filled
 // email otherwise. Never a dead link, whichever way it falls.
 const contactLink = (subject, message) => (CONTACT.whatsapp
   ? `https://wa.me/${CONTACT.whatsapp}?text=${encodeURIComponent(message)}`
-  : `mailto:${CONTACT.email}?subject=${encodeURIComponent(subject)}`)
+  : mailto(CONTACT.email, subject))
+
+// A WhatsApp link belongs in its own tab; a mailto hands off to the mail client
+// and would only leave an empty tab behind, so it stays in place.
+const CONTACT_TARGET = CONTACT.whatsapp ? { target: '_blank', rel: 'noreferrer' } : {}
 
 // Every trailing arrow on the page nudges forward when its button is hovered.
 // One constant so they all travel the same distance at the same speed; the
@@ -682,8 +687,7 @@ function Plans() {
                 `Gymistan ${plan.name} plan — pricing`,
                 `Assalam-o-Alaikum, I'd like pricing for the Gymistan ${plan.name} plan.`,
               )}
-              target="_blank"
-              rel="noreferrer"
+              {...CONTACT_TARGET}
               className={`group ${plan.recommended ? 'btn-primary fill-from-side' : BTN_GHOST} mt-6 w-full justify-center`}
             >
               Get pricing
@@ -786,8 +790,7 @@ function ClosingCta() {
                 'Gymistan for my gym',
                 'Assalam-o-Alaikum, I want to know more about Gymistan for my gym.',
               )}
-              target="_blank"
-              rel="noreferrer"
+              {...CONTACT_TARGET}
               className={`group ${BTN_GHOST} !px-6 !py-3 text-base`}
             >
               {CONTACT.whatsapp ? <MessageCircle size={17} /> : <Mail size={17} />}
@@ -835,14 +838,14 @@ function Footer() {
             {CONTACT.whatsapp && (
               <li>
                 <a href={contactLink('Gymistan', 'Assalam-o-Alaikum, I want to know more about Gymistan.')}
-                  target="_blank" rel="noreferrer"
+                  {...CONTACT_TARGET}
                   className="inline-flex items-center gap-2 text-gray-400 transition hover:text-primary-300">
                   <MessageCircle size={14} /> WhatsApp
                 </a>
               </li>
             )}
             <li>
-              <a href={`mailto:${CONTACT.email}`} className="inline-flex items-center gap-2 text-gray-400 transition hover:text-primary-300">
+              <a href={mailto(CONTACT.email, 'Gymistan')} className="inline-flex items-center gap-2 text-gray-400 transition hover:text-primary-300">
                 <Mail size={14} /> {CONTACT.email}
               </a>
             </li>

@@ -3,6 +3,8 @@
 // WhatsApp messaging via Meta, ZKTeco biometric attendance, tiered plans).
 // Rendered inside the shared Modal on the login page.
 
+import { SUPPORT_EMAIL, mailto } from '../../utils/contact'
+
 function Section({ n, title, children }) {
   return (
     <section className="mb-5">
@@ -121,10 +123,10 @@ export default function TermsContent() {
       <p className="text-gray-500 text-xs mt-6 pt-4 border-t border-gray-700">
         Questions about these Terms? Contact your Gymistan provider at{' '}
         <a
-          href="mailto:support@gymistan.dev"
+          href={mailto(SUPPORT_EMAIL, 'Question about the Gymistan Terms')}
           className="text-primary-300 underline underline-offset-2 hover:text-primary-200 transition"
         >
-          support@gymistan.dev
+          {SUPPORT_EMAIL}
         </a>.
       </p>
     </div>
