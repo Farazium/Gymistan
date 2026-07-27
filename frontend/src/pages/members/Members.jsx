@@ -585,16 +585,18 @@ export default function Members() {
                       {m.deleted_at && <span className="text-gray-500"> · Deleted {new Date(m.deleted_at).toLocaleDateString('en-PK')}</span>}
                     </p>
                   </div>
+                  {/* These carry their own green/red identity — the app-wide
+                      fill would bloom the accent colour straight over it. */}
                   <button
                     onClick={() => setRestoreMember(m)}
-                    className="flex items-center gap-1.5 text-xs text-green-400 hover:text-green-300 border border-green-500/30 hover:border-green-400 px-3 py-1.5 rounded-lg transition shrink-0"
+                    className="no-fx flex items-center gap-1.5 text-xs text-green-400 hover:text-green-300 border border-green-500/30 hover:border-green-400 px-3 py-1.5 rounded-lg transition shrink-0"
                   >
                     <RotateCcw size={13} /> Restore
                   </button>
                   <button
                     onClick={() => { if (confirm(`Permanently delete ${m.name}? This cannot be undone.`)) hardDeleteMutation.mutate(m.id) }}
                     disabled={hardDeleteMutation.isPending}
-                    className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 border border-red-500/30 hover:border-red-400 px-3 py-1.5 rounded-lg transition shrink-0"
+                    className="no-fx flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 border border-red-500/30 hover:border-red-400 px-3 py-1.5 rounded-lg transition shrink-0"
                   >
                     <Trash2 size={13} /> Delete
                   </button>
@@ -636,13 +638,13 @@ export default function Members() {
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       onClick={() => { setBlMenuId(null); setRestoreMember(m) }}
-                      className="flex items-center gap-1.5 text-xs text-green-400 hover:text-green-300 border border-green-500/30 hover:border-green-400 px-3 py-1.5 rounded-lg transition"
+                      className="no-fx flex items-center gap-1.5 text-xs text-green-400 hover:text-green-300 border border-green-500/30 hover:border-green-400 px-3 py-1.5 rounded-lg transition"
                     >
                       <RotateCcw size={13} /> Restore
                     </button>
                     <button
                       onClick={() => { setBlMenuId(null); if (confirm(`Move ${m.name} to Deleted Members?`)) deleteMutation.mutate(m.id) }}
-                      className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 border border-red-500/30 hover:border-red-400 px-3 py-1.5 rounded-lg transition"
+                      className="no-fx flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 border border-red-500/30 hover:border-red-400 px-3 py-1.5 rounded-lg transition"
                     >
                       <Trash2 size={13} /> Delete
                     </button>
