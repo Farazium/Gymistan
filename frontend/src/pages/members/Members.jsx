@@ -423,7 +423,15 @@ export default function Members() {
           <option value="MALE">Male</option>
           <option value="FEMALE">Female</option>
         </select>
-        <select className="input w-auto" value={packageFilter} onChange={(e) => setPackageFilter(e.target.value)}>
+        {/* Fixed width, unlike the other filters: package names are the gym's
+            own words and one long one would otherwise stretch this filter
+            across the row. The open list still shows each name in full. */}
+        <select
+          className="input w-40 shrink-0 truncate"
+          value={packageFilter}
+          onChange={(e) => setPackageFilter(e.target.value)}
+          title={packages.find((p) => String(p.id) === String(packageFilter))?.name || 'All Packages'}
+        >
           <option value="">All Packages</option>
           {packages.map((p) => (
             <option key={p.id} value={p.id}>{p.name}</option>
