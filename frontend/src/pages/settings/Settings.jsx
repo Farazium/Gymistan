@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Building2, Camera, Image as ImageIcon, Check, ChevronRight, FileText, Mail, MessageCircle, MoreVertical, Sparkles, Upload } from 'lucide-react'
+import { Building2, Eye, Image as ImageIcon, ImageUp, Check, ChevronRight, FileText, Mail, MessageCircle, MoreVertical, Sparkles, Trash2, Upload } from 'lucide-react'
 import Cropper from 'react-easy-crop'
 import 'react-easy-crop/react-easy-crop.css'
 import api, { API_ORIGIN } from '../../api/axios'
@@ -359,6 +359,20 @@ export default function Settings() {
 
   const gymLogoUrl = user?.gym_logo ? `${API_ORIGIN}${user.gym_logo}` : null
 
+  // Logo actions sit behind the same three-dot menu the member and trainer
+  // photos use, so a logo is managed the same way everywhere.
+  const logoMenuRef = useRef(null)
+  const [showLogoMenu, setShowLogoMenu] = useState(false)
+  const [viewLogo, setViewLogo] = useState(false)
+  useEffect(() => {
+    if (!showLogoMenu) return
+    const onClick = (e) => {
+      if (logoMenuRef.current && !logoMenuRef.current.contains(e.target)) setShowLogoMenu(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [showLogoMenu])
+
   const profileMutation = useMutation({
     mutationFn: () => api.patch('/auth/me/', { name }),
     onSuccess: ({ data }) => setUser(data),
@@ -481,6 +495,15 @@ export default function Settings() {
     passwordMutation.mutate()
   }
 
+  // Clearing needs its own mutation: the shared gym one keeps the old logo when
+  // the response carries none, which is right for a name/phone save but would
+  // undo a removal.
+  const removeLogoMutation = useMutation({
+    mutationFn: () => api.patch(`/gyms/${user.gym}/`, { logo: null }),
+    onSuccess: () => { setUser({ ...user, gym_logo: null }); toast.success('Logo removed') },
+    onError: () => toast.error('Failed to remove logo'),
+  })
+
   const handleLogoChange = (e) => {
     const file = e.target.files[0]
     if (!file) return
@@ -541,12 +564,44 @@ export default function Settings() {
                     ? <img src={gymLogoUrl} alt="Gym logo" className="w-full h-full object-cover" />
                     : <Building2 size={20} className="text-gray-500" />}
                 </div>
-                <button
-                  onClick={() => logoRef.current.click()}
-                  className="no-fx absolute -bottom-1 -right-1 p-1 bg-primary-600 rounded-full transition"
-                >
-                  <Camera size={10} className="text-white" />
-                </button>
+                <div className="absolute -bottom-1 -right-1" ref={logoMenuRef}>
+                  <button
+                    onClick={() => setShowLogoMenu((s) => !s)}
+                    className="no-fx p-1 bg-primary-600 rounded-full transition"
+                    title="Logo options"
+                  >
+                    {(gymMutation.isPending || removeLogoMutation.isPending)
+                      ? <div className="w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      : <MoreVertical size={10} className="text-white" />
+                    }
+                  </button>
+                  {showLogoMenu && (
+                    <div className="absolute top-full mt-1 right-0 w-36 surface border border-primary-500/30 rounded-lg shadow-xl z-20 overflow-hidden">
+                      {gymLogoUrl && (
+                        <button
+                          onClick={() => { setShowLogoMenu(false); setViewLogo(true) }}
+                          className="no-fx w-full flex items-center gap-2.5 px-3 py-2 text-xs text-gray-200 hover:bg-primary-500/10 hover:text-primary-300 transition text-left"
+                        >
+                          <Eye size={14} className="text-primary-400" /> View
+                        </button>
+                      )}
+                      <button
+                        onClick={() => { setShowLogoMenu(false); logoRef.current.click() }}
+                        className="no-fx w-full flex items-center gap-2.5 px-3 py-2 text-xs text-gray-200 hover:bg-primary-500/10 hover:text-primary-300 transition text-left border-t border-primary-500/20 first:border-t-0"
+                      >
+                        <ImageUp size={14} className="text-primary-400" /> {gymLogoUrl ? 'Update' : 'Upload'}
+                      </button>
+                      {gymLogoUrl && (
+                        <button
+                          onClick={() => { setShowLogoMenu(false); if (confirm('Remove the gym logo?')) removeLogoMutation.mutate() }}
+                          className="no-fx w-full flex items-center gap-2.5 px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300 transition text-left border-t border-primary-500/20"
+                        >
+                          <Trash2 size={14} /> Remove
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
               </div>
             </div>
@@ -658,6 +713,12 @@ export default function Settings() {
           </button>
         </Row>
       </Section>
+
+      <Modal isOpen={viewLogo} onClose={() => setViewLogo(false)} title="Gym Logo">
+        <div className="flex justify-center">
+          <img src={gymLogoUrl} alt="Gym logo" className="max-h-[60vh] max-w-full rounded-xl object-contain" />
+        </div>
+      </Modal>
 
       <Modal isOpen={showTerms} onClose={() => setShowTerms(false)} title="Terms & Conditions" size="lg">
         <TermsContent />
