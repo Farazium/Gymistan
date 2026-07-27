@@ -809,7 +809,10 @@ export async function handle({ method, path, params, body }) {
 
   // ---------------- packages ----------------
   if (method === 'get' && path === '/packages/') {
-    return data().packages.map((p) => ({ ...p, member_count: memberCountFor(p.id) }))
+    // Busiest first, same order the API sorts by — see PackageListCreateView.
+    return data().packages
+      .map((p) => ({ ...p, member_count: memberCountFor(p.id) }))
+      .sort((a, b) => b.member_count - a.member_count || a.name.localeCompare(b.name))
   }
   if (method === 'post' && path === '/packages/') {
     const pkg = {

@@ -11,7 +11,10 @@ class PackageSerializer(serializers.ModelSerializer):
         read_only_fields = ['gym']
 
     def get_member_count(self, obj):
-        return obj.members.filter(is_deleted=False).count()
+        # The package views annotate this so a list costs one query; nested uses
+        # (a member's package_detail) have no annotation and count on the spot.
+        annotated = getattr(obj, 'enrolled_count', None)
+        return annotated if annotated is not None else obj.members.filter(is_deleted=False).count()
 
     def validate_price(self, value):
         if value is None or value <= 0:
