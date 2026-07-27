@@ -22,6 +22,14 @@ class MemberSerializer(serializers.ModelSerializer):
     trainer_name = serializers.CharField(source='trainer.name', read_only=True)
     status = serializers.SerializerMethodField()
     blacklist_active = serializers.SerializerMethodField()
+    # The model lets a member have no device id (`blank=True`) — most gyms never
+    # touch a biometric device. But DRF marks every field named in a unique
+    # constraint as required, and the model carries a conditional one on
+    # (gym, device_user_id); with `fields = '__all__'` pulling `gym` in, that
+    # made an ordinary add fail with "device_user_id: This field is required"
+    # on any gym whose plan hides the Device ID box. Uniqueness is still
+    # enforced by the database, which the view turns into a field error.
+    device_user_id = serializers.CharField(required=False, allow_blank=True, max_length=32)
 
     def get_status(self, obj):
         return compute_status(obj)
