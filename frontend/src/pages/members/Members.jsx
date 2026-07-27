@@ -171,12 +171,13 @@ function SortIcon({ col, sort }) {
   return sort.dir === 'asc' ? <ChevronUp size={13} className="text-primary-400" /> : <ChevronDown size={13} className="text-primary-400" />
 }
 
-const fetchMembers = async (search, searchBy, status, gender, hasTrainer) => {
+const fetchMembers = async (search, searchBy, status, gender, hasTrainer, pkg) => {
   const params = {}
   if (search) { params.search = search; params.search_by = searchBy }
   if (status) params.status = status
   if (gender) params.gender = gender
   if (hasTrainer) params.has_trainer = hasTrainer
+  if (pkg) params.package = pkg
   const { data } = await api.get('/members/', { params })
   return data
 }
@@ -187,6 +188,7 @@ export default function Members() {
   const [statusFilter, setStatusFilter] = useState('')
   const [genderFilter, setGenderFilter] = useState('')
   const [trainerFilter, setTrainerFilter] = useState('')
+  const [packageFilter, setPackageFilter] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [showDeleted, setShowDeleted] = useState(false)
   const [showBlacklist, setShowBlacklist] = useState(false)
@@ -201,8 +203,13 @@ export default function Members() {
   const navigate = useNavigate()
 
   const { data, isLoading } = useQuery({
-    queryKey: ['members', search, searchBy, statusFilter, genderFilter, trainerFilter],
-    queryFn: () => fetchMembers(search, searchBy, statusFilter, genderFilter, trainerFilter),
+    queryKey: ['members', search, searchBy, statusFilter, genderFilter, trainerFilter, packageFilter],
+    queryFn: () => fetchMembers(search, searchBy, statusFilter, genderFilter, trainerFilter, packageFilter),
+  })
+
+  const { data: packages = [] } = useQuery({
+    queryKey: ['packages'],
+    queryFn: async () => { const { data } = await api.get('/packages/'); return data?.results || data || [] },
   })
 
   const { data: nextIdData } = useQuery({
@@ -415,6 +422,12 @@ export default function Members() {
           <option value="">All Gender</option>
           <option value="MALE">Male</option>
           <option value="FEMALE">Female</option>
+        </select>
+        <select className="input w-auto" value={packageFilter} onChange={(e) => setPackageFilter(e.target.value)}>
+          <option value="">All Packages</option>
+          {packages.map((p) => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
         </select>
         <select className="input w-auto" value={trainerFilter} onChange={(e) => setTrainerFilter(e.target.value)}>
           <option value="">All Members</option>
