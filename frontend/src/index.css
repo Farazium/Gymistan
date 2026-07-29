@@ -246,6 +246,22 @@ button:not(.no-fx):hover::before { opacity: 1; transform: scale(1); }
   button:not(.no-fx)::before { transition: opacity 0.2s ease; }
 }
 
+/* Animations off. Settings › Customization carries a per-account switch for
+   gyms on an older machine; it puts `no-anim` on <html> and everything
+   decorative opts out here. The button fill doesn't simply vanish — it is
+   replaced by a flat tint in the same per-variant colour, so a hover still
+   reads as a hover. Only the signed-in app ever wears this class. */
+.no-anim .page-enter { animation: none; }
+.no-anim .sidebar-active::after { animation: none; opacity: 0; }
+.no-anim .btn-shimmer-sweep { animation: none; }
+.no-anim button:not(.no-fx)::before { display: none; }
+.no-anim button:not(.no-fx):hover {
+  background-color: rgb(var(--btn-fill, var(--p500)) / 0.28);
+}
+/* backdrop-filter is the most expensive thing we ask of a weak GPU, and it
+   sits on every primary button on screen. */
+.no-anim .btn-primary { backdrop-filter: none; }
+
 /* Fill-from-the-side, for the landing page's call-to-action links.
    The app-wide fill-from-cursor above only ever applies to real <button>
    elements; the landing CTAs are <Link>/<a>, so they'd otherwise hover flat.

@@ -1,4 +1,5 @@
 import { useRef, useEffect } from 'react'
+import { animationsOn } from '../utils/animations'
 
 // The sign-in screen's animated backdrop, extracted so the app background can
 // reuse the exact same look. A dark space ground with a canvas of twinkling
@@ -17,6 +18,10 @@ export function Starfield() {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
+    // A still sky: one frame is drawn and nothing loops. Either the machine
+    // asked for reduced motion, or this account turned animations off — a
+    // full-screen frame loop is the heaviest thing that switch exists to stop.
+    const still = PREFERS_REDUCED_MOTION || !animationsOn()
     const DPR = Math.min(window.devicePixelRatio || 1, 2)
     let w = 0
     let h = 0
@@ -46,7 +51,7 @@ export function Starfield() {
     const draw = () => {
       ctx.clearRect(0, 0, w, h)
       for (const s of stars) {
-        if (!PREFERS_REDUCED_MOTION) s.tw += s.tws
+        if (!still) s.tw += s.tws
         const a = 0.25 + 0.55 * (0.5 + 0.5 * Math.sin(s.tw))
         const px = s.x + mouse.x * s.depth * 0.02
         const py = s.y + mouse.y * s.depth * 0.02
@@ -95,7 +100,7 @@ export function Starfield() {
       drawShots()
       raf = requestAnimationFrame(loop)
     }
-    if (PREFERS_REDUCED_MOTION) {
+    if (still) {
       draw()
     } else {
       raf = requestAnimationFrame(loop)
@@ -107,12 +112,17 @@ export function Starfield() {
       mouse.x = e.clientX - r.left - w / 2
       mouse.y = e.clientY - r.top - h / 2
     }
-    window.addEventListener('resize', build)
-    window.addEventListener('mousemove', onMove)
+    // Resizing clears the canvas; with no loop running, the one frame has to be
+    // painted again by hand.
+    const onResize = () => { build(); if (still) draw() }
+    window.addEventListener('resize', onResize)
+    // Nothing repaints on a still sky, so tracking the cursor would be work
+    // with nothing to show for it.
+    if (!still) window.addEventListener('mousemove', onMove)
     return () => {
       cancelAnimationFrame(raf)
       clearTimeout(shotTimer)
-      window.removeEventListener('resize', build)
+      window.removeEventListener('resize', onResize)
       window.removeEventListener('mousemove', onMove)
     }
   }, [])

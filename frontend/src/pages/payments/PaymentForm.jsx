@@ -1,12 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, AlertCircle, CheckCircle, MessageCircle, Printer } from 'lucide-react'
+import { Search, AlertCircle, CheckCircle, MessageCircle } from 'lucide-react'
 import api from '../../api/axios'
 import toast from 'react-hot-toast'
 import useAuthStore from '../../store/authStore'
 import { apiErrorMessage } from '../../utils/apiError'
-import { isPrintingEnabled, printThermalReceipt } from '../../utils/printReceipt'
 import { invalidateFinance } from '../../utils/invalidateFinance'
 import { packagePalette } from '../../utils/packageColors'
 import { useWaCredits } from '../../utils/waCredits'
@@ -93,8 +92,6 @@ export default function PaymentForm({ onSuccess }) {
   const { user } = useAuthStore()
   const hasWhatsApp = ['TIER2_WA', 'TIER3'].includes(user?.gym_tier)
   const outOfCredits = !!useWaCredits(hasWhatsApp)?.exhausted
-  const printingOn = isPrintingEnabled()
-  const [printReceipt, setPrintReceipt] = useState(false) // opt-in per payment
   const queryClient = useQueryClient()
   const { register, handleSubmit, control, setValue } = useForm({
     defaultValues: { discount: 0, status: 'PAID' }
@@ -135,27 +132,10 @@ export default function PaymentForm({ onSuccess }) {
 
   const mutation = useMutation({
     mutationFn: (payload) => api.post('/payments/', payload),
-    onSuccess: (res, variables) => {
+    onSuccess: (res) => {
       toast.success('Payment recorded')
       invalidateFinance(queryClient)
       if (sendWhatsApp && hasWhatsApp && !outOfCredits) whatsAppMutation.mutate(res.data.id)
-      if (printReceipt && printingOn) {
-        printThermalReceipt({
-          gymName: user?.gym_name,
-          receiptId: res.data.id,
-          date: new Date(),
-          memberName: selectedMember?.name,
-          memberId: selectedMember?.member_id,
-          phone: selectedMember?.phone,
-          packageName: selectedPkg?.name,
-          amount: variables.amount,
-          discount: variables.discount,
-          amountPaid: variables.amount_paid,
-          method: variables.payment_method,
-          status: variables.status,
-          collectedBy: user?.name,
-        })
-      }
       onSuccess()
     },
     onError: (err) => toast.error(apiErrorMessage(err, 'Failed to record payment')),
@@ -250,19 +230,6 @@ export default function PaymentForm({ onSuccess }) {
               ? 'Out of WhatsApp messages — top up to send receipts'
               : 'Send receipt via WhatsApp after recording'}
           </span>
-        </label>
-      )}
-
-      {printingOn && (
-        <label className="flex items-center gap-2.5 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={printReceipt}
-            onChange={(e) => setPrintReceipt(e.target.checked)}
-            className="w-4 h-4 rounded accent-primary-500"
-          />
-          <Printer size={14} className="text-primary-400" />
-          <span className="text-sm text-gray-300">Print receipt after recording</span>
         </label>
       )}
 

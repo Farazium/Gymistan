@@ -12,7 +12,7 @@ import AnimatedBackground from '../../components/AnimatedBackground'
 import { getCroppedBlob } from '../../utils/cropImage'
 import { mediaUrl } from '../../utils/mediaUrl'
 import { applyTheme, applySurface, PRESETS, SURFACE_PRESETS, DEFAULT_THEME, DEFAULT_SURFACE } from '../../utils/theme'
-import { isPrintingEnabled, setPrintingEnabled, getPaperWidth, setPaperWidth } from '../../utils/printReceipt'
+import { animationsEnabled, setAnimationsEnabled } from '../../utils/animations'
 import { CREDIT_TONES } from '../../utils/waCredits'
 import { SUPPORT_EMAIL } from '../../utils/contact'
 import EmailLink from '../../components/ui/EmailLink'
@@ -104,21 +104,25 @@ function BgOption({ active, label, disabled, onClick, children }) {
 }
 
 // Background picker modal: three options with live previews (Default image,
-// Animated starfield, your Upload). Default/Animated apply instantly; Upload
-// opens the cropper in the same modal.
-function BackgroundModal({ isOpen, onClose, mode, currentUrl, busy, onSelectMode, onApplyUpload }) {
+// Animated starfield, your Upload). Default and Animated are staged and land on
+// Apply; Upload opens the cropper in the same modal, where "Set background" is
+// its own apply step.
+function BackgroundModal({ isOpen, onClose, mode, currentUrl, busy, motionOff, onSelectMode, onApplyUpload }) {
   const [view, setView] = useState('choose') // 'choose' | 'crop'
+  const [pick, setPick] = useState(mode)
   const [src, setSrc] = useState(null)
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
   const areaRef = useRef(null)
   const fileRef = useRef(null)
 
-  // Reset to the chooser each time the modal closes.
+  // Reset to the chooser each time the modal closes, and start each opening
+  // from what is actually saved — so closing without applying changes nothing.
   const [prevOpen, setPrevOpen] = useState(isOpen)
   if (isOpen !== prevOpen) {
     setPrevOpen(isOpen)
-    if (!isOpen) { setView('choose'); setSrc(null); setZoom(1); setCrop({ x: 0, y: 0 }) }
+    setView('choose'); setSrc(null); setZoom(1); setCrop({ x: 0, y: 0 })
+    if (isOpen) setPick(mode)
   }
 
   const onCropComplete = useCallback((_area, areaPixels) => { areaRef.current = areaPixels }, [])
@@ -134,9 +138,12 @@ function BackgroundModal({ isOpen, onClose, mode, currentUrl, busy, onSelectMode
     reader.readAsDataURL(file)
   }
 
+  // The cropper's own apply step. It closes the modal on success rather than
+  // dropping back to the chooser, where the staged pick would still be showing
+  // the mode from before the upload and Apply would undo it.
   const setBackground = async () => {
     const blob = await getCroppedBlob(src, areaRef.current)
-    try { await onApplyUpload(blob); setView('choose'); setSrc(null) } catch { /* mutation toasts */ }
+    try { await onApplyUpload(blob); setSrc(null); onClose() } catch { /* mutation toasts */ }
   }
 
   return (
@@ -172,22 +179,34 @@ function BackgroundModal({ isOpen, onClose, mode, currentUrl, busy, onSelectMode
         </>
       ) : (
         <>
-          <p className="text-xs text-gray-500 mb-4">Pick what shows behind the app. Default and Animated apply instantly; Upload lets you crop your own picture.</p>
+          <p className="text-xs text-gray-500 mb-4">Pick what shows behind the app, then Apply. Upload lets you crop your own picture.</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <BgOption active={mode === 'default'} label="Default" disabled={busy} onClick={() => onSelectMode('default')}>
+            <BgOption active={pick === 'default'} label="Default" disabled={busy} onClick={() => setPick('default')}>
               <img src="/Gym_BG.jpg" alt="" className="w-full h-full object-cover" />
             </BgOption>
-            <BgOption active={mode === 'animated'} label="Animated" disabled={busy} onClick={() => onSelectMode('animated')}>
+            <BgOption active={pick === 'animated'} label="Animated" disabled={busy || motionOff} onClick={() => setPick('animated')}>
               <AnimatedBackground />
             </BgOption>
-            <BgOption active={mode === 'upload'} label="Upload" disabled={busy} onClick={() => fileRef.current?.click()}>
+            <BgOption active={pick === 'upload'} label="Upload" disabled={busy} onClick={() => fileRef.current?.click()}>
               {currentUrl
                 ? <img src={currentUrl} alt="" className="w-full h-full object-cover" />
                 : <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 gap-1"><Upload size={20} /><span className="text-xs">Choose…</span></div>}
             </BgOption>
           </div>
-          <div className="flex justify-end mt-5">
-            <button onClick={onClose} className="btn-primary">Done</button>
+          {motionOff && (
+            <p className="text-xs text-amber-400/80 mt-3">
+              The animated background needs Animations turned on in Customization.
+            </p>
+          )}
+          <div className="flex justify-end gap-2 mt-5">
+            <button onClick={onClose} disabled={busy} className="btn-secondary">Cancel</button>
+            <button
+              onClick={() => { onSelectMode(pick); onClose() }}
+              disabled={busy || pick === mode}
+              className="btn-primary"
+            >
+              {busy ? 'Applying…' : 'Apply'}
+            </button>
           </div>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={pickFile} />
         </>
@@ -342,20 +361,7 @@ export default function Settings() {
   // Superadmin has no gym to persist appearance on, so their theme/card/background
   // are saved device-locally (localStorage) and mirrored onto the user in-session.
   const isSA = user?.role === 'SUPERADMIN'
-  // Receipt printing — persisted per-device in localStorage (the thermal printer
-  // is physically attached to this machine).
-  const [printable, setPrintable] = useState(isPrintingEnabled())
-  const [paperWidth, setPaperWidthState] = useState(getPaperWidth())
   const logoRef = useRef(null)
-
-  const togglePrinting = () => {
-    const next = !printable
-    setPrintable(next)
-    setPrintingEnabled(next)
-    toast.success(next ? 'Receipt printing enabled' : 'Receipt printing disabled')
-  }
-
-  const changePaperWidth = (w) => { setPaperWidthState(w); setPaperWidth(w) }
 
   const gymLogoUrl = user?.gym_logo ? `${API_ORIGIN}${user.gym_logo}` : null
 
@@ -409,6 +415,24 @@ export default function Settings() {
     applyTheme(color)          // instant preview
     if (isSA) { localStorage.setItem('sa_theme', color); setUser({ ...user, gym_theme: color }); toast.success('Theme updated') }
     else themeMutation.mutate(color) // persist to the gym
+  }
+
+  // The colour pickers stage their choice: the grid re-paints the whole app
+  // straight away so the pick can be judged against the real UI, but nothing is
+  // saved until Apply, and cancelling puts the live preview back to what's
+  // stored.
+  const [pendingTheme, setPendingTheme] = useState(theme)
+  const [pendingSurface, setPendingSurface] = useState(surface)
+
+  const openColorModal = (which) => {
+    setPendingTheme(theme)
+    setPendingSurface(surface)
+    setColorModal(which)
+  }
+  const cancelColorModal = () => {
+    applyTheme(theme)
+    applySurface(surface)
+    setColorModal(null)
   }
 
   const surfaceMutation = useMutation({
@@ -465,6 +489,21 @@ export default function Settings() {
     toast.success('Background updated')
   }
   const currentBgLabel = BG_MODES.find((m) => m.id === bgMode)?.label || 'Default'
+
+  // Animations, per account rather than per gym — the switch exists for the one
+  // person working on an older laptop, and their colleagues shouldn't lose the
+  // motion because of it. Turning it off can't leave a starfield looping behind
+  // the app, so that background falls back to the packaged picture; turning it
+  // back on does not restore it, since the Background picker is where that
+  // choice is made.
+  const [motion, setMotion] = useState(() => animationsEnabled(user?.id))
+  const toggleMotion = () => {
+    const next = !motion
+    setMotion(next)
+    setAnimationsEnabled(user?.id, next)
+    if (!next && bgMode === 'animated') chooseBgMode('default')
+    toast.success(next ? 'Animations on' : 'Animations off')
+  }
 
   const passwordMutation = useMutation({
     mutationFn: () => api.post('/auth/change-password/', { current_password: currentPw, new_password: newPw }),
@@ -623,13 +662,13 @@ export default function Settings() {
       <Section title="Customization" description="Personalize how the app looks and behaves">
         {(user?.gym || isSA) && (
           <Row label="Accent Color" hint="Buttons, links, highlights">
-            <ColorTrigger preset={currentAccent} onClick={() => setColorModal('accent')} />
+            <ColorTrigger preset={currentAccent} onClick={() => openColorModal('accent')} />
           </Row>
         )}
 
         {(user?.gym || isSA) && (
           <Row label="Card Color" hint="Surface tone for cards and sidebar">
-            <ColorTrigger preset={currentSurface} onClick={() => setColorModal('card')} bordered />
+            <ColorTrigger preset={currentSurface} onClick={() => openColorModal('card')} bordered />
           </Row>
         )}
 
@@ -644,30 +683,19 @@ export default function Settings() {
           </Row>
         )}
 
-        <Row label="Receipt Printing" hint="Show a print option on payments for a thermal receipt printer">
+        <Row
+          label="Animations"
+          hint="Moving background, shimmers and hover effects. Turn off if the app feels slow on this account's machine."
+        >
           <button
-            onClick={togglePrinting}
-            className={`no-fx relative w-11 h-6 rounded-full transition ${printable ? 'bg-primary-600' : 'bg-gray-600'}`}
+            onClick={toggleMotion}
+            aria-pressed={motion}
+            className={`no-fx relative w-11 h-6 rounded-full transition ${motion ? 'bg-primary-600' : 'bg-gray-600'}`}
           >
-            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${printable ? 'translate-x-5' : ''}`} />
+            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${motion ? 'translate-x-5' : ''}`} />
           </button>
         </Row>
 
-        {printable && (
-          <Row label="Receipt Paper Width" hint="Match your thermal printer's roll">
-            <div className="inline-flex rounded-lg border border-gray-600 overflow-hidden">
-              {[80, 58].map((w) => (
-                <button
-                  key={w}
-                  onClick={() => changePaperWidth(w)}
-                  className={`no-fx px-4 py-1.5 text-sm transition ${paperWidth === w ? 'bg-primary-600 text-white' : 'text-gray-300 hover:bg-primary-500/10'}`}
-                >
-                  {w}mm
-                </button>
-              ))}
-            </div>
-          </Row>
-        )}
       </Section>
 
       {/* Privacy */}
@@ -724,23 +752,43 @@ export default function Settings() {
         <TermsContent />
       </Modal>
 
-      <Modal isOpen={colorModal === 'accent'} onClose={() => setColorModal(null)} title="Accent Color" size="md">
-        <p className="text-xs text-gray-500 mb-4">Used for buttons, links, active menu and highlights.</p>
+      <Modal isOpen={colorModal === 'accent'} onClose={cancelColorModal} title="Accent Color" size="md">
+        <p className="text-xs text-gray-500 mb-4">Used for buttons, links, active menu and highlights. Pick one to preview it, then Apply.</p>
         <ColorGrid
           presets={PRESETS}
-          current={theme}
-          onSelect={(id) => { selectTheme(id); setColorModal(null) }}
+          current={pendingTheme}
+          onSelect={(id) => { setPendingTheme(id); applyTheme(id) }}
         />
+        <div className="flex justify-end gap-2 mt-5">
+          <button onClick={cancelColorModal} className="btn-secondary">Cancel</button>
+          <button
+            onClick={() => { selectTheme(pendingTheme); setColorModal(null) }}
+            disabled={pendingTheme === theme || themeMutation.isPending}
+            className="btn-primary"
+          >
+            {themeMutation.isPending ? 'Applying…' : 'Apply'}
+          </button>
+        </div>
       </Modal>
 
-      <Modal isOpen={colorModal === 'card'} onClose={() => setColorModal(null)} title="Card Color" size="md">
-        <p className="text-xs text-gray-500 mb-4">Surface tone for cards and the sidebar. All kept dark for readability.</p>
+      <Modal isOpen={colorModal === 'card'} onClose={cancelColorModal} title="Card Color" size="md">
+        <p className="text-xs text-gray-500 mb-4">Surface tone for cards and the sidebar, all kept dark for readability. Pick one to preview it, then Apply.</p>
         <ColorGrid
           presets={SURFACE_PRESETS}
-          current={surface}
-          onSelect={(id) => { selectSurface(id); setColorModal(null) }}
+          current={pendingSurface}
+          onSelect={(id) => { setPendingSurface(id); applySurface(id) }}
           bordered
         />
+        <div className="flex justify-end gap-2 mt-5">
+          <button onClick={cancelColorModal} className="btn-secondary">Cancel</button>
+          <button
+            onClick={() => { selectSurface(pendingSurface); setColorModal(null) }}
+            disabled={pendingSurface === surface || surfaceMutation.isPending}
+            className="btn-primary"
+          >
+            {surfaceMutation.isPending ? 'Applying…' : 'Apply'}
+          </button>
+        </div>
       </Modal>
 
       <BackgroundModal
@@ -749,6 +797,7 @@ export default function Settings() {
         mode={bgMode}
         currentUrl={gymBgUrl}
         busy={bgMutation.isPending}
+        motionOff={!motion}
         onSelectMode={chooseBgMode}
         onApplyUpload={applyBgUpload}
       />

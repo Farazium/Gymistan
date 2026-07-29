@@ -24,6 +24,7 @@ import TrainerProfile from './pages/trainers/TrainerProfile'
 import Attendance from './pages/attendance/Attendance'
 import Settings from './pages/settings/Settings'
 import useAuthStore from './store/authStore'
+import { animationsOn } from './utils/animations'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30000 } },
@@ -35,6 +36,12 @@ const queryClient = new QueryClient({
 // locked for the duration of one hover (data-filled flag) so it doesn't chase
 // the cursor around. The disc is sized to reach the button's farthest corner,
 // so it covers fully yet expands gradually regardless of button size.
+//
+// An account with animations switched off has no disc to place, and this is
+// pointer-rate work — a tree walk per move, and a getBoundingClientRect that
+// forces layout on entering a button, which is exactly what makes a long table
+// feel sticky on an older machine. The check is inside the handlers rather than
+// around the effect because the switch can be thrown mid-session.
 function useButtonCursorFill() {
   useEffect(() => {
     const place = (btn, e) => {
@@ -47,12 +54,14 @@ function useButtonCursorFill() {
       btn.style.setProperty('--fill-d', `${radius * 2}px`)
     }
     const onMove = (e) => {
+      if (!animationsOn()) return
       const btn = e.target.closest?.('button:not(.no-fx)')
       if (!btn || btn.dataset.filled) return   // already anchored this hover
       btn.dataset.filled = '1'
       place(btn, e)
     }
     const onOut = (e) => {
+      if (!animationsOn()) return
       const btn = e.target.closest?.('button:not(.no-fx)')
       if (!btn || btn.contains(e.relatedTarget)) return  // still inside
       place(btn, e)                            // collapse toward the exit point
