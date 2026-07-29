@@ -6,6 +6,8 @@ import api from '../../api/axios'
 import { exportToExcel } from '../../utils/exportExcel'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
 import Modal from '../../components/ui/Modal'
+import Pagination from '../../components/ui/Pagination'
+import { usePageState } from '../../utils/pagination'
 import TrainerForm from './TrainerForm'
 import toast from 'react-hot-toast'
 
@@ -48,6 +50,9 @@ export default function Trainers() {
     onError: () => toast.error('Failed to remove trainer'),
   })
 
+  const { page, setPage, pageSize, setPageSize, slice } = usePageState(trainers.length, search)
+  const pageTrainers = slice(trainers)
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -87,6 +92,16 @@ export default function Trainers() {
         {isLoading ? (
           <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-primary-500 border-t-transparent rounded-full" /></div>
         ) : (
+          <>
+          {trainers.length > 0 && (
+            <Pagination
+              page={page}
+              pageSize={pageSize}
+              total={trainers.length}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+            />
+          )}
           <Table>
             <Thead>
               <Th>Name</Th>
@@ -98,7 +113,7 @@ export default function Trainers() {
               <Th>Actions</Th>
             </Thead>
             <Tbody>
-              {trainers.map((t) => (
+              {pageTrainers.map((t) => (
                 <Tr key={t.id}>
                   <Td className="font-medium">
                     <button onClick={() => navigate(`/trainers/${t.id}`)} className="no-fx hover:text-primary-400 transition text-left">
@@ -154,6 +169,7 @@ export default function Trainers() {
               )}
             </Tbody>
           </Table>
+          </>
         )}
       </div>
 

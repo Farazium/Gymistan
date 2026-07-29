@@ -7,6 +7,7 @@ import api from '../../api/axios'
 import useAuthStore from '../../store/authStore'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
 import Modal from '../../components/ui/Modal'
+import Pagination from '../../components/ui/Pagination'
 import EnrollModal from '../../components/EnrollModal'
 import MemberForm from './MemberForm'
 import toast from 'react-hot-toast'
@@ -15,6 +16,7 @@ import { apiErrorMessage } from '../../utils/apiError'
 import { invalidateFinance } from '../../utils/invalidateFinance'
 import { useWaCredits } from '../../utils/waCredits'
 import { calcExpiryISO } from '../../utils/expiry'
+import { usePageState } from '../../utils/pagination'
 
 function RestoreForm({ member, onSubmit, isPending }) {
   const { user } = useAuthStore()
@@ -334,6 +336,15 @@ export default function Members() {
     return sort.dir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1)
   })
 
+  // A roster of a few hundred is normal, and drawing every row at once is what
+  // makes the page heavy on an older machine. Any change to what's being
+  // searched or filtered starts the reader back at page one.
+  const { page, setPage, pageSize, setPageSize, slice } = usePageState(
+    members.length,
+    [search, searchBy, statusFilter, genderFilter, trainerFilter, packageFilter].join('|'),
+  )
+  const pageMembers = slice(members)
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -450,6 +461,16 @@ export default function Members() {
             <div className="animate-spin w-6 h-6 border-4 border-primary-500 border-t-transparent rounded-full" />
           </div>
         ) : (
+          <>
+          {members.length > 0 && (
+            <Pagination
+              page={page}
+              pageSize={pageSize}
+              total={members.length}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+            />
+          )}
           <Table>
             <Thead>
               <Th>
@@ -475,7 +496,7 @@ export default function Members() {
               <Th>Actions</Th>
             </Thead>
             <Tbody>
-              {members.map((m) => (
+              {pageMembers.map((m) => (
                 <Tr key={m.id}>
                   <Td>
                     <span className="font-mono text-xs text-primary-300 bg-primary-500/15 px-1.5 py-0.5 rounded">
@@ -535,6 +556,7 @@ export default function Members() {
               )}
             </Tbody>
           </Table>
+          </>
         )}
       </div>
 
