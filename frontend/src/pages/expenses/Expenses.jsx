@@ -5,10 +5,12 @@ import { exportToExcel } from '../../utils/exportExcel'
 import { useForm } from 'react-hook-form'
 import api from '../../api/axios'
 import Modal from '../../components/ui/Modal'
+import MonthSection from '../../components/ui/MonthSection'
 import toast from 'react-hot-toast'
 import { apiErrorMessage } from '../../utils/apiError'
 import { invalidateFinance } from '../../utils/invalidateFinance'
 import { fmtCurrency as fmt } from '../../utils/format'
+import { groupByMonth, useMonthSections } from '../../utils/monthGroups'
 
 const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 
@@ -87,15 +89,6 @@ function ExpenseForm({ onSuccess }) {
   )
 }
 
-function monthKey(dateStr) {
-  return dateStr ? dateStr.slice(0, 7) : ''
-}
-
-function monthLabel(yyyymm) {
-  const [y, m] = yyyymm.split('-')
-  return new Date(Number(y), Number(m) - 1, 1).toLocaleString('en-PK', { month: 'long', year: 'numeric' })
-}
-
 export default function Expenses() {
   const [showModal, setShowModal] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState('')
@@ -120,16 +113,8 @@ export default function Expenses() {
   // Sort newest first, then group by month
   const sorted = [...expenses].sort((a, b) => (a.date < b.date ? 1 : -1))
 
-  const groups = []
-  let lastKey = null
-  sorted.forEach((e) => {
-    const key = monthKey(e.date)
-    if (key !== lastKey) {
-      groups.push({ key, label: monthLabel(key), items: [] })
-      lastKey = key
-    }
-    groups[groups.length - 1].items.push(e)
-  })
+  const groups = groupByMonth(sorted, (e) => e.date)
+  const months = useMonthSections()
 
   return (
     <div className="space-y-5">
@@ -179,13 +164,15 @@ export default function Expenses() {
           {groups.map((group) => {
             const groupTotal = group.items.reduce((s, e) => s + Number(e.amount), 0)
             return (
-              <div key={group.key}>
-                {/* Month separator */}
-                <div className="flex items-center justify-between px-1 pt-4 pb-2">
-                  <h2 className="text-lg font-bold text-gray-200">{group.label}</h2>
-                  <span className="text-sm font-semibold text-red-500">{fmt(groupTotal)}</span>
-                </div>
-
+              <MonthSection
+                key={group.key}
+                label={group.label}
+                count={`${group.items.length} ${group.items.length === 1 ? 'entry' : 'entries'}`}
+                total={fmt(groupTotal)}
+                totalClass="text-red-500"
+                open={months.isOpen(group.key)}
+                onToggle={() => months.toggle(group.key)}
+              >
                 {/* Entries for this month */}
                 <div className="card divide-y divide-gray-700/60">
                   <div className="flex items-center gap-4 px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -223,7 +210,7 @@ export default function Expenses() {
                     </div>
                   ))}
                 </div>
-              </div>
+              </MonthSection>
             )
           })}
         </div>

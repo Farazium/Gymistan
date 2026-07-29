@@ -5,22 +5,14 @@ import { exportToExcel } from '../../utils/exportExcel'
 import api from '../../api/axios'
 import useAuthStore from '../../store/authStore'
 import Modal from '../../components/ui/Modal'
+import MonthSection from '../../components/ui/MonthSection'
 import PaymentForm from './PaymentForm'
 import toast from 'react-hot-toast'
 import { invalidateFinance } from '../../utils/invalidateFinance'
 import { apiErrorMessage } from '../../utils/apiError'
 import { fmtCurrency as fmt } from '../../utils/format'
+import { groupByMonth, useMonthSections } from '../../utils/monthGroups'
 import { useWaCredits } from '../../utils/waCredits'
-
-
-function monthKey(dateStr) {
-  return dateStr ? dateStr.slice(0, 7) : ''
-}
-
-function monthLabel(yyyymm) {
-  const [y, m] = yyyymm.split('-')
-  return new Date(Number(y), Number(m) - 1, 1).toLocaleString('en-PK', { month: 'long', year: 'numeric' })
-}
 
 export default function Payments() {
   const { user } = useAuthStore()
@@ -89,16 +81,8 @@ export default function Payments() {
     return b.id - a.id
   })
 
-  const groups = []
-  let lastKey = null
-  sorted.forEach((p) => {
-    const key = monthKey(p.payment_date)
-    if (key !== lastKey) {
-      groups.push({ key, label: monthLabel(key), items: [] })
-      lastKey = key
-    }
-    groups[groups.length - 1].items.push(p)
-  })
+  const groups = groupByMonth(sorted, (p) => p.payment_date)
+  const months = useMonthSections()
 
   return (
     <div className="space-y-5">
@@ -155,13 +139,15 @@ export default function Payments() {
           {groups.map((group) => {
             const groupTotal = group.items.reduce((s, p) => s + Number(p.amount_paid), 0)
             return (
-              <div key={group.key}>
-                {/* Month separator */}
-                <div className="flex items-center justify-between px-1 pt-4 pb-2">
-                  <h2 className="text-lg font-bold text-gray-200">{group.label}</h2>
-                  <span className="text-sm font-semibold text-green-500">{fmt(groupTotal)}</span>
-                </div>
-
+              <MonthSection
+                key={group.key}
+                label={group.label}
+                count={`${group.items.length} ${group.items.length === 1 ? 'payment' : 'payments'}`}
+                total={fmt(groupTotal)}
+                totalClass="text-green-500"
+                open={months.isOpen(group.key)}
+                onToggle={() => months.toggle(group.key)}
+              >
                 <div className="card divide-y divide-gray-700/60">
                   {/* Column headers */}
                   <div className="flex items-center gap-4 px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -226,7 +212,7 @@ export default function Payments() {
                     </div>
                   ))}
                 </div>
-              </div>
+              </MonthSection>
             )
           })}
         </div>
