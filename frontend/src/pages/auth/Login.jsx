@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { Dumbbell, Eye, EyeOff, Lock, Mail, LogIn, Loader2 } from 'lucide-react'
 import anime from 'animejs/lib/anime.es.js'
@@ -221,7 +221,12 @@ export default function Login() {
               </div>
             </div>
           </div>
-          <h1 data-reveal className="text-3xl font-bold text-white tracking-tight" style={{ opacity: 0 }}>Gymistan</h1>
+          {/* The wordmark is the way back out to the marketing page — someone
+              who reached the sign-in form by mistake needs a door. It stays a
+              [data-reveal] heading so the entrance animation still finds it. */}
+          <h1 data-reveal className="text-3xl font-bold tracking-tight" style={{ opacity: 0 }}>
+            <Link to="/" className="text-white hover:text-primary-300 transition-colors">Gymistan</Link>
+          </h1>
           <p data-reveal className="text-primary-200/80 mt-1 text-sm" style={{ opacity: 0 }}>Gym Management, built for Pakistan</p>
         </div>
 
