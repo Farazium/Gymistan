@@ -299,10 +299,25 @@ export default function Inventory() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {products.map((p) => (
-            <div key={p.id} className={`card p-5 ${p.is_low_stock ? 'border-yellow-500/50' : ''}`}>
+            <div key={p.id} className={`card p-5 flex flex-col ${p.is_low_stock ? 'border-yellow-500/50' : ''}`}>
               <div className="flex items-start justify-between mb-3">
-                <div>
-                  <span className="text-xs text-gray-400 uppercase tracking-wide">{p.category.toLowerCase()}</span>
+                <div className="min-w-0">
+                  {/* The low-stock warning rides beside the category rather than
+                      sitting above the buttons: as its own line it only appeared
+                      on some cards, pushing their Sell/Restock row out of step
+                      with the rest of the grid. The threshold moves to the
+                      tooltip to keep the badge one short, non-wrapping chip. */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400 uppercase tracking-wide">{p.category.toLowerCase()}</span>
+                    {p.is_low_stock && (
+                      <span
+                        title={`Low stock — alert set at ${p.low_stock_alert}`}
+                        className="inline-flex items-center gap-1 shrink-0 text-[10px] font-medium text-yellow-400 bg-yellow-500/15 px-1.5 py-0.5 rounded-full"
+                      >
+                        <AlertTriangle size={10} /> Low stock
+                      </span>
+                    )}
+                  </div>
                   <h3 className="font-semibold text-gray-100 mt-0.5">{p.name}</h3>
                 </div>
                 <div className="flex gap-1">
@@ -326,13 +341,10 @@ export default function Inventory() {
                 </div>
               </div>
 
-              {p.is_low_stock && (
-                <div className="mt-3 flex items-center gap-1.5 text-yellow-400 text-xs">
-                  <AlertTriangle size={12} /> Low stock (alert at {p.low_stock_alert})
-                </div>
-              )}
-
-              <div className="mt-4 flex gap-2">
+              {/* mt-auto pins the actions to the bottom of the card, so a card
+                  whose body runs short (no cost price) still lines its buttons
+                  up with its neighbours'. */}
+              <div className="mt-auto pt-4 flex gap-2">
                 <button onClick={() => setStockAction({ product: p, action: 'SELL' })} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-500/20 text-red-400 hover:text-white rounded-lg transition [--btn-fill:239_68_68] [--btn-edge:185_28_28]">
                   <TrendingDown size={13} /> Sell
                 </button>
