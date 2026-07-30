@@ -24,6 +24,7 @@ import TrainerProfile from './pages/trainers/TrainerProfile'
 import Attendance from './pages/attendance/Attendance'
 import Settings from './pages/settings/Settings'
 import useAuthStore from './store/authStore'
+import { isDemo } from './demo'
 import { animationsOn } from './utils/animations'
 
 const queryClient = new QueryClient({
@@ -84,6 +85,21 @@ function NotFoundRedirect() {
   return <Navigate to={isAuthenticated ? '/dashboard' : '/'} replace />
 }
 
+// The public pages, but only for people who are actually signed out. Typing the
+// bare domain after closing the browser is the ordinary way back into the app,
+// and it used to land the owner on the marketing page with nothing to say their
+// session was still good — so they signed in again for no reason.
+//
+// A demo visitor is deliberately exempt: the tour signs them in as the sample
+// gym's owner, so this would pin them to the demo dashboard and lock them out of
+// the marketing page they may still be reading. /login needs the exemption too —
+// Login itself leaves the demo before it shows the form.
+function PublicRoute({ children }) {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  if (isAuthenticated && !isDemo()) return <Navigate to="/dashboard" replace />
+  return children
+}
+
 export default function App() {
   useButtonCursorFill()
   return (
@@ -92,9 +108,9 @@ export default function App() {
         <Routes>
           {/* Public: the marketing page at the root, and the door into the
               sample-data demo. Everything below /login is the product. */}
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
           <Route path="/demo" element={<DemoBoot />} />
-          <Route path="/login" element={<Login />} />
+          <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/members" element={<Members />} />
