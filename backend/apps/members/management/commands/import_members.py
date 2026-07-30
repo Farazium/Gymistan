@@ -15,6 +15,7 @@ CSV columns (header row required):
     join_date     required, YYYY-MM-DD
     package       required, must match a package name on that gym
     father_name   optional
+    gender        optional, MALE / FEMALE — otherwise --gender applies
     notes         optional
 
 Expiry is derived, never taken from the file: join date + the package's own
@@ -38,7 +39,7 @@ from apps.gyms.models import Gym
 from apps.members.models import Member
 from apps.packages.models import Package
 
-FIELDS = ['member_id', 'name', 'phone', 'join_date', 'package', 'father_name', 'notes']
+FIELDS = ['member_id', 'name', 'phone', 'join_date', 'package', 'father_name', 'gender', 'notes']
 
 
 def normalise_phone(raw):
@@ -61,6 +62,9 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--gym', type=int, required=True, help='Gym id to import into.')
         parser.add_argument('--csv', required=True, help='Path to the source CSV.')
+        parser.add_argument('--gender', choices=['MALE', 'FEMALE'], default='MALE',
+                            help="Gender for rows whose CSV has no `gender` column "
+                                 "(ledgers are usually kept one per gender). Default MALE.")
         parser.add_argument('--dry-run', action='store_true',
                             help='Report what would happen and write nothing.')
         parser.add_argument('--rejects', help='Path to write rejected rows (with reasons).')
@@ -124,7 +128,8 @@ class Command(BaseCommand):
             expiry = add_months(join_date, package.duration_months, anchor_day=join_date.day)
             created.append(Member(
                 gym=gym, package=package, member_id=member_id or None, name=name, phone=phone,
-                gender=Member.Gender.MALE, father_name=row.get('father_name', ''),
+                gender=(row.get('gender') or opts['gender']).upper(),
+                father_name=row.get('father_name', ''),
                 join_date=join_date, expiry_date=expiry,
                 status=Member.Status.EXPIRED if expiry <= today else Member.Status.ACTIVE,
                 notes=row.get('notes', ''),
@@ -134,7 +139,8 @@ class Command(BaseCommand):
                 taken_ids.add(member_id)
 
         active = sum(1 for m in created if m.status == Member.Status.ACTIVE)
-        self.stdout.write(f'{gym.name} (id {gym.pk})')
+        self.stdout.write(f'{gym.name} (id {gym.pk}) — gender {opts["gender"]}'
+                          + (' (per-row where the CSV says so)' if any(r.get('gender') for r in rows) else ''))
         self.stdout.write(f'  read from CSV        {len(rows)}')
         self.stdout.write(f'  to import            {len(created)}  '
                           f'({len(created) - active} expired, {active} still active)')
