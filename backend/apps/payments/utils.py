@@ -354,6 +354,15 @@ def record_wa_usage(gym, category, wamid=None, recipient=''):
         pass
 
 
+def _wa_param(value, fallback='—'):
+    """Make a value safe to hand Meta as a template parameter. It rejects an empty
+    string outright, and rejects newlines, tabs or long runs of spaces inside one —
+    which an imported member name can easily carry. Collapse the whitespace and
+    fall back when nothing is left."""
+    text = ' '.join(str(value or '').split())
+    return text or fallback
+
+
 def _normalize_pk_phone(phone):
     """Turn a locally-typed Pakistani number into WhatsApp's international format."""
     phone = (phone or '').replace(' ', '').replace('-', '').replace('+', '')
@@ -385,7 +394,8 @@ def _upload_pdf_media(pdf_buffer, filename, token, phone_number_id):
 
 def send_whatsapp_slip(payment):
     """Send the branded payment PDF to the member as a WhatsApp document, wrapped in
-    the approved `payment_receipt` template. Returns (success: bool, detail: str)."""
+    the approved receipt template (`WHATSAPP_TEMPLATE_NAME`, currently
+    payment_receipt_v2). Returns (success: bool, detail: str)."""
     token = settings.WHATSAPP_TOKEN
     phone_number_id = settings.WHATSAPP_PHONE_NUMBER_ID
     if not token or not phone_number_id:
@@ -410,7 +420,15 @@ def send_whatsapp_slip(payment):
         _refund_credit(payment.gym)
         return False, f'PDF upload failed: {err}'
 
-    # 3. Send the template with the PDF as the document header
+    # 3. Send the template with the PDF as the document header.
+    #    Body params, in the template's order: who paid, how much, which gym, and
+    #    how long they are covered for. The gym name stays in the body because
+    #    members see the shared "Gymistan" sender, never their own gym's name.
+    #    The expiry is read the way the PDF reads it, so the message and the
+    #    document it carries can never disagree; _fmt_date prints an em dash when
+    #    a payment renews nothing (an admission fee), which keeps the parameter
+    #    non-empty — Meta rejects a blank one.
+    expiry = payment.new_expiry or member.expiry_date
     payload = {
         "messaging_product": "whatsapp",
         "to": phone,
@@ -424,7 +442,10 @@ def send_whatsapp_slip(payment):
                      "document": {"id": media_id, "filename": filename}}
                 ]},
                 {"type": "body", "parameters": [
-                    {"type": "text", "text": payment.gym.name}
+                    {"type": "text", "text": _wa_param(member.name)},
+                    {"type": "text", "text": f'{payment.amount_paid:,.0f}'},
+                    {"type": "text", "text": _wa_param(payment.gym.name)},
+                    {"type": "text", "text": _fmt_date(expiry)},
                 ]},
             ],
         },
