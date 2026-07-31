@@ -89,7 +89,7 @@ function PaySalaryForm({ trainer, onSuccess }) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="label">Date paid</label>
           <input type="date" className="input [color-scheme:dark]" {...register('payment_date', { required: true })} />
@@ -101,7 +101,7 @@ function PaySalaryForm({ trainer, onSuccess }) {
             type="number" min="0" placeholder="0" onWheel={(e) => e.target.blur()} onKeyDown={(e) => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault() }} {...register('commission', { min: { value: 0, message: 'Commission cannot be negative' } })}
           />
         </div>
-        <div className="col-span-2">
+        <div className="sm:col-span-2">
           <label className="label">Note <span className="text-gray-400 text-xs">(optional)</span></label>
           <input className="input" {...register('note')} />
         </div>
@@ -235,7 +235,7 @@ export default function TrainerProfile() {
       </h2>
       {t.salary_history?.length ? (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[32rem] text-sm">
             <thead>
               <tr className="border-b border-gray-700 text-left">
                 <th className="py-2 px-3 text-xs text-gray-400 font-medium uppercase tracking-wide">Month</th>
@@ -267,7 +267,7 @@ export default function TrainerProfile() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-4">
           <button onClick={() => navigate('/trainers')} className="p-2 text-gray-400 hover:text-gray-100 rounded-lg transition [--btn-fill:55_65_81] [--btn-edge:31_41_55]">
             <ArrowLeft size={18} />

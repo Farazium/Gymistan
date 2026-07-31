@@ -55,7 +55,7 @@ export default function Trainers() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-primary-400">Trainers</h1>
           <p className="text-gray-500 text-sm mt-1">{trainers.length} trainers</p>
@@ -102,7 +102,7 @@ export default function Trainers() {
               onPageSizeChange={setPageSize}
             />
           )}
-          <Table>
+          <Table minWidth="min-w-[42rem]">
             <Thead>
               <Th>Name</Th>
               <Th>Phone</Th>

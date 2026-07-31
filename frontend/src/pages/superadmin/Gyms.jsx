@@ -42,7 +42,7 @@ function GymForm({ onSuccess }) {
         <input className="input" placeholder="e.g. Fitness Hub" {...register('name', { required: true })} />
         {errors.name && <p className="text-red-500 text-xs mt-1">Required</p>}
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="label">Owner Contact</label>
           <input className="input" placeholder="Private — your contact for the owner" {...register('owner_phone')} />
@@ -52,7 +52,7 @@ function GymForm({ onSuccess }) {
           <input className="input" {...register('address')} />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="label">Trial Days</label>
           <input className="input" type="number" min="0" placeholder="30" onKeyDown={e => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault() }} {...register('trial_days', { min: { value: 0, message: 'Cannot be negative' } })} />
@@ -65,7 +65,7 @@ function GymForm({ onSuccess }) {
           {errors.expiry_date && <p className="text-red-500 text-xs mt-1">{errors.expiry_date.message}</p>}
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="label">Subscription Amount (PKR)</label>
           <input className="input" type="text" inputMode="numeric" placeholder="e.g. 5000" {...register('subscription_amount', { pattern: { value: /^\d*\.?\d*$/, message: 'Numbers only' } })} />
@@ -141,7 +141,7 @@ export default function Gyms() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-primary-400">Gyms</h1>
           <p className="text-gray-500 text-sm mt-1">
@@ -154,7 +154,7 @@ export default function Gyms() {
       </div>
 
       {/* Toolbar: search by name + sort */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-wrap gap-3">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
           <input
@@ -177,7 +177,7 @@ export default function Gyms() {
         {isLoading ? (
           <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-primary-500 border-t-transparent rounded-full" /></div>
         ) : (
-          <Table>
+          <Table minWidth="min-w-[42rem]">
             <Thead>
               <Th>Gym Name</Th>
               <Th>Owner Contact</Th>

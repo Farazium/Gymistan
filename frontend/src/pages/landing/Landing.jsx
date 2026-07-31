@@ -380,7 +380,7 @@ const FEATURES = [
 
 function Features() {
   return (
-    <Section id="features" className="py-20">
+    <Section id="features" className="py-14 sm:py-20">
       <Eyebrow>Everything included</Eyebrow>
       <Heading sub="Nine modules that cover the whole day: who trained, who paid, what it cost, and what’s left.">
         One system, not five spreadsheets
@@ -473,7 +473,7 @@ function WhatsAppPhone() {
 
 function WhatsAppSection() {
   return (
-    <Section id="whatsapp" className="py-20">
+    <Section id="whatsapp" className="py-14 sm:py-20">
       <div className="grid items-center gap-12 lg:grid-cols-2">
         <div>
           <Eyebrow>WhatsApp built in</Eyebrow>
@@ -525,7 +525,7 @@ function AttendanceSection() {
       : { ring: 'border-green-500/60', bg: 'from-green-500/25', text: 'text-green-300', label: 'ACTIVE' }
 
   return (
-    <Section id="attendance" className="py-20">
+    <Section id="attendance" className="py-14 sm:py-20">
       <div className="grid items-center gap-12 lg:grid-cols-2">
         <div data-reveal data-solid className="order-2 lg:order-1" style={{ opacity: 0 }}>
           <div key={i} className={`live-pop rounded-2xl border ${tone.ring} bg-gradient-to-b ${tone.bg} to-slate-900/95 p-8 text-center backdrop-blur-xl`}>
@@ -578,7 +578,7 @@ const REASONS = [
 
 function WhySection() {
   return (
-    <Section className="py-20">
+    <Section className="py-14 sm:py-20">
       <Eyebrow>Why gym owners switch</Eyebrow>
       <Heading>Built for how gyms here actually work</Heading>
       <div className="mt-12 grid gap-4 sm:grid-cols-2">
@@ -636,13 +636,13 @@ const PLANS = [
 
 function Plans() {
   return (
-    <Section id="plans" className="py-20">
+    <Section id="plans" className="py-14 sm:py-20">
       <Eyebrow>Plans</Eyebrow>
       <Heading sub="Start with the core system and add WhatsApp, attendance, or both. Move up whenever the gym grows — nothing is re-entered.">
         Pick what your gym needs
       </Heading>
 
-      <div className="mt-12 grid gap-4 lg:grid-cols-4">
+      <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {PLANS.map((plan) => (
           <div
             key={plan.name}
@@ -719,7 +719,7 @@ const FAQS = [
 function Faq() {
   const [open, setOpen] = useState(0)
   return (
-    <Section id="faq" className="py-20">
+    <Section id="faq" className="py-14 sm:py-20">
       <Eyebrow>Questions</Eyebrow>
       <Heading>Frequently asked</Heading>
       <div className="mt-10 space-y-3">
@@ -759,11 +759,11 @@ function Faq() {
 /* ------------------------------ closing CTA ----------------------------- */
 function ClosingCta() {
   return (
-    <Section className="py-20">
+    <Section className="py-14 sm:py-20">
       <div
         data-reveal
         data-solid
-        className="relative overflow-hidden rounded-3xl border border-primary-500/25 bg-gradient-to-br from-primary-600/20 via-slate-900/80 to-slate-900/80 p-10 text-center backdrop-blur-xl sm:p-14"
+        className="relative overflow-hidden rounded-3xl border border-primary-500/25 bg-gradient-to-br from-primary-600/20 via-slate-900/80 to-slate-900/80 p-7 text-center backdrop-blur-xl sm:p-14"
         style={{ opacity: 0 }}
       >
         <div className="pointer-events-none absolute -left-16 -top-16 h-64 w-64 rounded-full bg-primary-500/20 blur-3xl" />

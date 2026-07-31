@@ -299,18 +299,18 @@ function LedgerTab() {
       </div>
 
       {data && (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <SummaryCard label="Total In" value={fmt(data.total_in)} color="green" />
           <SummaryCard label="Total Out" value={fmt(data.total_out)} color="red" />
           <SummaryCard label="Net" value={fmt(data.net)} color={data.net >= 0 ? 'blue' : 'red'} />
         </div>
       )}
 
-      <div className="card overflow-hidden">
+      <div className="card overflow-x-auto">
         {isLoading ? (
           <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-primary-500 border-t-transparent rounded-full" /></div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[36rem] text-sm">
             <thead>
               <tr className="border-b border-gray-700 text-left">
                 <th className="px-4 py-3 text-xs text-gray-400 font-medium uppercase tracking-wide">Date</th>
@@ -406,7 +406,7 @@ function IncomeStatementTab() {
       ) : data && (
         <div className="space-y-4">
           {/* Summary */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <SummaryCard label="Total Revenue" value={fmt(data.revenue.total)} color="green" />
             <SummaryCard label="Total Expenses" value={fmt(data.expenses.total)} color="red" />
             <SummaryCard label="Net Profit" value={fmt(data.net_profit)} color={data.net_profit >= 0 ? 'blue' : 'red'} />
@@ -460,7 +460,7 @@ function IncomeStatementTab() {
 
           {/* Net Profit row */}
           <div className={`card p-5 border ${data.net_profit >= 0 ? 'border-green-500/20 bg-green-500/5' : 'border-red-500/20 bg-red-500/5'}`}>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-sm text-gray-400">Net Profit / Loss</p>
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -508,7 +508,7 @@ function ExpenseCategoriesTab() {
 
       <div className="space-y-4">
       {data && (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <SummaryCard label="Total Expenses" value={fmt(data.total)} color="red" />
           <SummaryCard label="Categories" value={data.categories.length} color="blue" />
           <SummaryCard label="Period" value={`${new Date(start).toLocaleDateString('en-PK')} – ${new Date(end).toLocaleDateString('en-PK')}`} color="blue" />
@@ -588,13 +588,13 @@ function DailyCollectionTab() {
   })
 
   const Section = ({ title, color, items, cols, totalKey, emptyMsg }) => (
-    <div className="card overflow-hidden">
+    <div className="card overflow-x-auto">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700" style={{ backgroundColor: 'rgb(var(--surface) / 0.4)' }}>
         <h3 className="text-sm font-semibold text-gray-100">{title}</h3>
         {data && <span className={`text-sm font-bold ${color}`}>{fmt(data.totals[totalKey])}</span>}
       </div>
       {items?.length ? (
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[34rem] text-sm">
           <thead>
             <tr className="border-b border-gray-700/50">
               {cols.map(c => <th key={c.key} className={`px-4 py-2 text-xs text-gray-500 font-medium uppercase tracking-wide ${c.right ? 'text-right' : 'text-left'}`}>{c.label}</th>)}

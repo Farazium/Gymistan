@@ -146,7 +146,7 @@ export default function GymPayments() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-primary-400">Subscriptions</h1>
           <p className="text-gray-500 text-sm mt-1">{payments.length} payments · {fmt(totalAmount)} collected</p>
@@ -182,7 +182,7 @@ export default function GymPayments() {
         {isLoading ? (
           <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-primary-500 border-t-transparent rounded-full" /></div>
         ) : (
-          <Table>
+          <Table minWidth="min-w-[40rem]">
             <Thead>
               <Th>Gym</Th>
               <Th>Amount</Th>

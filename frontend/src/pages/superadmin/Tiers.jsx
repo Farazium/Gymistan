@@ -97,7 +97,7 @@ function EditTierModal({ tier, onClose }) {
   return (
     <Modal isOpen onClose={onClose} title={isCreate ? 'Add tier' : `Edit ${tier.label}`} size="lg">
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="label">Tier Label</label>
             <input className="input" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Tier 1" />
@@ -162,7 +162,7 @@ export default function Tiers() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-primary-400">Subscription Tiers</h1>
           <p className="text-gray-500 text-sm mt-1">Edit each plan's wording — changes show on every gym's plan card too. Assign tiers from a gym's profile.</p>

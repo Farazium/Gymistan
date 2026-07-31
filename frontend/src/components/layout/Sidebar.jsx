@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Package, CreditCard, Receipt,
-  Building2, LogOut, Dumbbell, Boxes, Settings, Fingerprint, Wallet, BarChart2, UserCog, MessageCircle
+  Building2, LogOut, Dumbbell, Boxes, Settings, Fingerprint, Wallet, BarChart2, UserCog, MessageCircle, X
 } from 'lucide-react'
 import useAuthStore from '../../store/authStore'
 import { API_ORIGIN } from '../../api/axios'
@@ -27,7 +27,7 @@ const superAdminItems = [
   { to: '/admin/tiers', icon: Package, label: 'Tiers' },
 ]
 
-export default function Sidebar() {
+export default function Sidebar({ open = false, onClose = () => {} }) {
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
 
@@ -47,23 +47,44 @@ export default function Sidebar() {
 
   return (
     <>
-      <aside className="w-64 min-h-screen surface flex flex-col border-r border-gray-700/50">
+      {/* Below lg the sidebar is an off-canvas drawer, so a phone gets the whole
+          width for the page itself. This scrim both dims the page and gives the
+          drawer somewhere to be dismissed from. */}
+      <div
+        onClick={onClose}
+        className={`fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-300 lg:hidden ${
+          open ? 'opacity-100' : 'pointer-events-none opacity-0'
+        }`}
+      />
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] transform surface flex flex-col border-r border-gray-700/50 transition-transform duration-300 lg:static lg:z-auto lg:w-64 lg:max-w-none lg:shrink-0 lg:translate-x-0 lg:transition-none ${
+          open ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
         <div className="p-6 border-b border-gray-700/50">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-primary-600/20 rounded-xl flex items-center justify-center flex-shrink-0">
               <Dumbbell size={20} className="text-primary-400" />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-primary-400 font-bold text-xs tracking-widest uppercase leading-none">Gymistan</p>
             </div>
+            <button
+              onClick={onClose}
+              aria-label="Close menu"
+              className="no-fx -mr-2 p-2 rounded-lg text-gray-400 hover:text-gray-200 transition lg:hidden"
+            >
+              <X size={18} />
+            </button>
           </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 overflow-y-auto p-4 space-y-1">
           {items.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}
+              onClick={onClose}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all origin-left hover:scale-[1.04] ${
                   isActive
@@ -80,6 +101,7 @@ export default function Sidebar() {
           {user?.role !== 'SUPERADMIN' && hasAttendance && (
             <NavLink
               to="/attendance"
+              onClick={onClose}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all origin-left hover:scale-[1.04] ${
                   isActive ? 'sidebar-active scale-[1.04] bg-primary-500/30 text-primary-300 shadow-sm shadow-primary-500/10' : 'text-gray-400 hover:bg-primary-500/10 hover:text-gray-100'
@@ -94,7 +116,7 @@ export default function Sidebar() {
 
         <div className="p-4 border-t border-gray-700/50 space-y-1">
           <button
-            onClick={() => navigate('/settings')}
+            onClick={() => { onClose(); navigate('/settings') }}
             className="no-fx w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-primary-500/10 transition origin-left hover:scale-[1.04] group"
           >
             <div className="w-8 h-8 bg-gray-700 rounded-full overflow-hidden flex items-center justify-center text-white text-sm font-bold flex-shrink-0">

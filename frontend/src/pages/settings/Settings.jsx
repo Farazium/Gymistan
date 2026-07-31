@@ -263,7 +263,7 @@ function WhatsAppBillingCard() {
       <div className="card p-5 space-y-4 relative">
         {/* Balance: used out of the current pack, with the bar carrying the warning tone */}
         <div className={`rounded-xl border p-4 ${tone.bg} ${tone.border}`}>
-          <div className="flex items-end justify-between gap-3">
+          <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="text-xs text-gray-400">Messages used</p>
               <p className={`text-2xl font-bold mt-1 ${tone.text}`}>
@@ -309,7 +309,7 @@ function WhatsAppBillingCard() {
       <Modal isOpen={showHistory} onClose={() => setShowHistory(false)} title="Top-up History" size="xl">
         {topups.length > 0 ? (
           <div className="overflow-x-auto -mx-1">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[32rem] text-sm">
               <thead>
                 <tr className="text-left text-xs text-gray-500 border-b border-gray-700">
                   <th className="py-2 pr-3 font-medium">Date</th>

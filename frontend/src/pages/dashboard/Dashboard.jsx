@@ -210,7 +210,7 @@ function TierInfoModal({ tier, tiers, isOpen, onClose }) {
   const { user } = useAuthStore()
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Subscription Plans" size="xl">
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {tiers.map((t) => {
               const isCurrent = t.tier_id === tier
               const color = t.color || (TIER_VISUAL[t.tier_id] || TIER_VISUAL.TIER1).color
@@ -300,7 +300,7 @@ function GymDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-primary-400">Dashboard</h1>
           <p className="text-gray-500 text-sm mt-1">Overview of your gym's performance</p>

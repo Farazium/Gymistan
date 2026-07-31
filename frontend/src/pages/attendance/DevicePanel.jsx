@@ -253,7 +253,7 @@ export default function DevicePanel() {
         )}
       </div>
       <div className={showDirect ? 'space-y-3' : 'hidden'}>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="label">Device Name</label>
             <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Front Door" />
@@ -331,7 +331,7 @@ export default function DevicePanel() {
 
       {/* Enrollment mapping */}
       <div className="border-t border-gray-700/60 pt-4 space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-sm font-semibold text-gray-200 flex items-center gap-2"><Users size={15} /> Enrollment</h3>
           <button onClick={() => setShowUsers(true)} disabled={!reachable}
             className="text-xs px-3 py-1.5 rounded-lg bg-gray-700/60 text-gray-200 disabled:opacity-40 [--btn-fill:55_65_81] [--btn-edge:31_41_55]">

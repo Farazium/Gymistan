@@ -147,7 +147,7 @@ function WhatsAppCreditsCard({ gym, onTopup }) {
       </div>
 
       <div className={`rounded-xl border p-4 ${tone.bg} ${tone.border}`}>
-        <div className="flex items-end justify-between gap-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-xs text-gray-400">Used</p>
             <p className={`text-2xl font-bold mt-1 ${tone.text}`}>

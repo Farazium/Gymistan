@@ -45,7 +45,7 @@ function ExpenseForm({ onSuccess }) {
         <input className="input" placeholder="e.g. Monthly Rent" {...register('title', { required: 'Title is required' })} />
         {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>}
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="label">Amount (PKR) *</label>
           <input
@@ -118,7 +118,7 @@ export default function Expenses() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-primary-400">Expenses</h1>
           <p className="text-gray-500 text-sm mt-1">
@@ -174,7 +174,10 @@ export default function Expenses() {
                 onToggle={() => months.toggle(group.key)}
               >
                 {/* Entries for this month */}
-                <div className="card divide-y divide-gray-700/60">
+                {/* Fixed columns, so the list scrolls sideways on a phone; the
+                    min-width goes on an inner track to keep the dividers whole. */}
+                <div className="card overflow-x-auto">
+                <div className="min-w-[34rem] divide-y divide-gray-700/60">
                   <div className="flex items-center gap-4 px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     <span className="flex-1">Title</span>
                     <span className="shrink-0 w-24">Category</span>
@@ -209,6 +212,7 @@ export default function Expenses() {
                       </div>
                     </div>
                   ))}
+                </div>
                 </div>
               </MonthSection>
             )

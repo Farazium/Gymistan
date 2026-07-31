@@ -1,7 +1,12 @@
-export function Table({ children }) {
+// `w-full` alone doesn't save a table on a phone: it just crushes the columns
+// into unreadable slivers instead of scrolling. The min-width is the floor the
+// columns are allowed to reach before the wrapper starts scrolling sideways —
+// it never applies on a desktop, where the card is wider than the floor anyway.
+// Wide rosters pass a bigger one.
+export function Table({ children, minWidth = 'min-w-[32rem]' }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">{children}</table>
+      <table className={`w-full text-sm ${minWidth}`}>{children}</table>
     </div>
   )
 }

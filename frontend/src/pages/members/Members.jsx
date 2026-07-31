@@ -75,7 +75,7 @@ function RestoreForm({ member, onSubmit, isPending }) {
   return (
     <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
       <p className="text-sm text-gray-400">Restoring <span className="text-gray-100 font-medium">{member.name}</span> — update their membership details:</p>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="label">Joining Date *</label>
           <input
@@ -94,7 +94,7 @@ function RestoreForm({ member, onSubmit, isPending }) {
             <option value="EXPIRED">Expired</option>
           </select>
         </div>
-        <div className="col-span-2">
+        <div className="sm:col-span-2">
           <label className="label">Package *</label>
           <select className="input" {...register('package', { required: 'Package is required' })}>
             <option value="">Select a package</option>
@@ -104,7 +104,7 @@ function RestoreForm({ member, onSubmit, isPending }) {
           </select>
           {errors.package && <p className="text-red-500 text-xs mt-1">{errors.package.message}</p>}
         </div>
-        <div className="col-span-2">
+        <div className="sm:col-span-2">
           <label className="label">
             Trainer {trainerAllowed ? '*' : <span className="text-gray-400 text-xs">(select a trainer package)</span>}
           </label>
@@ -122,7 +122,7 @@ function RestoreForm({ member, onSubmit, isPending }) {
           </select>
           {errors.trainer && <p className="text-red-500 text-xs mt-1">{errors.trainer.message}</p>}
         </div>
-        <div className="col-span-2">
+        <div className="sm:col-span-2">
           <label className="label">Admission Fee (PKR) <span className="text-gray-400 text-xs">(optional)</span></label>
           <input
             className="input [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
@@ -135,7 +135,7 @@ function RestoreForm({ member, onSubmit, isPending }) {
           />
         </div>
         {hasWhatsApp && (
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <label className={`flex items-center gap-2 select-none ${outOfCredits ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
               <input
                 type="checkbox" disabled={outOfCredits}
@@ -151,7 +151,7 @@ function RestoreForm({ member, onSubmit, isPending }) {
           </div>
         )}
         {hasAttendance && (
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <label className="flex items-center gap-2 select-none cursor-pointer">
               <input type="checkbox" className="w-4 h-4 accent-green-500" {...register('add_to_device')} />
               <span className="text-sm text-gray-300 flex items-center gap-1.5">
@@ -347,7 +347,7 @@ export default function Members() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-primary-400">Members</h1>
           <p className="text-gray-500 text-sm mt-1">{members.length} total members</p>
@@ -402,8 +402,8 @@ export default function Members() {
         </div>
       </div>
 
-      <div className="card p-4 flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 flex">
+      <div className="card p-4 flex flex-wrap gap-3">
+        <div className="relative flex-1 flex min-w-[15rem]">
           <div className="relative flex-1">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-primary-400" />
             <input
@@ -424,12 +424,12 @@ export default function Members() {
             <option value="member_id">ID</option>
           </select>
         </div>
-        <select className="input w-auto" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+        <select className="input w-auto flex-1 min-w-[8.5rem] sm:flex-none" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="">All Status</option>
           <option value="ACTIVE">Active</option>
           <option value="EXPIRED">Expired</option>
         </select>
-        <select className="input w-auto" value={genderFilter} onChange={(e) => setGenderFilter(e.target.value)}>
+        <select className="input w-auto flex-1 min-w-[8.5rem] sm:flex-none" value={genderFilter} onChange={(e) => setGenderFilter(e.target.value)}>
           <option value="">All Gender</option>
           <option value="MALE">Male</option>
           <option value="FEMALE">Female</option>
@@ -448,7 +448,7 @@ export default function Members() {
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}
         </select>
-        <select className="input w-auto" value={trainerFilter} onChange={(e) => setTrainerFilter(e.target.value)}>
+        <select className="input w-auto flex-1 min-w-[8.5rem] sm:flex-none" value={trainerFilter} onChange={(e) => setTrainerFilter(e.target.value)}>
           <option value="">All Members</option>
           <option value="true">With Trainer</option>
           <option value="false">Without Trainer</option>
@@ -471,7 +471,7 @@ export default function Members() {
               onPageSizeChange={setPageSize}
             />
           )}
-          <Table>
+          <Table minWidth="min-w-[52rem]">
             <Thead>
               <Th>
                 <button onClick={() => toggleSort('member_id')} className="no-fx flex items-center gap-1 hover:text-primary-400 transition">

@@ -35,7 +35,7 @@ function ProductForm({ product, onSuccess }) {
         <input className="input" placeholder="e.g. Whey Protein 1kg" {...register('name', { required: 'Product name is required' })} />
         {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="label">Category</label>
           <select className="input" {...register('category')}>
@@ -48,7 +48,7 @@ function ProductForm({ product, onSuccess }) {
           {errors.quantity && <p className="text-red-500 text-xs mt-1">{errors.quantity.message}</p>}
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="label">Sell Price (PKR) *</label>
           <input className="input" type="number" min="0" placeholder="0" onWheel={e => e.target.blur()} onKeyDown={noNeg} {...register('sell_price', { required: 'Sell price is required', min: { value: 0, message: 'Cannot be negative' } })} />
@@ -250,7 +250,7 @@ export default function Inventory() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-primary-400">Inventory</h1>
           <p className="text-gray-400 text-sm mt-1">{products.length} products
@@ -285,8 +285,8 @@ export default function Inventory() {
         </div>
       </div>
 
-      <div className="card p-4 flex gap-3">
-        <select className="input w-auto" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+      <div className="card p-4 flex flex-wrap gap-3">
+        <select className="input w-auto flex-1 min-w-[8.5rem] sm:flex-none" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
           <option value="">All Categories</option>
           {CATEGORIES.map(c => <option key={c} value={c}>{c.charAt(0) + c.slice(1).toLowerCase()}</option>)}
         </select>
@@ -359,7 +359,7 @@ export default function Inventory() {
           ))}
 
           {!products.length && (
-            <div className="col-span-3 text-center py-16 text-gray-400">
+            <div className="col-span-full text-center py-16 text-gray-400">
               <Package size={32} className="mx-auto mb-2 opacity-30" />
               No products yet. Add your first product.
             </div>

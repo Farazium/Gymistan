@@ -104,7 +104,7 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
   return (
     <>
     <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="label">Full Name *</label>
           <input
@@ -259,7 +259,7 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
         )}
 
         {!member && hasAttendance && (
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <label className="flex items-center gap-2 select-none cursor-pointer">
               <input type="checkbox" className="w-4 h-4 accent-green-500" {...register('add_to_device')} />
               <span className="text-sm text-gray-300 flex items-center gap-1.5">
@@ -270,7 +270,7 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
         )}
 
         {!member && hasWhatsApp && (
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <label className={`flex items-center gap-2 select-none ${outOfCredits ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
               <input
                 type="checkbox" disabled={outOfCredits}
@@ -286,12 +286,12 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
           </div>
         )}
 
-        <div className="col-span-2">
+        <div className="sm:col-span-2">
           <label className="label">Address <span className="text-gray-400 text-xs">(optional)</span></label>
           <input className="input" {...register('address')} />
         </div>
 
-        <div className="col-span-2">
+        <div className="sm:col-span-2">
           <label className="label">Notes <span className="text-gray-400 text-xs">(optional)</span></label>
           <textarea className="input h-20 resize-none" {...register('notes')} />
         </div>

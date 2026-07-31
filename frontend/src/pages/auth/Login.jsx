@@ -233,7 +233,7 @@ export default function Login() {
         <div
           ref={cardRef}
           data-reveal
-          className="bg-slate-900/70 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/40 p-8 border border-white/10"
+          className="bg-slate-900/70 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/40 p-6 sm:p-8 border border-white/10"
           style={{ opacity: 0 }}
         >
           <h2 className="text-lg font-semibold text-gray-100 mb-1">Welcome back</h2>

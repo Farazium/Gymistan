@@ -86,7 +86,7 @@ export default function Payments() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-primary-400">Payments</h1>
           <p className="text-gray-500 text-sm mt-1">
@@ -117,12 +117,12 @@ export default function Payments() {
         </div>
       </div>
 
-      <div className="card p-4 flex flex-col sm:flex-row gap-3">
+      <div className="card p-4 flex flex-wrap gap-3">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-primary-400" />
           <input className="input pl-9" placeholder="Search member..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <select className="input w-auto" value={packageFilter} onChange={(e) => setPackageFilter(e.target.value)}>
+        <select className="input w-auto flex-1 min-w-[8.5rem] sm:flex-none" value={packageFilter} onChange={(e) => setPackageFilter(e.target.value)}>
           <option value="">All Packages</option>
           {packages.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
@@ -148,7 +148,11 @@ export default function Payments() {
                 open={months.isOpen(group.key)}
                 onToggle={() => months.toggle(group.key)}
               >
-                <div className="card divide-y divide-gray-700/60">
+                {/* Seven fixed columns don't fit a phone, so the list scrolls
+                    sideways inside its card. The min-width sits on an inner
+                    track, otherwise the row dividers would stop at the fold. */}
+                <div className="card overflow-x-auto">
+                <div className="min-w-[46rem] divide-y divide-gray-700/60">
                   {/* Column headers */}
                   <div className="flex items-center gap-4 px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     <span className="flex-1">Member</span>
@@ -211,6 +215,7 @@ export default function Payments() {
                       </div>
                     </div>
                   ))}
+                </div>
                 </div>
               </MonthSection>
             )

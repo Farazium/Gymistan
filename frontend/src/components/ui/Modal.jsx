@@ -32,7 +32,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
       <div
         className={`fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-200 ${show ? 'opacity-100' : 'opacity-0'}`}
         onClick={onClose}
@@ -40,13 +40,13 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
       <div
         className={`relative surface rounded-xl shadow-xl w-full ${sizes[size]} max-h-[90vh] flex flex-col border border-gray-700 transition-all duration-200 ease-out ${show ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
       >
-        <div className="flex items-center justify-between p-5 border-b border-gray-700">
+        <div className="flex items-center justify-between gap-3 p-4 sm:p-5 border-b border-gray-700">
           <h2 className="text-lg font-semibold text-gray-100">{title}</h2>
           <button onClick={onClose} className="p-1 rounded-lg text-gray-400 hover:text-gray-200 transition [--btn-fill:55_65_81] [--btn-edge:31_41_55]">
             <X size={20} />
           </button>
         </div>
-        <div className="overflow-y-auto p-5 flex-1">{children}</div>
+        <div className="overflow-y-auto p-4 sm:p-5 flex-1">{children}</div>
       </div>
     </div>
   )

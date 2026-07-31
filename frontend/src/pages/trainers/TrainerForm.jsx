@@ -62,8 +62,8 @@ export default function TrainerForm({ trainer, onSuccess }) {
   return (
     <>
     <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="col-span-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="sm:col-span-2">
           <label className="label">Full Name *</label>
           <input
             className="input"
@@ -129,7 +129,7 @@ export default function TrainerForm({ trainer, onSuccess }) {
         )}
 
         {!trainer && hasAttendance && (
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <label className="flex items-center gap-2 select-none cursor-pointer">
               <input type="checkbox" className="w-4 h-4 accent-green-500" {...register('add_to_device')} />
               <span className="text-sm text-gray-300 flex items-center gap-1.5">
@@ -139,7 +139,7 @@ export default function TrainerForm({ trainer, onSuccess }) {
           </div>
         )}
 
-        <div className="col-span-2">
+        <div className="sm:col-span-2">
           <label className="label">Notes <span className="text-gray-400 text-xs">(optional)</span></label>
           <textarea className="input h-20 resize-none" {...register('notes')} />
         </div>

@@ -45,7 +45,7 @@ function PackageForm({ pkg, onSuccess }) {
         />
         {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="label">Price (PKR) *</label>
           <input
@@ -102,7 +102,7 @@ export default function Packages() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-primary-400">Packages</h1>
           <p className="text-gray-500 text-sm mt-1">Manage your gym membership packages</p>
@@ -178,7 +178,7 @@ export default function Packages() {
           )})}
 
           {!packages.length && (
-            <div className="col-span-3 text-center py-16 text-gray-400">
+            <div className="col-span-full text-center py-16 text-gray-400">
               <PackageIcon size={32} className="mx-auto mb-2 opacity-30" />
               No packages yet. Create your first package.
             </div>
