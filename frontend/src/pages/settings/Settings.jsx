@@ -18,14 +18,17 @@ import { SUPPORT_EMAIL } from '../../utils/contact'
 import EmailLink from '../../components/ui/EmailLink'
 
 // One settings row: label (+ optional hint) on the left, control on the right.
+// Below sm the control drops underneath its label. Side by side, the fixed
+// 16rem control leaves a 390px screen barely 6rem for the label, and every hint
+// turns into a tower of one-word lines.
 function Row({ label, hint, children }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-4">
+    <div className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <div className="min-w-0">
         <p className="text-sm font-medium text-gray-200">{label}</p>
         {hint && <p className="text-xs text-gray-500 mt-0.5">{hint}</p>}
       </div>
-      <div className="w-64 flex-shrink-0 flex justify-end">{children}</div>
+      <div className="w-full sm:w-64 flex-shrink-0 flex justify-start sm:justify-end">{children}</div>
     </div>
   )
 }
@@ -224,7 +227,7 @@ function Section({ title, description, children, as = 'div', ...props }) {
         <h2 className="text-sm font-semibold text-gray-100 uppercase tracking-wide">{title}</h2>
         {description && <p className="text-xs text-gray-500 mt-0.5">{description}</p>}
       </div>
-      <div className="card p-5 divide-y divide-gray-700/60">{children}</div>
+      <div className="card p-4 sm:p-5 divide-y divide-gray-700/60">{children}</div>
     </Tag>
   )
 }
