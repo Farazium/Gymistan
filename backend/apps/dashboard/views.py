@@ -1,4 +1,5 @@
 import datetime
+from decimal import Decimal
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -240,6 +241,94 @@ class SuperAdminDashboardView(APIView):
         })
 
 
+def _fee_category(payment):
+    """What the non-admission part of a payment calls itself in the ledger.
+
+    A row saying only "Member Fee" hides the two things an accountant actually
+    needs to see: money that came in against an OLD balance rather than this
+    month, and money that did not cover what was charged (so a balance is still
+    running). Both are spelled out here.
+    """
+    if payment.is_dues_payment:
+        # Settles a balance and buys no time — not this month's fee at all.
+        label = 'Dues Payment'
+    elif payment.dues_amount:
+        # A renewal that folded an earlier balance into one figure at the desk.
+        label = 'Member Fee + Dues'
+    else:
+        label = 'Member Fee'
+    if payment.status == Payment.Status.PARTIAL:
+        label += ' (Partial)'
+    return label
+
+
+def _is_admission_only(payment):
+    """Nothing but the joining fee — no package rode along with it. `notes` is the
+    fallback for rows written before `admission_amount` existed."""
+    return payment.package_id is None and bool(
+        payment.admission_amount or (payment.notes or '').lower() == 'admission fee'
+    )
+
+
+def _admission_label(payment, allocated):
+    """The joining-fee line. It only reads (Partial) when the joining fee ITSELF
+    was not fully covered — a part-paid joining that still cleared the admission
+    fee leaves its shortfall against the package, not against admission."""
+    owed = payment.admission_amount or Decimal('0')
+    return 'Admission Fee (Partial)' if owed and allocated < owed else 'Admission Fee'
+
+
+def _payment_category(payment):
+    """One label for the whole payment — what the LEDGER shows.
+
+    The ledger is a record of transactions: one hand-over of cash is one row. A
+    joining that bundled the admission fee with the first package fee therefore
+    stays a single line, and says on its face that it was both.
+
+    The daily collection sheet wants the opposite — see `_payment_lines`.
+    """
+    if _is_admission_only(payment):
+        return _admission_label(payment, payment.amount_paid or Decimal('0'))
+    base = _fee_category(payment)
+    if not payment.admission_amount:
+        return base
+    # Fold the joining fee into the fee label, keeping whatever else it already
+    # says: "Member Fee + Dues (Partial)" -> "Member + Admission Fee + Dues (Partial)".
+    return base.replace('Member Fee', 'Member + Admission Fee')
+
+
+def _payment_lines(payment):
+    """The same payment broken into its parts — what the DAILY SHEET shows.
+
+    That sheet totals member fees and admission fees separately, so a bundled
+    joining payment left whole would land entirely under Member Fee and the
+    admission total would silently understate.
+
+    The admission fee is settled FIRST out of whatever was actually handed over:
+    a part-paid joining still covers the joining fee, and the shortfall sits
+    against the package. The amounts always add back up to `amount_paid`, so no
+    split can move the day's total.
+
+    Returns a list of (category, amount).
+    """
+    paid = payment.amount_paid or Decimal('0')
+    owed_admission = max(payment.admission_amount or Decimal('0'), Decimal('0'))
+    admission = min(owed_admission, paid)
+
+    if _is_admission_only(payment):
+        return [(_admission_label(payment, paid), paid)]
+
+    lines = []
+    if admission:
+        lines.append((_admission_label(payment, admission), admission))
+    rest = paid - admission
+    # Nothing reached the package (they paid less than the joining fee) — then the
+    # admission line is the whole story and there is no fee line to add.
+    if rest > 0 or not lines:
+        lines.append((_fee_category(payment), rest))
+    return lines
+
+
 class FinanceLedgerView(APIView):
     permission_classes = [IsAuthenticated, IsGymMember]
 
@@ -264,11 +353,11 @@ class FinanceLedgerView(APIView):
         entries = []
 
         for p in Payment.objects.filter(gym=gym, payment_date__range=[start, end]).select_related('member'):
-            is_admission = p.notes and p.notes.lower() == 'admission fee'
             entries.append({
                 'date': p.payment_date.isoformat(),
                 'description': p.member.name if p.member else 'Unknown Member',
-                'category': 'Admission Fee' if is_admission else 'Member Fee',
+                # One row per payment: a bundled joining stays whole here.
+                'category': _payment_category(p),
                 'type': 'IN',
                 'amount': float(p.amount_paid),
             })
@@ -432,16 +521,21 @@ class DailyCollectionView(APIView):
         member_fees = []
         admission_fees = []
         for p in Payment.objects.filter(gym=gym, payment_date=date).select_related('member', 'package'):
-            is_admission = p.notes and p.notes.lower() == 'admission fee'
-            entry = {
-                'member': p.member.name if p.member else 'Unknown',
-                'package': p.package.name if p.package else '—',
-                'amount': float(p.amount_paid),
-            }
-            if is_admission:
-                admission_fees.append(entry)
-            else:
-                member_fees.append(entry)
+            # A joining payment that bundled the admission fee with the first
+            # package fee produces one line in each section — see _payment_lines.
+            for category, amount in _payment_lines(p):
+                entry = {
+                    'member': p.member.name if p.member else 'Unknown',
+                    'package': p.package.name if p.package else '—',
+                    # Same vocabulary as the ledger: the sheet has to show which of
+                    # the day's cash was a balance coming in, and which left one behind.
+                    'type': category,
+                    'amount': float(amount),
+                }
+                if category.startswith('Admission Fee'):
+                    admission_fees.append(entry)
+                else:
+                    member_fees.append(entry)
 
         inventory_sales = []
         for s in StockLog.objects.filter(

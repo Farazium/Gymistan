@@ -5,6 +5,7 @@ import api from '../../api/axios'
 import useAuthStore from '../../store/authStore'
 import { exportLedgerPDF, exportIncomeStatementPDF, exportExpenseCategoriesPDF, exportDailyCollectionPDF } from '../../utils/financePDF'
 import { fmtCurrency as fmt } from '../../utils/format'
+import { categoryTone, shortCategory, TONE_CLASSES } from '../../utils/ledgerCategory'
 
 
 const localStr = (d) =>
@@ -330,9 +331,7 @@ function LedgerTab() {
                   <td className="px-4 py-3">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                       e.type === 'IN'
-                        ? e.category === 'Inventory Sale' ? 'bg-cyan-500/20 text-cyan-400'
-                        : e.category === 'Admission Fee' ? 'bg-indigo-500/20 text-indigo-400'
-                        : 'bg-green-500/20 text-green-400'
+                        ? TONE_CLASSES[categoryTone(e.category)]
                         : CAT_COLORS[e.category] || CAT_COLORS['Other']
                     }`}>
                       {e.category}
@@ -605,7 +604,11 @@ function DailyCollectionTab() {
               <tr key={i} className="border-b border-gray-700/30 last:border-0 hover:bg-primary-500/10">
                 {cols.map(c => (
                   <td key={c.key} className={`px-4 py-2.5 ${c.right ? 'text-right' : ''} ${c.bold ? 'font-semibold ' + color : 'text-gray-300'}`}>
-                    {c.fmt ? fmt(row[c.key]) : row[c.key]}
+                    {c.badge ? (
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TONE_CLASSES[categoryTone(row[c.key])]}`}>
+                        {shortCategory(row[c.key])}
+                      </span>
+                    ) : c.fmt ? fmt(row[c.key]) : row[c.key]}
                   </td>
                 ))}
               </tr>
@@ -641,9 +644,9 @@ function DailyCollectionTab() {
       ) : data && (
         <div className="space-y-4">
           <Section title="Member Fees" color="text-green-400" items={data.member_fees} totalKey="member_fees" emptyMsg="No member fees collected"
-            cols={[{ key: 'member', label: 'Member' }, { key: 'package', label: 'Package' }, { key: 'amount', label: 'Amount', right: true, bold: true, fmt: true }]} />
+            cols={[{ key: 'member', label: 'Member' }, { key: 'package', label: 'Package' }, { key: 'type', label: 'Type', badge: true }, { key: 'amount', label: 'Amount', right: true, bold: true, fmt: true }]} />
           <Section title="Admission Fees" color="text-indigo-400" items={data.admission_fees} totalKey="admission_fees" emptyMsg="No admission fees collected"
-            cols={[{ key: 'member', label: 'Member' }, { key: 'amount', label: 'Amount', right: true, bold: true, fmt: true }]} />
+            cols={[{ key: 'member', label: 'Member' }, { key: 'type', label: 'Type', badge: true }, { key: 'amount', label: 'Amount', right: true, bold: true, fmt: true }]} />
           <Section title="Inventory Sales" color="text-cyan-400" items={data.inventory_sales} totalKey="inventory_sales" emptyMsg="No inventory sales"
             cols={[{ key: 'product', label: 'Product' }, { key: 'quantity', label: 'Qty' }, { key: 'amount', label: 'Amount', right: true, bold: true, fmt: true }]} />
           <Section title="Expenses" color="text-red-400" items={data.expenses} totalKey="total_expenses" emptyMsg="No expenses recorded"

@@ -316,6 +316,52 @@ export function buildDataset() {
       deletable: iso(date) === iso(T), created_at: `${iso(date)}T11:00:00Z`,
     })
   }
+  // Joinings where the desk took the admission fee and the first package fee in
+  // one go. One payment, one receipt — the ledger shows it whole as
+  // "Member + Admission Fee", the daily sheet splits it back into its two totals.
+  for (let n = 0; n < 6; n++) {
+    const m = pick(roster)
+    const pkg = packages.find((p) => p.id === m.package) || packages[0]
+    const date = addDays(T, -int(0, 120))
+    const admission = 1500
+    payments.push({
+      id: payId++, gym: 1, member: m.id, member_name: m.name, member_phone: m.phone,
+      package: pkg.id, package_name: pkg.name, collected_by: 1, collected_by_name: 'Demo Owner',
+      amount: admission + Number(pkg.price), discount: 0,
+      amount_paid: admission + Number(pkg.price), status: 'PAID', payment_method: 'CASH',
+      admission_amount: admission, dues_amount: 0, remaining: 0,
+      is_dues_payment: false, is_joining: true,
+      payment_date: iso(date), due_date: null, prev_expiry: null,
+      new_expiry: iso(addMonths(date, pkg.duration_months)),
+      month: monthKey(date), notes: 'Admission + first payment', is_rejoin: false,
+      slip_sent: true, deletable: iso(date) === iso(T),
+      created_at: `${iso(date)}T${String(int(9, 19)).padStart(2, '0')}:15:00Z`,
+    })
+  }
+  // Balances coming back in. These buy no time, so they leave the expiry alone —
+  // the books call them "Dues Payment" rather than a member fee.
+  const settledPicked = new Set()
+  for (let n = 0; n < 4; n++) {
+    const m = pick(roster)
+    if (settledPicked.has(m.id)) continue
+    settledPicked.add(m.id)
+    const owed = 1000 * int(1, 3)
+    const date = addDays(T, -int(1, 60))
+    // One of them is still short, to show what a part-settled balance reads like.
+    const paid = n === 0 ? Math.round(owed / 2) : owed
+    payments.push({
+      id: payId++, gym: 1, member: m.id, member_name: m.name, member_phone: m.phone,
+      package: null, package_name: null, collected_by: 1, collected_by_name: 'Demo Owner',
+      amount: owed, discount: 0, amount_paid: paid,
+      status: paid < owed ? 'PARTIAL' : 'PAID', payment_method: 'CASH',
+      admission_amount: 0, dues_amount: owed, remaining: owed - paid,
+      is_dues_payment: true, is_joining: false,
+      payment_date: iso(date), due_date: null, prev_expiry: null, new_expiry: null,
+      month: monthKey(date), notes: 'Outstanding dues', is_rejoin: false,
+      slip_sent: true, deletable: false, created_at: `${iso(date)}T12:40:00Z`,
+    })
+    if (paid < owed) m.dues = Number(m.dues || 0) + (owed - paid)
+  }
   // Part-payments: the member took the cycle but still owes the rest, so the
   // shortfall is carried on them as dues — that is what fills the dashboard's
   // Outstanding Dues table and turns their badge yellow.

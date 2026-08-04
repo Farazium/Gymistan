@@ -1,3 +1,5 @@
+import { categoryTone, shortCategory, TONE_RGB } from './ledgerCategory'
+
 const HEADER_BG = [15, 23, 42]
 const BLUE = [59, 130, 246]
 const GREEN_DARK = [21, 128, 61]
@@ -18,6 +20,17 @@ const PAGE_W = 210
 const PAGE_H = 297
 const MARGIN = 14
 const CONTENT_W = PAGE_W - MARGIN * 2
+
+// Trim `text` until it actually fits `maxW` millimetres at the pdf's current
+// font, adding an ellipsis. Counting characters instead (the old approach) lets
+// a wide all-caps name spill into the next column while a narrow one stops short.
+function fitText(pdf, text, maxW) {
+  const str = String(text ?? '')
+  if (pdf.getTextWidth(str) <= maxW) return str
+  let cut = str.length
+  while (cut > 1 && pdf.getTextWidth(str.slice(0, cut) + '…') > maxW) cut -= 1
+  return str.slice(0, cut) + '…'
+}
 
 function fmtNum(n) {
   return `PKR ${Number(n).toLocaleString('en-PK')}`
@@ -150,10 +163,13 @@ export async function exportLedgerPDF(data, start, end, gymName) {
   // Table header
   const cols = [
     { label: 'DATE', x: MARGIN, w: 26, align: 'left' },
-    { label: 'DESCRIPTION', x: MARGIN + 26, w: 56, align: 'left' },
-    { label: 'CATEGORY', x: MARGIN + 82, w: 38, align: 'left' },
-    { label: 'IN', x: MARGIN + 120, w: 34, align: 'right' },
-    { label: 'OUT', x: MARGIN + 154, w: 26, align: 'right' },
+    { label: 'DESCRIPTION', x: MARGIN + 26, w: 46, align: 'left' },
+    // Wide enough for the longest label a payment can carry — a joining that
+    // bundled the admission fee and folded in an old balance, part-paid. The
+    // room comes from IN/OUT, which were far wider than any PKR figure needs.
+    { label: 'CATEGORY', x: MARGIN + 72, w: 56, align: 'left' },
+    { label: 'IN', x: MARGIN + 128, w: 28, align: 'right' },
+    { label: 'OUT', x: MARGIN + 156, w: 26, align: 'right' },
   ]
 
   pdf.setFillColor(...TABLE_HEAD_BG)
@@ -212,14 +228,11 @@ export async function exportLedgerPDF(data, start, end, gymName) {
     pdf.text(fmtDate(e.date), cols[0].x + 2, y + 5)
 
     pdf.setTextColor(...TEXT_DARK)
-    const desc = e.description.length > 30 ? e.description.slice(0, 28) + '…' : e.description
-    pdf.text(desc, cols[1].x + 2, y + 5)
+    pdf.text(fitText(pdf, e.description, cols[1].w - 3), cols[1].x + 2, y + 5)
 
-    const catColor = e.type === 'IN'
-      ? (e.category === 'Inventory Sale' ? [8, 145, 178] : e.category === 'Admission Fee' ? [99, 102, 241] : GREEN_DARK)
-      : TEXT_MID
+    const catColor = e.type === 'IN' ? TONE_RGB[categoryTone(e.category)] : TEXT_MID
     pdf.setTextColor(...catColor)
-    pdf.text(e.category, cols[2].x + 2, y + 5)
+    pdf.text(fitText(pdf, e.category, cols[2].w - 3), cols[2].x + 2, y + 5)
 
     if (e.type === 'IN') {
       pdf.setTextColor(...GREEN_DARK)
@@ -455,11 +468,16 @@ export async function exportDailyCollectionPDF(data, gymName) {
       pdf.setDrawColor(...BORDER); pdf.setLineWidth(0.15); pdf.line(MARGIN, y + 7.5, MARGIN + CONTENT_W, y + 7.5)
       pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5)
       columns.forEach(c => {
-        const val = row[c.key] ?? '—'
+        const raw = row[c.key] ?? '—'
+        const val = c.fmt ? c.fmt(raw) : raw
+        const text = c.align === 'right' ? String(val) : fitText(pdf, val, c.w - 3)
         const tx = c.align === 'right' ? c.x + c.w - 1 : c.x + 2
-        pdf.setTextColor(...(c.color ? c.color : TEXT_DARK))
+        // `color` may be a function so a column can take its colour from the
+        // value in the row (the payment-type column does).
+        const colour = typeof c.color === 'function' ? c.color(row[c.key]) : c.color
+        pdf.setTextColor(...(colour || TEXT_DARK))
         if (c.bold) pdf.setFont('helvetica', 'bold')
-        pdf.text(String(val), tx, y + 5, { align: c.align })
+        pdf.text(text, tx, y + 5, { align: c.align })
         if (c.bold) pdf.setFont('helvetica', 'normal')
       })
       y += 7.5
@@ -468,8 +486,12 @@ export async function exportDailyCollectionPDF(data, gymName) {
   }
 
   const memberCols = [
-    { label: 'MEMBER', key: 'member', x: MARGIN, w: 80, align: 'left' },
-    { label: 'PACKAGE', key: 'package', x: MARGIN + 80, w: 80, align: 'left' },
+    { label: 'MEMBER', key: 'member', x: MARGIN, w: 62, align: 'left' },
+    { label: 'PACKAGE', key: 'package', x: MARGIN + 62, w: 56, align: 'left' },
+    {
+      label: 'TYPE', key: 'type', x: MARGIN + 118, w: 42, align: 'left',
+      fmt: shortCategory, color: (v) => TONE_RGB[categoryTone(v)],
+    },
     { label: 'AMOUNT', key: 'amount_fmt', x: MARGIN + 160, w: CONTENT_W - 160, align: 'right', color: GREEN_DARK, bold: true },
   ]
   const inventoryCols = [
@@ -484,8 +506,12 @@ export async function exportDailyCollectionPDF(data, gymName) {
   ]
 
   const admissionCols = [
-    { label: 'MEMBER', key: 'member', x: MARGIN, w: 140, align: 'left' },
-    { label: 'AMOUNT', key: 'amount_fmt', x: MARGIN + 140, w: CONTENT_W - 140, align: 'right', color: [99, 102, 241], bold: true },
+    { label: 'MEMBER', key: 'member', x: MARGIN, w: 118, align: 'left' },
+    {
+      label: 'TYPE', key: 'type', x: MARGIN + 118, w: 42, align: 'left',
+      fmt: shortCategory, color: (v) => TONE_RGB[categoryTone(v)],
+    },
+    { label: 'AMOUNT', key: 'amount_fmt', x: MARGIN + 160, w: CONTENT_W - 160, align: 'right', color: [99, 102, 241], bold: true },
   ]
 
   const fmtRows = (rows) => rows.map(r => ({ ...r, amount_fmt: fmtNum(r.amount) }))

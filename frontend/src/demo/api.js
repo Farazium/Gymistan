@@ -336,15 +336,59 @@ const clampRange = (params) => {
   return { start, end }
 }
 
+// --- what a payment is called in the books ------------------------------------
+// Mirrors dashboard/views._fee_category, _admission_label, _payment_category and
+// _payment_lines. The ledger keeps a payment whole (one hand-over of cash is one
+// row); the daily sheet splits a bundled joining so its two totals stay honest.
+
+function feeCategory(p) {
+  let label
+  if (p.is_dues_payment) label = 'Dues Payment'
+  else if (num(p.dues_amount)) label = 'Member Fee + Dues'
+  else label = 'Member Fee'
+  return p.status === 'PARTIAL' ? `${label} (Partial)` : label
+}
+
+// Nothing but the joining fee. `notes` is the fallback for rows written before
+// admission_amount existed.
+const isAdmissionOnly = (p) =>
+  !p.package && !!(num(p.admission_amount)
+    || String(p.notes || '').toLowerCase() === 'admission fee')
+
+// (Partial) on the joining line only when the joining fee itself fell short.
+function admissionLabel(p, allocated) {
+  const owed = num(p.admission_amount)
+  return owed && allocated < owed ? 'Admission Fee (Partial)' : 'Admission Fee'
+}
+
+function paymentCategory(p) {
+  if (isAdmissionOnly(p)) return admissionLabel(p, num(p.amount_paid))
+  const base = feeCategory(p)
+  if (!num(p.admission_amount)) return base
+  return base.replace('Member Fee', 'Member + Admission Fee')
+}
+
+function paymentLines(p) {
+  const paid = num(p.amount_paid)
+  // The joining fee is settled first out of whatever was actually handed over.
+  const admission = Math.min(Math.max(num(p.admission_amount), 0), paid)
+  if (isAdmissionOnly(p)) return [[admissionLabel(p, paid), paid]]
+
+  const lines = []
+  if (admission) lines.push([admissionLabel(p, admission), admission])
+  const rest = round2(paid - admission)
+  if (rest > 0 || !lines.length) lines.push([feeCategory(p), rest])
+  return lines
+}
+
 function ledger(params) {
   const { start, end } = clampRange(params)
   const entries = []
   for (const p of data().payments) {
     if (p.payment_date < start || p.payment_date > end) continue
-    const admission = String(p.notes || '').toLowerCase() === 'admission fee'
     entries.push({
       date: p.payment_date, description: p.member_name || 'Unknown Member',
-      category: admission ? 'Admission Fee' : 'Member Fee', type: 'IN', amount: num(p.amount_paid),
+      category: paymentCategory(p), type: 'IN', amount: num(p.amount_paid),
     })
   }
   for (const s of sellsBetween(start, end)) {
@@ -434,9 +478,18 @@ function dailyCollection(params) {
   const admissionFees = []
   for (const p of data().payments) {
     if (p.payment_date !== date) continue
-    const entry = { member: p.member_name || 'Unknown', package: p.package_name || '—', amount: num(p.amount_paid) }
-    if (String(p.notes || '').toLowerCase() === 'admission fee') admissionFees.push(entry)
-    else memberFees.push(entry)
+    // A joining that bundled the admission fee with the first package fee shows
+    // up once in each section — see paymentLines.
+    for (const [category, amount] of paymentLines(p)) {
+      const entry = {
+        member: p.member_name || 'Unknown',
+        package: p.package_name || '—',
+        type: category,
+        amount,
+      }
+      if (category.startsWith('Admission Fee')) admissionFees.push(entry)
+      else memberFees.push(entry)
+    }
   }
   const inventorySales = sellsBetween(date, date).map((s) => ({
     product: data().products.find((x) => x.id === s.product)?.name || 'Product',
@@ -999,6 +1052,26 @@ export async function handle({ method, path, params, body }) {
     if (!p) throw fail(404, 'Not found')
     if (!p.deletable) {
       throw fail(403, { detail: 'This payment is more than 24 hours old and is now a permanent record; it can no longer be deleted.' })
+    }
+    // Same rules as payments/views.PaymentDetailView.destroy: deleting undoes what
+    // the payment did to the member, so only the last one in the chain can go.
+    if (p.member) {
+      const newer = data().payments.find(
+        (x) => x.member === p.member && x.id !== p.id && x.created_at > p.created_at)
+      if (newer) {
+        throw fail(409, { detail: 'A newer payment exists for this member. Delete that one first — '
+          + 'payments have to be undone newest first so the expiry rolls back correctly.' })
+      }
+      const member = memberOf(p.member)
+      if (member) {
+        // Mirror of payments/services.revert_payment.
+        member.dues = round2(Math.max(num(member.dues) - num(p.remaining), 0) + num(p.dues_amount))
+        if (p.package && !p.is_joining && member.expiry_date === p.new_expiry) {
+          member.expiry_date = p.prev_expiry
+          member.reminder_sent_for = null
+        }
+        member.status = memberStatus(member)
+      }
     }
     data().payments = data().payments.filter((x) => x.id !== p.id)
     return null
