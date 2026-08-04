@@ -12,6 +12,8 @@ import PhotoViewer from '../../components/ui/PhotoViewer'
 import PhotoCropper from '../../components/ui/PhotoCropper'
 import { apiErrorMessage } from '../../utils/apiError'
 import { isNotFound, retryUnlessNotFound } from '../../utils/queryRetry'
+import { statusStyle } from '../../utils/memberStatus'
+import { fmtCurrency } from '../../utils/format'
 
 function BlacklistForm({ onSubmit, isPending }) {
   const [reason, setReason] = useState('')
@@ -246,11 +248,10 @@ export default function MemberProfile() {
                 // Deleted and blacklisted take precedence over the membership status.
                 const deleted = member.is_deleted
                 const bl = member.blacklist_active
-                const label = deleted ? 'Deleted' : bl ? 'Blacklisted' : member.status === 'ACTIVE' ? 'Active' : 'Expired'
+                const label = deleted ? 'Deleted' : bl ? 'Blacklisted' : statusStyle(member.status).label
                 const cls = deleted ? 'bg-gray-500/20 text-gray-300'
                   : bl ? 'bg-amber-500/20 text-amber-400'
-                  : member.status === 'ACTIVE' ? 'bg-green-500/20 text-green-400'
-                  : 'bg-red-500/20 text-red-400'
+                  : statusStyle(member.status).badge
                 return (
                   <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium flex items-center gap-1 ${cls}`}>
                     {deleted ? <Trash2 size={11} /> : bl ? <Ban size={11} /> : null}
@@ -263,6 +264,11 @@ export default function MemberProfile() {
               <p className="text-primary-400 text-sm mt-1">{member.package_detail.name}</p>
             )}
             <p className="text-gray-400 text-sm mt-1">{member.phone}</p>
+            {Number(member.dues) > 0 && (
+              <p className="text-yellow-400 text-sm mt-1 font-medium">
+                Dues: {fmtCurrency(member.dues)}
+              </p>
+            )}
           </div>
 
           <div className="flex flex-col items-end gap-3">

@@ -16,6 +16,9 @@ import { apiErrorMessage } from '../../utils/apiError'
 import { invalidateFinance } from '../../utils/invalidateFinance'
 import { useWaCredits } from '../../utils/waCredits'
 import { calcExpiryISO } from '../../utils/expiry'
+import { statusStyle } from '../../utils/memberStatus'
+import { fmtCurrency } from '../../utils/format'
+import CollectFeeSection, { useJoiningPayment } from '../../components/members/CollectFee'
 import { usePageState } from '../../utils/pagination'
 
 function RestoreForm({ member, onSubmit, isPending }) {
@@ -32,6 +35,7 @@ function RestoreForm({ member, onSubmit, isPending }) {
       status: 'EXPIRED',
       package: member.package || '',
       trainer: member.trainer || '',
+      payment_type: 'FULL', payment_method: 'CASH', discount: 0,
     }
   })
 
@@ -58,17 +62,45 @@ function RestoreForm({ member, onSubmit, isPending }) {
     if (!trainerAllowed) setValue('trainer', '')
   }, [trainerAllowed, setValue])
 
+  const collectFee = watch('collect_fee')
+  // Taking the money now means the membership is running again from today.
+  useEffect(() => {
+    if (collectFee) setValue('status', 'ACTIVE')
+  }, [collectFee, setValue])
+
+  // A member can walk out owing money; restoring them brings that balance back
+  // with them, and the rejoining payment settles it alongside the new cycle.
+  const carried = Number(member.dues || 0)
+  const calc = useJoiningPayment({ watch, pkgPrice: selectedPkg?.price || 0, carried })
+
   const onFormSubmit = (data) => {
     const pkg = packages.find(p => String(p.id) === String(data.package))
     const months = pkg ? pkg.duration_months : null
+    const memberStatus = data.collect_fee ? 'ACTIVE' : data.status
+    if (data.collect_fee) {
+      if (calc.total <= 0) { toast.error('Nothing to collect — pick a package or enter an admission fee'); return }
+      if (calc.payType === 'PARTIAL') {
+        if (!calc.enteredPaid || calc.enteredPaid <= 0) { toast.error('Enter the amount the member paid'); return }
+        if (calc.enteredPaid > calc.payable) { toast.error('Amount paid cannot exceed the total payable'); return }
+      }
+    }
     onSubmit({
       join_date: data.join_date,
       package: data.package,
       trainer: data.trainer || '',
-      expiry_date: calcExpiryISO(data.join_date, data.status, months),
+      expiry_date: calcExpiryISO(data.join_date, memberStatus, months),
       admission_fee: data.admission_fee || null,
       send_welcome: !!data.send_welcome,
       add_to_device: !!data.add_to_device,
+      ...(data.collect_fee
+        ? {
+            collect_fee: true,
+            payment_type: data.payment_type,
+            payment_method: data.payment_method,
+            discount: calc.discount,
+            amount_paid: calc.amountPaid,
+          }
+        : {}),
     })
   }
 
@@ -88,13 +120,22 @@ function RestoreForm({ member, onSubmit, isPending }) {
           {expiryDisplay && <p className="text-xs text-gray-400 mt-1">Expires: {expiryDisplay}</p>}
         </div>
         <div>
-          <label className="label">Status</label>
-          <select className="input" {...register('status')}>
+          <label className="label">
+            Status
+            {collectFee && <span className="text-gray-400 text-xs"> (paid — active)</span>}
+          </label>
+          <select
+            className={`input ${collectFee ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={collectFee}
+            {...register('status')}
+          >
             <option value="ACTIVE">Active</option>
             <option value="EXPIRED">Expired</option>
           </select>
         </div>
-        <div className="sm:col-span-2">
+        {/* Package and Trainer sit side by side: full-width dropdowns for two
+            short values just stretched the modal out. */}
+        <div>
           <label className="label">Package *</label>
           <select className="input" {...register('package', { required: 'Package is required' })}>
             <option value="">Select a package</option>
@@ -104,9 +145,9 @@ function RestoreForm({ member, onSubmit, isPending }) {
           </select>
           {errors.package && <p className="text-red-500 text-xs mt-1">{errors.package.message}</p>}
         </div>
-        <div className="sm:col-span-2">
+        <div>
           <label className="label">
-            Trainer {trainerAllowed ? '*' : <span className="text-gray-400 text-xs">(select a trainer package)</span>}
+            Trainer {trainerAllowed ? '*' : <span className="text-gray-400 text-xs">(trainer package only)</span>}
           </label>
           <select
             className={`input ${!trainerAllowed ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -122,7 +163,7 @@ function RestoreForm({ member, onSubmit, isPending }) {
           </select>
           {errors.trainer && <p className="text-red-500 text-xs mt-1">{errors.trainer.message}</p>}
         </div>
-        <div className="sm:col-span-2">
+        <div>
           <label className="label">Admission Fee (PKR) <span className="text-gray-400 text-xs">(optional)</span></label>
           <input
             className="input [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
@@ -132,6 +173,14 @@ function RestoreForm({ member, onSubmit, isPending }) {
             onWheel={e => e.target.blur()}
             onKeyDown={e => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault() }}
             {...register('admission_fee', { min: { value: 0, message: 'Fee cannot be negative' } })}
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <CollectFeeSection
+            register={register}
+            calc={calc}
+            pkgName={selectedPkg?.name}
+            label="Collect rejoining payment now (admission + package as one payment)"
           />
         </div>
         {hasWhatsApp && (
@@ -427,6 +476,7 @@ export default function Members() {
         <select className="input w-auto flex-1 min-w-[8.5rem] sm:flex-none" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="">All Status</option>
           <option value="ACTIVE">Active</option>
+          <option value="PARTIAL">Partial</option>
           <option value="EXPIRED">Expired</option>
         </select>
         <select className="input w-auto flex-1 min-w-[8.5rem] sm:flex-none" value={genderFilter} onChange={(e) => setGenderFilter(e.target.value)}>
@@ -517,8 +567,11 @@ export default function Members() {
                   <Td>{m.package_name || <span className="text-gray-400">—</span>}</Td>
                   <Td>{m.trainer_name || <span className="text-gray-400">—</span>}</Td>
                   <Td>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${m.status === 'ACTIVE' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                      {m.status === 'ACTIVE' ? 'Active' : 'Expired'}
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusStyle(m.status).badge}`}
+                      title={Number(m.dues) > 0 ? `Dues: ${fmtCurrency(m.dues)}` : undefined}
+                    >
+                      {statusStyle(m.status).label}
                     </span>
                   </Td>
                   <Td className={m.expiry_date ? '' : 'text-gray-400'}>
@@ -693,7 +746,7 @@ export default function Members() {
         </div>
       </Modal>
 
-      <Modal isOpen={!!restoreMember} onClose={() => setRestoreMember(null)} title="Restore Member">
+      <Modal isOpen={!!restoreMember} onClose={() => setRestoreMember(null)} size="lg" title="Restore Member">
         {restoreMember && (
           <RestoreForm
             member={restoreMember}
@@ -712,9 +765,12 @@ export default function Members() {
         />
       )}
 
+      {/* Wide: this form asks for details, membership, first payment and extras —
+          three columns keep it one readable page instead of a long scroll. */}
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
+        size="xl"
         title={editMember ? 'Edit Member' : 'Add New Member'}
       >
         <MemberForm
@@ -724,8 +780,10 @@ export default function Members() {
           onSuccess={() => {
             setShowModal(false)
             queryClient.invalidateQueries({ queryKey: ['members'] })
+            queryClient.invalidateQueries({ queryKey: ['members-list'] })
             queryClient.invalidateQueries({ queryKey: ['member-next-id'] })
-            invalidateFinance(queryClient) // admission fee may create a payment
+            queryClient.invalidateQueries({ queryKey: ['payments'] })
+            invalidateFinance(queryClient) // the joining payment is income
           }}
         />
       </Modal>

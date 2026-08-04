@@ -8,6 +8,7 @@ import toast from 'react-hot-toast'
 import { useWaCredits } from '../../utils/waCredits'
 import EnrollModal from '../../components/EnrollModal'
 import { calcExpiryISO, calcExpiryDisplay } from '../../utils/expiry'
+import CollectFeeSection, { useJoiningPayment } from '../../components/members/CollectFee'
 
 export default function MemberForm({ member, onSuccess, defaultMemberId }) {
   const { user } = useAuthStore()
@@ -16,13 +17,22 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
   const hasAttendance = ['TIER2_AT', 'TIER3'].includes(user?.gym_tier)
   const todayISO = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
   const { register, handleSubmit, watch, setError, setValue, formState: { errors } } = useForm({
-    defaultValues: member ? { ...member } : { member_id: defaultMemberId || '', status: 'EXPIRED', join_date: todayISO },
+    defaultValues: member
+      ? { ...member }
+      : {
+          member_id: defaultMemberId || '', status: 'EXPIRED', join_date: todayISO,
+          payment_type: 'FULL', payment_method: 'CASH', discount: 0,
+        },
   })
 
   const [enrollTarget, setEnrollTarget] = useState(null)
   const joinDate = watch('join_date')
   const selectedPkgId = watch('package')
   const status = watch('status')
+  // Taking the joining money here is what collapses the old two-step dance
+  // (add as expired -> go to Payments -> record the package fee) into one entry,
+  // and one payment record instead of two.
+  const collectFee = watch('collect_fee')
 
   const { data: packages } = useQuery({
     queryKey: ['packages'],
@@ -49,15 +59,31 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
     if (!trainerAllowed) setValue('trainer', '')
   }, [trainerAllowed, setValue])
 
+  // Money collected up front means the membership starts running today — the
+  // status is no longer the accountant's to choose.
+  useEffect(() => {
+    if (collectFee) setValue('status', 'ACTIVE')
+  }, [collectFee, setValue])
+
+  const calc = useJoiningPayment({ watch, pkgPrice: selectedPkg?.price || 0 })
+
   const mutation = useMutation({
     mutationFn: (payload) => {
       const pkg = packages?.find((p) => String(p.id) === String(payload.package))
       const months = pkg ? pkg.duration_months : null
       const mid = payload.member_id ? String(payload.member_id).padStart(5, '0') : ''
       const base = { ...payload, member_id: mid || null, trainer: payload.trainer || null }
+      // With the first payment collected the member is added active, their expiry
+      // already a package-length away — the payment doesn't move it a second time.
+      const memberStatus = payload.collect_fee ? 'ACTIVE' : payload.status
       const body = member
         ? base
-        : { ...base, expiry_date: calcExpiryISO(payload.join_date, payload.status, months) }
+        : {
+            ...base,
+            status: memberStatus,
+            expiry_date: calcExpiryISO(payload.join_date, memberStatus, months),
+            ...(payload.collect_fee ? { discount: calc.discount, amount_paid: calc.amountPaid } : {}),
+          }
       return member
         ? api.patch(`/members/${member.id}/`, body)
         : api.post('/members/', body)
@@ -101,10 +127,24 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
     },
   })
 
+  const expiryHint = calcExpiryDisplay(joinDate, status, pkgMonths)
+
+  const submit = (d) => {
+    if (!member && d.collect_fee) {
+      if (calc.total <= 0) { toast.error('Nothing to collect — pick a package or enter an admission fee'); return }
+      if (calc.payType === 'PARTIAL') {
+        if (!calc.enteredPaid || calc.enteredPaid <= 0) { toast.error('Enter the amount the member paid'); return }
+        if (calc.enteredPaid > calc.payable) { toast.error('Amount paid cannot exceed the total payable'); return }
+      }
+    }
+    mutation.mutate(d)
+  }
+
   return (
     <>
-    <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <form onSubmit={handleSubmit(submit)} className="space-y-6">
+
+      <Section title="Member Details">
         <div>
           <label className="label">Full Name *</label>
           <input
@@ -119,7 +159,7 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
         </div>
 
         <div>
-          <label className="label">Father's Name <span className="text-gray-400 text-xs">(optional)</span></label>
+          <label className="label">Father&apos;s Name <span className="text-gray-400 text-xs">(optional)</span></label>
           <input
             className="input"
             {...register('father_name', {
@@ -185,6 +225,13 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
         </div>
 
         <div>
+          <label className="label">Address <span className="text-gray-400 text-xs">(optional)</span></label>
+          <input className="input" {...register('address')} />
+        </div>
+      </Section>
+
+      <Section title="Membership">
+        <div>
           <label className="label">Package *</label>
           <select className="input" {...register('package', { required: 'Package is required' })}>
             <option value="">Select a package</option>
@@ -197,7 +244,7 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
 
         <div>
           <label className="label">
-            Trainer {trainerAllowed ? '*' : <span className="text-gray-400 text-xs">(select a trainer package)</span>}
+            Trainer {trainerAllowed ? '*' : <span className="text-gray-400 text-xs">(trainer package only)</span>}
           </label>
           <select
             className={`input ${!trainerAllowed ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -219,38 +266,52 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
           <input
             type="date"
             className="input [color-scheme:dark]"
-            max={(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()}
+            max={todayISO}
             {...register('join_date', {
               required: 'Joining Date is required',
-              validate: v => !v || v <= (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })() || 'Future date not allowed',
+              validate: v => !v || v <= todayISO || 'Future date not allowed',
             })}
           />
           {errors.join_date && <p className="text-red-500 text-xs mt-1">{errors.join_date.message}</p>}
-          {calcExpiryDisplay(joinDate, status, pkgMonths) && (
-            <p className="text-xs text-gray-400 mt-1">
-              Expires: {calcExpiryDisplay(joinDate, status, pkgMonths)}
-            </p>
-          )}
+          {expiryHint && <p className="text-xs text-gray-400 mt-1">Expires: {expiryHint}</p>}
         </div>
 
         {!member && (
           <div>
-            <label className="label">Status</label>
-            <select className="input" {...register('status')}>
+            <label className="label">
+              Status
+              {collectFee && <span className="text-gray-400 text-xs"> (paid — active)</span>}
+            </label>
+            <select
+              className={`input ${collectFee ? 'opacity-50 cursor-not-allowed' : ''}`}
+              disabled={collectFee}
+              {...register('status')}
+            >
               <option value="ACTIVE">Active</option>
               <option value="EXPIRED">Expired</option>
             </select>
           </div>
         )}
+      </Section>
 
-        {!member && (
-          <div>
+      {!member && (
+        <Section title="First Payment" columns={1}>
+          <div className="sm:max-w-xs">
             <label className="label">Admission Fee (PKR) <span className="text-gray-400 text-xs">(optional)</span></label>
-            <input className="input [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" type="number" min="0" placeholder="0" onWheel={e => e.target.blur()} onKeyDown={e => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault() }} {...register('admission_fee', { min: { value: 0, message: 'Fee cannot be negative' } })} />
+            <input
+              className="input [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              type="number" min="0" placeholder="0"
+              onWheel={e => e.target.blur()}
+              onKeyDown={e => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault() }}
+              {...register('admission_fee', { min: { value: 0, message: 'Fee cannot be negative' } })}
+            />
             {errors.admission_fee && <p className="text-red-500 text-xs mt-1">{errors.admission_fee.message}</p>}
           </div>
-        )}
+          <CollectFeeSection register={register} calc={calc} pkgName={selectedPkg?.name} />
+        </Section>
+      )}
 
+      <Section title="Extras">
         {hasAttendance && (
           <div>
             <label className="label">Device ID <span className="text-gray-400 text-xs">(biometric)</span></label>
@@ -258,50 +319,43 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
           </div>
         )}
 
-        {!member && hasAttendance && (
-          <div className="sm:col-span-2">
-            <label className="flex items-center gap-2 select-none cursor-pointer">
-              <input type="checkbox" className="w-4 h-4 accent-green-500" {...register('add_to_device')} />
-              <span className="text-sm text-gray-300 flex items-center gap-1.5">
-                <Fingerprint size={14} className="text-primary-400" /> Add to device &amp; enroll fingerprint
-              </span>
-            </label>
+        {!member && (hasAttendance || hasWhatsApp) && (
+          <div className="sm:col-span-2 space-y-2 self-end pb-1">
+            {hasAttendance && (
+              <label className="flex items-center gap-2 select-none cursor-pointer">
+                <input type="checkbox" className="w-4 h-4 accent-green-500" {...register('add_to_device')} />
+                <span className="text-sm text-gray-300 flex items-center gap-1.5">
+                  <Fingerprint size={14} className="text-primary-400" /> Add to device &amp; enroll fingerprint
+                </span>
+              </label>
+            )}
+
+            {hasWhatsApp && (
+              <label className={`flex items-center gap-2 select-none ${outOfCredits ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                <input
+                  type="checkbox" disabled={outOfCredits}
+                  className="w-4 h-4 accent-green-500 disabled:opacity-40"
+                  {...register('send_welcome')}
+                />
+                <span className={`text-sm ${outOfCredits ? 'text-gray-600' : 'text-gray-300'}`}>
+                  {outOfCredits
+                    ? 'Out of WhatsApp messages — top up to send a welcome'
+                    : 'Send welcome message on WhatsApp'}
+                </span>
+              </label>
+            )}
           </div>
         )}
 
-        {!member && hasWhatsApp && (
-          <div className="sm:col-span-2">
-            <label className={`flex items-center gap-2 select-none ${outOfCredits ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
-              <input
-                type="checkbox" disabled={outOfCredits}
-                className="w-4 h-4 accent-green-500 disabled:opacity-40"
-                {...register('send_welcome')}
-              />
-              <span className={`text-sm ${outOfCredits ? 'text-gray-600' : 'text-gray-300'}`}>
-                {outOfCredits
-                  ? 'Out of WhatsApp messages — top up to send a welcome'
-                  : 'Send welcome message on WhatsApp'}
-              </span>
-            </label>
-          </div>
-        )}
-
-        <div className="sm:col-span-2">
-          <label className="label">Address <span className="text-gray-400 text-xs">(optional)</span></label>
-          <input className="input" {...register('address')} />
-        </div>
-
-        <div className="sm:col-span-2">
+        <div className="sm:col-span-2 lg:col-span-3">
           <label className="label">Notes <span className="text-gray-400 text-xs">(optional)</span></label>
-          <textarea className="input h-20 resize-none" {...register('notes')} />
+          <textarea className="input h-16 resize-none" {...register('notes')} />
         </div>
-      </div>
+      </Section>
 
-      <div className="flex gap-3 pt-2">
-        <button type="submit" disabled={mutation.isPending} className="btn-primary flex-1 justify-center">
-          {mutation.isPending ? 'Saving...' : member ? 'Update Member' : 'Add Member'}
-        </button>
-      </div>
+      <button type="submit" disabled={mutation.isPending} className="btn-primary w-full justify-center">
+        {mutation.isPending ? 'Saving...' : member ? 'Update Member' : 'Add Member'}
+      </button>
     </form>
     {enrollTarget && (
       <EnrollModal
@@ -312,5 +366,22 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
       />
     )}
     </>
+  )
+}
+
+/**
+ * One labelled group of fields. The add-member form asks for a lot at once, so it
+ * reads as blocks — who they are, what they signed up for, what they paid — rather
+ * than one long ladder of inputs.
+ */
+function Section({ title, children, columns = 3 }) {
+  const grid = columns === 1 ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+  return (
+    <section className="space-y-3">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-primary-400/80 border-b border-gray-700/60 pb-1.5">
+        {title}
+      </h3>
+      <div className={`grid ${grid} gap-4`}>{children}</div>
+    </section>
   )
 }
