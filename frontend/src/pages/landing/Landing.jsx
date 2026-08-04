@@ -23,11 +23,11 @@ import { CONTACT_EMAIL, composeUrl } from '../../utils/contact'
 import EmailLink from '../../components/ui/EmailLink'
 
 const CONTACT = {
-  // TODO(gymistan): put the real business WhatsApp here (digits only, e.g.
-  // '923001234567') and every contact CTA on the page switches back to WhatsApp
-  // on its own — button, icon and footer link included. Null means we have no
-  // number to send anyone to yet, so the page contacts by email instead.
-  whatsapp: null,
+  // The business WhatsApp every contact CTA on this page opens — button, icon and
+  // footer link alike. Deliberately NOT the Cloud API number the product sends
+  // receipts from: replies to that one land on the delivery-status webhook and
+  // would never be read by a person. Set to null to fall back to email.
+  whatsapp: '923098435716',
   email: CONTACT_EMAIL,
 }
 
@@ -369,7 +369,7 @@ function Hero() {
 const FEATURES = [
   { icon: Users, title: 'Member management', body: 'Full roster with photos, packages and trainers. Filter by active or expired, by gender, or by who has a trainer — and blacklisted and removed members sit in lists of their own.' },
   { icon: Package, title: 'Packages & subscriptions', body: 'Monthly, quarterly, annual, ladies-only, personal training — any duration and price, with the features each plan includes.' },
-  { icon: CreditCard, title: 'Fees & renewals', body: 'Record a payment and the membership renews itself. Discounts, partial payments, admission fees and a printable slip for every one.' },
+  { icon: CreditCard, title: 'Fees & renewals', body: 'Record a payment and the membership renews itself. Took half the fee? The rest is carried as dues, the member reads Partial until it’s cleared, and one tap reminds them. Admission fee and first month go in as a single receipt.' },
   { icon: MessageCircle, title: 'WhatsApp receipts', body: 'The payment slip lands on the member’s WhatsApp as a PDF, seconds after they pay. Renewal reminders go the same way.' },
   { icon: Fingerprint, title: 'Biometric attendance', body: 'ZKTeco devices connect straight in. Daily, weekly and monthly sheets for members and trainers, plus a live entrance screen that calls out each scan.' },
   { icon: UserCog, title: 'Trainers & salaries', body: 'Assign trainers to members, track monthly salary, commission and what’s still pending — and every payment books itself as an expense.' },
@@ -611,13 +611,14 @@ const PLANS = [
   {
     name: 'Starter', label: 'Tier 1', blurb: 'Everything you need to run a gym.',
     features: ['Member management', 'Packages & subscriptions', 'Payment recording & slips',
-      'Expense tracking', 'Supplement inventory', 'Dashboard & finance reports', 'Export to Excel'],
+      'Part payments & dues tracking', 'Expense tracking', 'Supplement inventory',
+      'Dashboard & finance reports', 'Export to Excel'],
     locked: ['WhatsApp receipts', 'Biometric attendance'],
   },
   {
     name: 'Connect', label: 'Tier 2.1', blurb: 'Starter, plus receipts on WhatsApp.',
     features: ['Everything in Starter', 'WhatsApp payment slips', 'Renewal reminders',
-      'Welcome messages', 'Prepaid message credits'],
+      'Dues reminders', 'Welcome messages', 'Prepaid message credits'],
     locked: ['Biometric attendance'],
   },
   {
