@@ -5,8 +5,12 @@ from apps.packages.serializers import PackageSerializer
 
 
 def compute_status(member):
+    # Expiry wins over dues: a lapsed membership needs renewing before anything
+    # else, so it reads EXPIRED even while a balance is still outstanding.
     if member.expiry_date and member.expiry_date <= localdate():
         return 'EXPIRED'
+    if (member.dues or 0) > 0:
+        return 'PARTIAL'
     return 'ACTIVE'
 
 
@@ -51,7 +55,9 @@ class MemberSerializer(serializers.ModelSerializer):
     class Meta:
         model = Member
         fields = '__all__'
-        read_only_fields = ['gym', 'has_fingerprint']
+        # `dues` only ever moves through a recorded payment, never through the
+        # member form.
+        read_only_fields = ['gym', 'has_fingerprint', 'dues']
 
 
 class MemberListSerializer(serializers.ModelSerializer):
@@ -68,4 +74,4 @@ class MemberListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Member
-        fields = ['id', 'member_id', 'name', 'phone', 'gender', 'father_name', 'package', 'package_name', 'trainer', 'trainer_name', 'status', 'expiry_date', 'join_date', 'address', 'notes', 'device_user_id', 'blacklisted', 'blacklist_active', 'blacklist_reason', 'blacklist_until', 'deleted_at']
+        fields = ['id', 'member_id', 'name', 'phone', 'gender', 'father_name', 'package', 'package_name', 'trainer', 'trainer_name', 'status', 'dues', 'expiry_date', 'join_date', 'address', 'notes', 'device_user_id', 'blacklisted', 'blacklist_active', 'blacklist_reason', 'blacklist_until', 'deleted_at']

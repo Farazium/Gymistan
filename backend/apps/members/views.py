@@ -7,14 +7,16 @@ from django.db import IntegrityError
 from django.db.models import Q
 from django.utils import timezone
 from .models import Member
-from .queries import active_q, expired_q
+from .queries import expired_q, partial_q, fully_paid_active_q
 from .serializers import MemberSerializer, MemberListSerializer
 from apps.accounts.permissions import IsGymMember
 from apps.payments.models import Payment
+from apps.payments.services import apply_payment
 from apps.payments.utils import (
     send_whatsapp_welcome, send_whatsapp_expiry_reminder, OUT_OF_CREDITS,
 )
 from apps.gyms.models import WA_TIERS, AT_TIERS
+from decimal import Decimal, InvalidOperation
 import calendar
 import datetime
 import logging
@@ -24,25 +26,68 @@ def _truthy(v):
     return str(v).lower() in ('1', 'true', 'yes', 'on')
 
 
-def _create_admission_payment(request, member, rejoin=False):
-    """Record the one-off admission fee as its own payment. Returns it, or None when
-    no usable fee was given."""
+def _decimal(value, default='0'):
     try:
-        fee = float(request.data.get('admission_fee') or 0)
-    except (ValueError, TypeError):
+        return Decimal(str(value if value not in (None, '') else default))
+    except (InvalidOperation, ValueError, TypeError):
+        return Decimal(default)
+
+
+def _create_admission_payment(request, member, rejoin=False):
+    """Record what the member handed over on the way in, as a single payment.
+
+    Two shapes, depending on the form:
+
+    * `collect_fee` off — the old behaviour: an admission-fee-only payment (or
+      nothing at all when no fee was entered).
+    * `collect_fee` on — one payment covering the admission fee *and* the first
+      package fee, so the books show one receipt for one hand-over of cash rather
+      than two records the accountant has to mentally add up. It may be settled in
+      full or in part; `apply_payment` works out which and carries any shortfall
+      as dues.
+
+    Returns the payment, or None when there was nothing to record.
+    """
+    fee = _decimal(request.data.get('admission_fee'))
+    if fee < 0:
+        fee = Decimal('0')
+
+    collect_fee = _truthy(request.data.get('collect_fee'))
+    package = member.package if collect_fee else None
+    package_price = _decimal(package.price) if package else Decimal('0')
+    # A member being restored may have walked out owing money; that balance is
+    # folded in here rather than left behind for someone to notice later.
+    carried = max(_decimal(member.dues), Decimal('0')) if collect_fee else Decimal('0')
+
+    amount = fee + package_price + carried
+    if amount <= 0:
         return None
-    if fee <= 0:
-        return None
-    return Payment.objects.create(
+
+    discount = _decimal(request.data.get('discount')) if collect_fee else Decimal('0')
+    # Nothing already charged can be discounted — only what is being charged now.
+    discount = min(max(discount, Decimal('0')), amount - carried)
+    payable = amount - discount
+
+    amount_paid = payable
+    if collect_fee and str(request.data.get('payment_type') or '').upper() == 'PARTIAL':
+        amount_paid = min(max(_decimal(request.data.get('amount_paid')), Decimal('0')), payable)
+
+    payment = Payment.objects.create(
         gym=request.user.gym,
         member=member,
+        package=package,
         collected_by=request.user,
-        amount=fee,
-        amount_paid=fee,
-        status='PAID',
-        notes='Admission fee',
+        amount=amount,
+        discount=discount,
+        amount_paid=amount_paid,
+        admission_amount=fee,
+        dues_amount=carried,
+        payment_method='ONLINE' if str(request.data.get('payment_method')).upper() == 'ONLINE' else 'CASH',
+        notes='Admission fee' if not collect_fee else 'Admission + first payment',
         is_rejoin=rejoin,
+        is_joining=True,
     )
+    return apply_payment(payment)
 
 
 def _maybe_send_welcome(request, member, welcome_back=False, admission_payment=None):
@@ -143,7 +188,10 @@ class MemberListCreateView(generics.ListCreateAPIView):
 
         status = self.request.query_params.get('status')
         if status == 'ACTIVE':
-            qs = qs.filter(active_q())
+            # Matches the badge: a part-paid member is filed under Partial, not here.
+            qs = qs.filter(fully_paid_active_q())
+        elif status == 'PARTIAL':
+            qs = qs.filter(partial_q())
         elif status == 'EXPIRED':
             qs = qs.filter(expired_q())
 

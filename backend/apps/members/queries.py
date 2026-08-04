@@ -25,6 +25,16 @@ def expired_q(today=None):
     return Q(expiry_date__lte=today)
 
 
+def partial_q(today=None):
+    """Membership still valid but part of the fee is unpaid."""
+    return active_q(today) & Q(dues__gt=0)
+
+
+def fully_paid_active_q(today=None):
+    """Running membership with nothing outstanding — the plain ACTIVE badge."""
+    return active_q(today) & Q(dues__lte=0)
+
+
 def expiring_soon_q(days, today=None):
     """Still-active members whose expiry falls within the next `days` days."""
     today = today or localdate()

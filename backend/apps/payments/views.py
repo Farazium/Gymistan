@@ -7,11 +7,9 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .models import Payment
 from .serializers import PaymentSerializer
 from .utils import generate_payment_slip, send_whatsapp_slip, OUT_OF_CREDITS
+from .services import apply_payment
 from apps.accounts.permissions import IsGymMember
 from apps.gyms.models import WA_TIERS
-from apps.common.dates import renew_from
-import datetime
-from django.utils import timezone
 
 
 class PaymentListCreateView(generics.ListCreateAPIView):
@@ -30,18 +28,7 @@ class PaymentListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         payment = serializer.save(gym=self.request.user.gym, collected_by=self.request.user)
-        if payment.status == 'PAID' and payment.package:
-            member = payment.member
-            new_expiry = renew_from(
-                member.expiry_date, payment.package.duration_months,
-                anchor_day=member.join_date.day if member.join_date else None,
-            )
-            payment.prev_expiry = member.expiry_date
-            payment.new_expiry = new_expiry
-            payment.save(update_fields=['prev_expiry', 'new_expiry'])
-            member.expiry_date = new_expiry
-            member.status = 'ACTIVE'
-            member.save(update_fields=['expiry_date', 'status'])
+        apply_payment(payment)
 
 
 class PaymentDetailView(generics.RetrieveUpdateDestroyAPIView):

@@ -315,7 +315,10 @@ class FinanceIncomeStatementView(APIView):
         end = min(end, today)
 
         member_revenue = float(
-            Payment.objects.filter(gym=gym, payment_date__range=[start, end], status='PAID')
+            # PARTIAL counts too: the cash it records did come in — only the
+            # balance is outstanding, and `amount_paid` already excludes that.
+            Payment.objects.filter(gym=gym, payment_date__range=[start, end],
+                                   status__in=['PAID', 'PARTIAL'])
             .aggregate(t=Sum('amount_paid'))['t'] or 0
         )
         inventory_revenue = sum(

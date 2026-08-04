@@ -7,6 +7,8 @@ class Member(models.Model):
     class Status(models.TextChoices):
         ACTIVE = 'ACTIVE', 'Active'
         EXPIRED = 'EXPIRED', 'Expired'
+        # Membership is running but part of the fee is still owed — see `dues`.
+        PARTIAL = 'PARTIAL', 'Partial'
 
     class Gender(models.TextChoices):
         MALE = 'MALE', 'Male'
@@ -25,6 +27,10 @@ class Member(models.Model):
     join_date = models.DateField()
     expiry_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    # Fee still owed after a part-payment. Raised when a payment is recorded for
+    # less than what was payable, drawn down when the balance is settled. It is
+    # what makes a running membership read as PARTIAL instead of ACTIVE.
+    dues = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     notes = models.TextField(blank=True)
     is_deleted = models.BooleanField(default=False)
     deleted_at = models.DateTimeField(null=True, blank=True)

@@ -29,9 +29,12 @@ def _money(v):
     return f'PKR {v:,.0f}'
 
 
-def _logo_flowable(gym):
-    """Return a reportlab Image for the gym logo, scaled big (~55mm tall,
-    ~26% of the A5 height) while preserving aspect ratio. None if unavailable."""
+def _logo_flowable(gym, max_h_mm=42):
+    """Return a reportlab Image for the gym logo, scaled big (~42mm tall, ~20% of
+    the A5 height) while preserving aspect ratio. None if unavailable.
+
+    `max_h_mm` shrinks it for a page that has more to fit — a welcome slip that
+    doubles as a receipt would otherwise spill onto a second sheet."""
     if not gym.logo:
         return None
     try:
@@ -44,7 +47,7 @@ def _logo_flowable(gym):
         iw, ih = ImageReader(path).getSize()
         if not iw or not ih:
             return None
-        max_h = 42 * mm
+        max_h = max_h_mm * mm
         max_w = 80 * mm
         ratio = min(max_w / iw, max_h / ih)
         return Image(path, width=iw * ratio, height=ih * ratio)
@@ -56,6 +59,12 @@ def _is_admission(payment):
     return (payment.notes or '').strip().lower() == 'admission fee'
 
 
+def _is_joining(payment):
+    """A payment taken while the member was being added or restored. The flag is
+    what new records carry; the note is how the ones taken before it are known."""
+    return bool(getattr(payment, 'is_joining', False)) or _is_admission(payment)
+
+
 def _new_doc(buffer, title):
     return SimpleDocTemplate(
         buffer, pagesize=A5,
@@ -65,14 +74,42 @@ def _new_doc(buffer, title):
     )
 
 
-def _header_elements(gym):
+# How roomy a slip is allowed to be. Each step down shrinks the logo, the cell
+# padding and the gaps between blocks; `_render_one_page` walks the list until the
+# whole thing lands on a single sheet. Anything the gym hands (or WhatsApps) to a
+# member is a one-page document — a receipt that spills onto a second sheet reads
+# as a printing fault, and a member's slip must never look broken.
+LAYOUTS = [
+    {'logo': 42, 'pad': 7, 'gap': 1.0},
+    {'logo': 30, 'pad': 4.5, 'gap': 0.7},
+    {'logo': 20, 'pad': 2.5, 'gap': 0.45},
+]
+
+
+def _render_one_page(title, build_elements):
+    """Build a slip at the roomiest layout that still fits on one page.
+
+    `build_elements(layout)` returns the flowables for one attempt; it is called
+    afresh each time because reportlab consumes the flowables it draws."""
+    buffer = None
+    for i, layout in enumerate(LAYOUTS):
+        buffer = io.BytesIO()
+        doc = _new_doc(buffer, title)
+        doc.build(build_elements(layout))
+        if doc.page <= 1 or i == len(LAYOUTS) - 1:
+            break
+    buffer.seek(0)
+    return buffer
+
+
+def _header_elements(gym, logo_h_mm=42):
     """Shared branded header: big logo, gym name, address, contact."""
     gym_name = ParagraphStyle('gymName', fontSize=17, alignment=TA_CENTER,
                               fontName='Helvetica-Bold', textColor=INK, spaceBefore=4, leading=20)
     contact = ParagraphStyle('contact', fontSize=8.5, alignment=TA_CENTER,
                              textColor=MUTED, leading=12)
     e = []
-    logo = _logo_flowable(gym)
+    logo = _logo_flowable(gym, logo_h_mm)
     if logo:
         logo.hAlign = 'CENTER'
         e.append(logo)
@@ -97,7 +134,7 @@ def _footer_elements(lines):
     return e
 
 
-def _details_table(rows):
+def _details_table(rows, pad=6):
     """Each row is either a 4-tuple (label, value, label, value) for two side-by-side
     pairs, or a 2-tuple (label, value) for a single full-width field (value spans the
     remaining columns — good for long names)."""
@@ -127,8 +164,8 @@ def _details_table(rows):
         ('TEXTCOLOR', (1, 0), (1, -1), INK),
         ('TEXTCOLOR', (3, 0), (3, -1), INK),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING', (0, 0), (-1, -1), 6),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), pad),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), pad),
         ('LINEBELOW', (0, 0), (-1, -2), 0.5, LINE),
     ] + spans))
     return details
@@ -157,6 +194,65 @@ def _band(left_text, right_text=None, center_text=None):
     return band
 
 
+def _amount_summary(payment, pad=7):
+    """The money box: what was charged, what came off it, what was handed over and
+    what is still owed.
+
+    A joining payment that bundles the admission fee with the first package fee is
+    broken back into its two lines — the whole point of taking it as one payment is
+    that the member still sees exactly what they were charged for. A part-payment
+    adds an amber balance line under the total."""
+    amt_lbl = ParagraphStyle('al', fontSize=9, textColor=MUTED, fontName='Helvetica')
+    amt_val = ParagraphStyle('av', fontSize=9, textColor=INK, alignment=TA_RIGHT, fontName='Helvetica')
+    tot_lbl = ParagraphStyle('tl', fontSize=11, textColor=colors.white, fontName='Helvetica-Bold')
+    tot_val = ParagraphStyle('tv', fontSize=13, textColor=colors.white, alignment=TA_RIGHT, fontName='Helvetica-Bold')
+    due_fg = colors.HexColor('#B45309')
+    due_lbl = ParagraphStyle('dl', fontSize=10, textColor=due_fg, fontName='Helvetica-Bold')
+    due_val = ParagraphStyle('dv', fontSize=11, textColor=due_fg, alignment=TA_RIGHT, fontName='Helvetica-Bold')
+
+    admission = payment.admission_amount or 0
+    carried = payment.dues_amount or 0
+    package_fee = (payment.amount or 0) - admission - carried
+
+    def line(label, value):
+        rows.append([Paragraph(label, amt_lbl), Paragraph(_money(value), amt_val)])
+
+    rows = []
+    if package_fee > 0:
+        line('Package Fee' if (admission or carried) else 'Amount', package_fee)
+    if admission > 0:
+        line('Admission Fee', admission)
+    if carried > 0:
+        line('Previous Dues', carried)
+    if not rows:
+        line('Amount', payment.amount)
+    rows.append([Paragraph('Discount', amt_lbl), Paragraph(f'– {_money(payment.discount)}', amt_val)])
+
+    remaining = payment.remaining
+    if remaining > 0:
+        rows.append([Paragraph('Total Payable', amt_lbl), Paragraph(_money(payment.payable), amt_val)])
+    total_row = len(rows)
+    rows.append([Paragraph('TOTAL PAID', tot_lbl), Paragraph(_money(payment.amount_paid), tot_val)])
+    if remaining > 0:
+        rows.append([Paragraph('REMAINING', due_lbl), Paragraph(_money(remaining), due_val)])
+
+    summary = Table(rows, colWidths=[CONTENT_W * 0.6, CONTENT_W * 0.4])
+    style = [
+        ('BACKGROUND', (0, 0), (-1, total_row - 1), BRAND_LIGHT),
+        ('BACKGROUND', (0, total_row), (-1, total_row), BRAND),
+        ('LEFTPADDING', (0, 0), (-1, -1), 10),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+        ('TOPPADDING', (0, 0), (-1, -1), pad),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), pad),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LINEBELOW', (0, 0), (-1, total_row - 2), 0.5, colors.white),
+    ]
+    if remaining > 0:
+        style.append(('BACKGROUND', (0, total_row + 1), (-1, total_row + 1), colors.HexColor('#FEF3C7')))
+    summary.setStyle(TableStyle(style))
+    return summary
+
+
 def _status_badge(payment):
     is_paid = payment.status == 'PAID'
     badge_bg = colors.HexColor('#DCFCE7') if is_paid else colors.HexColor('#FEF3C7')
@@ -175,69 +271,54 @@ def _status_badge(payment):
 
 
 def generate_payment_slip(payment):
-    """Admission-fee payments get a warm welcome slip; everything else a receipt."""
-    if _is_admission(payment) and payment.member:
+    """Joining payments get a warm welcome slip; everything else a receipt."""
+    if _is_joining(payment) and payment.member:
         return generate_welcome_slip(payment.member, admission_payment=payment)
     return _generate_receipt_slip(payment)
 
 
 def _generate_receipt_slip(payment):
-    buffer = io.BytesIO()
-    doc = _new_doc(buffer, f'Receipt #{payment.id:05d}')
     gym = payment.gym
     member = payment.member
 
-    e = _header_elements(gym)
-    e.append(_band('PAYMENT RECEIPT', f'Invoice #{payment.id:05d}'))
-    e.append(Spacer(1, 4 * mm))
+    def build(layout):
+        gap = layout['gap']
+        e = _header_elements(gym, logo_h_mm=layout['logo'])
+        e.append(_band('PAYMENT RECEIPT', f'Invoice #{payment.id:05d}'))
+        e.append(Spacer(1, 4 * gap * mm))
 
-    next_expiry = payment.new_expiry or (member.expiry_date if member else None)
-    pkg = payment.package or (member.package if member else None)
-    e.append(_details_table([
-        ('Member ID', (member.member_id or '—') if member else '—',
-         'Name', member.name if member else '—'),
-        ('Paid On', _fmt_date(payment.payment_date),
-         'Mode of Payment', payment.get_payment_method_display()),
-        ('Expired On', _fmt_date(payment.prev_expiry),
-         'Next Expiry Date', _fmt_date(next_expiry)),
-        ('Package', pkg.name if pkg else '—'),
-    ]))
-    e.append(Spacer(1, 4 * mm))
+        next_expiry = payment.new_expiry or (member.expiry_date if member else None)
+        pkg = payment.package or (member.package if member else None)
+        rows = [
+            ('Member ID', (member.member_id or '—') if member else '—',
+             'Name', member.name if member else '—'),
+            ('Paid On', _fmt_date(payment.payment_date),
+             'Mode of Payment', payment.get_payment_method_display()),
+        ]
+        if payment.is_dues_payment:
+            # Settling an old balance buys no time, so an expiry pair here would
+            # read like a renewal that never happened.
+            rows.append(('Payment For', 'Outstanding Dues',
+                         'Valid Till', _fmt_date(next_expiry)))
+        else:
+            rows.append(('Expired On', _fmt_date(payment.prev_expiry),
+                         'Next Expiry Date', _fmt_date(next_expiry)))
+            rows.append(('Package', pkg.name if pkg else '—'))
+        e.append(_details_table(rows, pad=layout['pad'] - 1))
+        e.append(Spacer(1, 4 * gap * mm))
 
-    # ---- Amount summary box ----
-    amt_lbl = ParagraphStyle('al', fontSize=9, textColor=MUTED, fontName='Helvetica')
-    amt_val = ParagraphStyle('av', fontSize=9, textColor=INK, alignment=TA_RIGHT, fontName='Helvetica')
-    tot_lbl = ParagraphStyle('tl', fontSize=11, textColor=colors.white, fontName='Helvetica-Bold')
-    tot_val = ParagraphStyle('tv', fontSize=13, textColor=colors.white, alignment=TA_RIGHT, fontName='Helvetica-Bold')
+        e.append(_amount_summary(payment, pad=layout['pad']))
+        e.append(Spacer(1, 4 * gap * mm))
 
-    summary = Table([
-        [Paragraph('Amount', amt_lbl), Paragraph(_money(payment.amount), amt_val)],
-        [Paragraph('Discount', amt_lbl), Paragraph(f'– {_money(payment.discount)}', amt_val)],
-        [Paragraph('TOTAL PAID', tot_lbl), Paragraph(_money(payment.amount_paid), tot_val)],
-    ], colWidths=[CONTENT_W * 0.6, CONTENT_W * 0.4])
-    summary.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 1), BRAND_LIGHT),
-        ('BACKGROUND', (0, 2), (-1, 2), BRAND),
-        ('LEFTPADDING', (0, 0), (-1, -1), 10),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-        ('TOPPADDING', (0, 0), (-1, -1), 7),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('LINEBELOW', (0, 0), (-1, 0), 0.5, colors.white),
-    ]))
-    e.append(summary)
-    e.append(Spacer(1, 4 * mm))
+        e.append(_status_badge(payment))
+        e.append(Spacer(1, 5 * gap * mm))
 
-    e.append(_status_badge(payment))
-    e.append(Spacer(1, 5 * mm))
+        footer = ['Thank you for your payment!']
+        if payment.remaining > 0:
+            footer.append(f'Dues of {_money(payment.remaining)} are still outstanding.')
+        return e + _footer_elements(footer)
 
-    e += _footer_elements([
-        'Thank you for your payment!',
-    ])
-
-    doc.build(e)
-    buffer.seek(0)
-    return buffer
+    return _render_one_page(f'Receipt #{payment.id:05d}', build)
 
 
 def _welcome_greeting(name, gym_name, welcome_back):
@@ -269,8 +350,6 @@ def generate_welcome_slip(member, admission_payment=None, welcome_back=False):
     payment's slip produces the very same page. Pass `admission_payment` when a fee
     was taken — that only adds the fee box, so the member and the gym are never
     looking at two different slips for the same event."""
-    buffer = io.BytesIO()
-    doc = _new_doc(buffer, f'Welcome {member.name}')
     gym = member.gym
     pkg = member.package
     if admission_payment is None:
@@ -285,38 +364,56 @@ def generate_welcome_slip(member, admission_payment=None, welcome_back=False):
 
     banner, line1, line2, tagline = _welcome_greeting(member.name, gym.name, rejoin)
 
-    e = _header_elements(gym)
-    e.append(_band('', center_text=banner))
-    e.append(Spacer(1, 5 * mm))
+    # Whether the first fee was collected at the desk decides what this page can
+    # promise. Without it the membership is registered but expired, so there is no
+    # "valid till" to print; with it the first cycle is already running.
+    paid_up = admission_payment is not None and admission_payment.package is not None
 
-    e.append(Paragraph(line1, greet))
-    e.append(Spacer(1, 2 * mm))
-    e.append(Paragraph(line2, msg))
-    e.append(Spacer(1, 5 * mm))
+    def build(layout):
+        gap = layout['gap']
+        e = _header_elements(gym, logo_h_mm=layout['logo'])
+        e.append(_band('', center_text=banner))
+        e.append(Spacer(1, 5 * gap * mm))
 
-    # No expiry here: a member is registered with an expired status until their
-    # first fee is paid, so "valid till" would just repeat the join date.
-    rows = [
-        ('Member ID', member.member_id or '—', 'Name', member.name),
-        ('Phone', member.phone or '—', 'Join Date', _fmt_date(member.join_date)),
-        ('Package', pkg.name if pkg else '—'),
-    ]
-    if admission_payment is not None:
-        rows[2] = ('Package', pkg.name if pkg else '—',
-                   'Admission Fee', _money(admission_payment.amount_paid))
-    e.append(_details_table(rows))
-    e.append(Spacer(1, 4 * mm))
+        e.append(Paragraph(line1, greet))
+        # The second line of welcome is the first thing to go when the page also
+        # has to carry a money box.
+        if not paid_up:
+            e.append(Spacer(1, 2 * gap * mm))
+            e.append(Paragraph(line2, msg))
+        e.append(Spacer(1, 5 * gap * mm))
 
-    e.append(_band('', center_text=tagline))
-    e.append(Spacer(1, 6 * mm))
+        rows = [
+            ('Member ID', member.member_id or '—', 'Name', member.name),
+            ('Phone', member.phone or '—', 'Join Date', _fmt_date(member.join_date)),
+            ('Package', pkg.name if pkg else '—'),
+        ]
+        if paid_up:
+            expiry = admission_payment.new_expiry or member.expiry_date
+            rows[2] = ('Package', pkg.name if pkg else '—', 'Valid Till', _fmt_date(expiry))
+        elif admission_payment is not None:
+            rows[2] = ('Package', pkg.name if pkg else '—',
+                       'Admission Fee', _money(admission_payment.amount_paid))
+        e.append(_details_table(rows, pad=layout['pad'] - 1))
+        e.append(Spacer(1, 4 * gap * mm))
 
-    e += _footer_elements([
-        'See you at the gym!',
-    ])
+        # A joining payment that covered the package too is a receipt as much as a
+        # welcome — it gets the same money box the receipt uses, so the member can
+        # see exactly what the admission fee and the first fee were. No status
+        # badge here: the box already prints the balance.
+        if paid_up:
+            e.append(_amount_summary(admission_payment, pad=layout['pad']))
+            e.append(Spacer(1, 4 * gap * mm))
 
-    doc.build(e)
-    buffer.seek(0)
-    return buffer
+        e.append(_band('', center_text=tagline))
+        e.append(Spacer(1, 6 * gap * mm))
+
+        footer = ['See you at the gym!']
+        if paid_up and admission_payment.remaining > 0:
+            footer.append(f'Dues of {_money(admission_payment.remaining)} are still outstanding.')
+        return e + _footer_elements(footer)
+
+    return _render_one_page(f'Welcome {member.name}', build)
 
 
 OUT_OF_CREDITS = 'WhatsApp message limit reached — top up to send more'
