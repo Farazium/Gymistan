@@ -7,10 +7,59 @@
          if that changes. -->
     <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gymistan</title>
+    <title>Gymistan — gym management software for Pakistan</title>
+
+    <!-- Everything below is for the readers that never run JavaScript: search
+         crawlers, and the link-preview fetchers behind WhatsApp, Facebook and X.
+         They see this file exactly as it is served, so what isn't here doesn't
+         exist to them — the React app renders far too late to count. -->
+    <meta name="description" content="Gym management software built for Pakistani gyms. Members, packages, fees and part-payments, expenses, supplement stock, trainer salaries, biometric attendance and WhatsApp receipts — one dashboard, amounts in PKR." />
+    <meta name="theme-color" content="#0b1220" />
+    <link rel="canonical" href="https://gymistan.dev/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Gymistan" />
+    <meta property="og:url" content="https://gymistan.dev/" />
+    <meta property="og:title" content="Gymistan — everything your gym runs on, in one dashboard" />
+    <meta property="og:description" content="Members, fees, expenses, trainer salaries, WhatsApp receipts and biometric attendance. Built for Pakistani gyms, amounts in PKR. Try the live demo — no signup." />
+    <meta property="og:image" content="https://gymistan.dev/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="en_PK" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Gymistan — everything your gym runs on, in one dashboard" />
+    <meta name="twitter:description" content="Members, fees, expenses, trainer salaries, WhatsApp receipts and biometric attendance. Built for Pakistani gyms, amounts in PKR." />
+    <meta name="twitter:image" content="https://gymistan.dev/og-image.jpg" />
   </head>
   <body>
     <div id="root"></div>
+
+    <!-- The page a crawler reads. React replaces #root above with the real
+         landing page; a fetcher that doesn't run scripts would otherwise find an
+         empty document and have nothing to index or summarise. -->
+    <noscript>
+      <h1>Gymistan — gym management software for Pakistan</h1>
+      <p>
+        Everything your gym runs on, in one dashboard: members, packages and
+        subscriptions, fees and renewals, part payments with dues tracking,
+        expense tracking, supplement stock, trainer salaries, finance reports,
+        WhatsApp payment receipts and ZKTeco biometric attendance. Amounts in
+        PKR, books an accountant can read.
+      </p>
+      <h2>Plans</h2>
+      <ul>
+        <li>Starter — members, packages, fees, expenses, inventory, reports</li>
+        <li>Connect — Starter plus WhatsApp receipts, renewal and dues reminders</li>
+        <li>Track — Starter plus ZKTeco biometric attendance and a live entrance screen</li>
+        <li>Elite — the full system: WhatsApp and attendance together</li>
+      </ul>
+      <p>
+        Try the live demo at <a href="https://gymistan.dev/demo">gymistan.dev/demo</a>
+        — real product, sample gym, no signup. Questions:
+        <a href="https://wa.me/923098435716">WhatsApp +92 309 8435716</a>.
+      </p>
+    </noscript>
     <script type="module" src="/src/main.jsx"></script>
     <!-- Button "fill from cursor": anchor the accent disc where the pointer
          enters a .btn (and re-anchor to the exit point on leave), sized to reach

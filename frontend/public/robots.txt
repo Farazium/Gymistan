@@ -1,0 +1,19 @@
+# Gymistan — the marketing pages are open to crawlers; the product behind the
+# login is not. /api/ and /admin/ are Django, and /demo runs a sample gym in the
+# browser (nothing private, but nothing worth indexing either).
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /dashboard
+Disallow: /members
+Disallow: /payments
+Disallow: /expenses
+Disallow: /inventory
+Disallow: /finance
+Disallow: /trainers
+Disallow: /packages
+Disallow: /attendance
+Disallow: /settings
+
+Sitemap: https://gymistan.dev/sitemap.xml
