@@ -16,6 +16,8 @@ The rules, in one place:
 * A part-payment still buys the cycle: the expiry moves exactly as it would on a
   full payment, and whatever is left over is carried on the member as `dues`.
 * A payment with no package buys no time — it only draws the balance down.
+* Deleting a payment undoes all of that (`revert_payment`) — a record that is
+  gone from the books must not leave the month it bought behind on the member.
 """
 from decimal import Decimal
 from apps.common.dates import renew_from
@@ -58,5 +60,43 @@ def apply_payment(payment):
         payment.new_expiry = member.expiry_date
 
     payment.save(update_fields=['status', 'is_dues_payment', 'prev_expiry', 'new_expiry'])
+    member.save(update_fields=fields)
+    return payment
+
+
+def revert_payment(payment):
+    """Undo what `apply_payment` did to this payment's member.
+
+    Called just before a payment is soft-deleted. Without it a deleted payment
+    leaves its month sitting on the member's expiry and its shortfall sitting in
+    their dues — money that was never taken, buying time that was never bought.
+
+    Only ever safe on the member's most recent live payment (the delete view
+    enforces that), because the expiry is rolled back to the one figure this
+    payment recorded on its way in: `prev_expiry`.
+    """
+    member = payment.member
+    if member is None:
+        return payment
+
+    # Mirror of apply_payment's one-liner: give back the balance this payment
+    # cleared, take back the shortfall it created.
+    member.dues = max(_d(member.dues) - _d(payment.remaining), Decimal('0')) + _d(payment.dues_amount)
+
+    fields = ['dues']
+    moved_expiry = payment.package and not payment.is_joining
+    # The equality check is a safety catch: if the member's expiry is no longer
+    # what this payment set it to, something else has moved it since and rolling
+    # back would be a guess. Leave it alone rather than corrupt it.
+    if moved_expiry and member.expiry_date == payment.new_expiry:
+        member.expiry_date = payment.prev_expiry
+        fields.append('expiry_date')
+
+    # Status is re-derived rather than assumed: rolling the expiry back can land
+    # the member in any of the three states.
+    from apps.members.serializers import compute_status
+    member.status = compute_status(member)
+    fields.append('status')
+
     member.save(update_fields=fields)
     return payment

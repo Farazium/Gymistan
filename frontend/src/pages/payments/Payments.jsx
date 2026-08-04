@@ -65,7 +65,14 @@ export default function Payments() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/payments/${id}/`),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['payments'] }); invalidateFinance(queryClient); toast.success('Payment deleted') },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payments'] })
+      invalidateFinance(queryClient)
+      // The delete rolled the member's expiry and dues back — the roster is stale.
+      queryClient.invalidateQueries({ queryKey: ['members'] })
+      queryClient.invalidateQueries({ queryKey: ['members-list'] })
+      toast.success('Payment deleted')
+    },
     onError: (err) => toast.error(apiErrorMessage(err, 'Failed to delete payment')),
   })
 
@@ -231,7 +238,7 @@ export default function Payments() {
                           )
                         )}
                         {p.deletable && (
-                          <button onClick={() => { if (confirm('Delete this payment record?')) deleteMutation.mutate(p.id) }} title="Delete" className="p-1.5 text-gray-400 hover:text-white rounded-lg transition [--btn-fill:239_68_68] [--btn-edge:185_28_28]">
+                          <button onClick={() => { if (confirm(`Delete this payment record?\n\n${p.member_name || 'The member'}'s expiry and dues will be rolled back to what they were before this payment.`)) deleteMutation.mutate(p.id) }} title="Delete" className="p-1.5 text-gray-400 hover:text-white rounded-lg transition [--btn-fill:239_68_68] [--btn-edge:185_28_28]">
                             <Trash2 size={14} />
                           </button>
                         )}

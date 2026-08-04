@@ -2,12 +2,13 @@ from rest_framework import generics, filters, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.db import transaction
 from django.http import HttpResponse
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Payment
 from .serializers import PaymentSerializer
 from .utils import generate_payment_slip, send_whatsapp_slip, OUT_OF_CREDITS
-from .services import apply_payment
+from .services import apply_payment, revert_payment
 from apps.accounts.permissions import IsGymMember
 from apps.gyms.models import WA_TIERS
 
@@ -47,7 +48,20 @@ class PaymentDetailView(generics.RetrieveUpdateDestroyAPIView):
                 {'detail': 'This payment is more than 24 hours old and is now a permanent record; it can no longer be deleted.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        payment.soft_delete(request.user)
+        # Deleting rolls the member's expiry back to what this payment found, so
+        # only the last payment in the chain can go: pull one out of the middle
+        # and the rollback would undo a later payment's month instead of its own.
+        if payment.member_id:
+            latest = Payment.objects.filter(member_id=payment.member_id).order_by('-created_at').first()
+            if latest and latest.pk != payment.pk:
+                return Response(
+                    {'detail': "A newer payment exists for this member. Delete that one first — "
+                               "payments have to be undone newest first so the expiry rolls back correctly."},
+                    status=status.HTTP_409_CONFLICT,
+                )
+        with transaction.atomic():
+            revert_payment(payment)
+            payment.soft_delete(request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
