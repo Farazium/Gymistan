@@ -13,7 +13,8 @@ from apps.accounts.permissions import IsGymMember
 from apps.payments.models import Payment
 from apps.payments.services import apply_payment
 from apps.payments.utils import (
-    send_whatsapp_welcome, send_whatsapp_expiry_reminder, OUT_OF_CREDITS,
+    send_whatsapp_welcome, send_whatsapp_expiry_reminder,
+    send_whatsapp_dues_reminder, OUT_OF_CREDITS,
 )
 from apps.gyms.models import WA_TIERS, AT_TIERS
 from decimal import Decimal, InvalidOperation
@@ -427,4 +428,35 @@ class SendReminderView(APIView):
             return Response({'message': detail or 'Failed to send reminder'}, status=502)
         member.reminder_sent_for = member.expiry_date
         member.save(update_fields=['reminder_sent_for'])
+        return Response({'message': 'Reminder sent', 'reminder_sent': True})
+
+
+class SendDuesReminderView(APIView):
+    """Nudge a member about the fee they still owe.
+
+    Idempotent per balance: once a reminder goes out for the amount currently
+    outstanding it can't be sent again, so nobody is chased twice for the same
+    figure. Paying part of it changes the amount and re-opens the button."""
+    permission_classes = [IsAuthenticated, IsGymMember]
+
+    def post(self, request, pk):
+        try:
+            member = Member.objects.get(pk=pk, gym=request.user.gym, is_deleted=False)
+        except Member.DoesNotExist:
+            return Response({'message': 'Member not found'}, status=404)
+        if member.gym.tier not in WA_TIERS:
+            return Response({'message': 'WhatsApp is not enabled for your plan'}, status=403)
+        if member.gym.wa_exhausted:
+            return Response({'message': OUT_OF_CREDITS, 'out_of_credits': True}, status=402)
+        if not member.phone:
+            return Response({'message': 'Member has no phone number'}, status=400)
+        if (member.dues or 0) <= 0:
+            return Response({'message': 'This member has no outstanding dues'}, status=400)
+        if member.dues_reminded_for == member.dues:
+            return Response({'message': 'Reminder already sent for this amount'}, status=400)
+        ok, detail = send_whatsapp_dues_reminder(member)
+        if not ok:
+            return Response({'message': detail or 'Failed to send reminder'}, status=502)
+        member.dues_reminded_for = member.dues
+        member.save(update_fields=['dues_reminded_for'])
         return Response({'message': 'Reminder sent', 'reminder_sent': True})

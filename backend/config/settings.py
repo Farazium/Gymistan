@@ -159,6 +159,7 @@ WHATSAPP_WABA_ID = os.getenv('WHATSAPP_WABA_ID', '')
 WHATSAPP_TEMPLATE_NAME = os.getenv('WHATSAPP_TEMPLATE_NAME', 'payment_receipt_v2')
 WHATSAPP_WELCOME_TEMPLATE_NAME = os.getenv('WHATSAPP_WELCOME_TEMPLATE_NAME', 'member_welcome')
 WHATSAPP_REMINDER_TEMPLATE_NAME = os.getenv('WHATSAPP_REMINDER_TEMPLATE_NAME', 'membership_expiry_notice')
+WHATSAPP_DUES_TEMPLATE_NAME = os.getenv('WHATSAPP_DUES_TEMPLATE_NAME', 'dues_reminder')
 WHATSAPP_TEMPLATE_LANG = os.getenv('WHATSAPP_TEMPLATE_LANG', 'en_US')
 WHATSAPP_API_VERSION = os.getenv('WHATSAPP_API_VERSION', 'v22.0')
 # Status webhook. VERIFY_TOKEN is any string we choose — Meta echoes it back on the

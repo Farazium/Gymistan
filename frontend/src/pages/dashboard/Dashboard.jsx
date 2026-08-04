@@ -9,6 +9,7 @@ import Modal from '../../components/ui/Modal'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
 import useAuthStore from '../../store/authStore'
 import { fmtCurrency as fmt } from '../../utils/format'
+import { paymentFor } from '../payments/Payments'
 import { CREDIT_TONES, CREDIT_MESSAGES, CREDIT_HINTS, useWaCredits } from '../../utils/waCredits'
 import { SUPPORT_EMAIL } from '../../utils/contact'
 import EmailLink from '../../components/ui/EmailLink'
@@ -296,6 +297,21 @@ function GymDashboard() {
     onError: (err) => toast.error(err.response?.data?.message || 'Failed to send reminder'),
   })
 
+  const sendDuesReminder = useMutation({
+    mutationFn: (id) => api.post(`/members/${id}/dues-reminder/`),
+    onSuccess: () => {
+      toast.success('Dues reminder sent via WhatsApp!')
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['wa-billing'] })
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Failed to send reminder'),
+  })
+
+  // Tolerate an older API response: a gym on a cached build shouldn't see a crash
+  // where a new table is meant to be.
+  const membersWithDues = data?.members_with_dues || []
+  const duesTotal = membersWithDues.reduce((s, m) => s + Number(m.dues || 0), 0)
+
   if (isLoading) return <div className="flex items-center justify-center h-64"><div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full" /></div>
 
   return (
@@ -362,23 +378,45 @@ function GymDashboard() {
         )}
       </div>
 
+      {/* Two things the desk acts on today — money owed and memberships about to
+          lapse — come first; the payment log is a record, not a to-do, so it sits
+          underneath. */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card">
-          <div className="p-4 border-b border-gray-700">
-            <h3 className="font-semibold text-gray-100">Recent Payments</h3>
+          <div className="p-4 border-b border-gray-700 flex items-center justify-between gap-3">
+            <h3 className="font-semibold text-gray-100">Outstanding Dues</h3>
+            {!!duesTotal && <span className="text-sm font-semibold text-yellow-400">{fmt(duesTotal)}</span>}
           </div>
           <Table>
-            <Thead><Th>Member</Th><Th>Amount</Th><Th>Status</Th><Th>Date</Th></Thead>
+            <Thead><Th>Member</Th><Th>Phone</Th><Th>Dues</Th>{waEnabled && <Th>Reminder</Th>}</Thead>
             <Tbody>
-              {data.recent_payments.map((p) => (
-                <Tr key={p.id}>
-                  <Td>{p.member_name}</Td>
-                  <Td className="font-medium">{fmt(p.amount_paid)}</Td>
-                  <Td><span className={`badge-${p.status.toLowerCase()}`}>{p.status}</span></Td>
-                  <Td className="text-gray-400">{new Date(p.payment_date).toLocaleDateString('en-PK')}</Td>
+              {membersWithDues.map((m) => {
+                const sending = sendDuesReminder.isPending && sendDuesReminder.variables === m.id
+                return (
+                <Tr key={m.id}>
+                  <Td className="font-medium">{m.name}</Td>
+                  <Td>{m.phone}</Td>
+                  <Td className="text-yellow-400 font-medium">{fmt(m.dues)}</Td>
+                  {waEnabled && (
+                    <Td>
+                      {m.reminder_sent ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-green-400"><Check size={13} /> Sent</span>
+                      ) : (
+                        <button
+                          onClick={() => sendDuesReminder.mutate(m.id)}
+                          disabled={sending || outOfCredits}
+                          title={outOfCredits ? 'Out of WhatsApp messages — top up to send' : 'Send WhatsApp dues reminder'}
+                          className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg border border-green-500/30 text-green-400 hover:text-white hover:bg-green-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed [--btn-fill:34_197_94] [--btn-edge:21_128_61]"
+                        >
+                          {sending ? <Loader2 size={13} className="animate-spin" /> : <MessageCircle size={13} />}
+                          {sending ? 'Sending' : 'Remind'}
+                        </button>
+                      )}
+                    </Td>
+                  )}
                 </Tr>
-              ))}
-              {!data.recent_payments.length && <Tr><Td colSpan={4} className="text-center text-gray-400 py-8">No payments yet</Td></Tr>}
+              )})}
+              {!membersWithDues.length && <Tr><Td colSpan={waEnabled ? 4 : 3} className="text-center text-gray-400 py-8">Nothing outstanding</Td></Tr>}
             </Tbody>
           </Table>
         </div>
@@ -420,6 +458,27 @@ function GymDashboard() {
             </Tbody>
           </Table>
         </div>
+      </div>
+
+      <div className="card">
+        <div className="p-4 border-b border-gray-700">
+          <h3 className="font-semibold text-gray-100">Recent Payments</h3>
+        </div>
+        <Table>
+          <Thead><Th>Member</Th><Th>Package</Th><Th>Amount</Th><Th>Status</Th><Th>Date</Th></Thead>
+          <Tbody>
+            {data.recent_payments.map((p) => (
+              <Tr key={p.id}>
+                <Td>{p.member_name}</Td>
+                <Td className="text-primary-400">{paymentFor(p) || <span className="text-gray-500">—</span>}</Td>
+                <Td className="font-medium">{fmt(p.amount_paid)}</Td>
+                <Td><span className={`badge-${p.status.toLowerCase()}`}>{p.status}</span></Td>
+                <Td className="text-gray-400">{new Date(p.payment_date).toLocaleDateString('en-PK')}</Td>
+              </Tr>
+            ))}
+            {!data.recent_payments.length && <Tr><Td colSpan={5} className="text-center text-gray-400 py-8">No payments yet</Td></Tr>}
+          </Tbody>
+        </Table>
       </div>
     </div>
   )

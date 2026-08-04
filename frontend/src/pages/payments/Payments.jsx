@@ -20,7 +20,7 @@ import { useWaCredits } from '../../utils/waCredits'
  * only the package would quietly hide the admission money from whoever is reading
  * the books.
  */
-function paymentFor(p) {
+export function paymentFor(p) {
   const parts = []
   if (p.package_name) parts.push(p.package_name)
   if (Number(p.admission_amount) > 0) parts.push(parts.length ? 'Admission' : 'Admission Fee')

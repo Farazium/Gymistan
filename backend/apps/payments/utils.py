@@ -663,3 +663,36 @@ def send_whatsapp_expiry_reminder(member):
     else:
         _refund_credit(member.gym)
     return ok, detail
+
+
+def send_whatsapp_dues_reminder(member):
+    """Nudge a member about the fee they still owe, via the `dues_reminder`
+    template. Text only — there is no document to attach: the receipt for what
+    they did pay went out at the time."""
+    if not member or not member.phone:
+        return False, 'Member has no phone number'
+    if not _reserve_credit(member.gym):
+        return False, OUT_OF_CREDITS
+    phone = _normalize_pk_phone(member.phone)
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": phone,
+        "type": "template",
+        "template": {
+            "name": settings.WHATSAPP_DUES_TEMPLATE_NAME,
+            "language": {"code": settings.WHATSAPP_TEMPLATE_LANG},
+            "components": [
+                {"type": "body", "parameters": [
+                    {"type": "text", "text": _wa_param(member.name)},
+                    {"type": "text", "text": _wa_param(member.gym.name)},
+                    {"type": "text", "text": f'{member.dues:,.0f}'},
+                ]},
+            ],
+        },
+    }
+    ok, detail, wamid = _send_wa_message(payload)
+    if ok:
+        record_wa_usage(member.gym, 'REMINDER', wamid=wamid, recipient=phone)
+    else:
+        _refund_credit(member.gym)
+    return ok, detail

@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import MemberListCreateView, MemberDetailView, MemberNextIdView, DeletedMembersView, RestoreMemberView, HardDeleteMemberView, SendReminderView, BlacklistedMembersView, BlacklistMemberView
+from .views import MemberListCreateView, MemberDetailView, MemberNextIdView, DeletedMembersView, RestoreMemberView, HardDeleteMemberView, SendReminderView, SendDuesReminderView, BlacklistedMembersView, BlacklistMemberView
 
 urlpatterns = [
     path('', MemberListCreateView.as_view(), name='member_list_create'),
@@ -11,4 +11,5 @@ urlpatterns = [
     path('<int:pk>/hard-delete/', HardDeleteMemberView.as_view(), name='member_hard_delete'),
     path('<int:pk>/blacklist/', BlacklistMemberView.as_view(), name='member_blacklist'),
     path('<int:pk>/reminder/', SendReminderView.as_view(), name='member_reminder'),
+    path('<int:pk>/dues-reminder/', SendDuesReminderView.as_view(), name='member_dues_reminder'),
 ]

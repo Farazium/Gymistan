@@ -48,6 +48,10 @@ class Member(models.Model):
     # Expiry-date value we last sent a WhatsApp renewal reminder for, so a member is
     # reminded only once per membership cycle (reset naturally when expiry changes).
     reminder_sent_for = models.DateField(null=True, blank=True)
+    # Same idea for the dues nudge: the outstanding figure we last reminded about,
+    # so a member is chased once per balance and the button re-opens by itself the
+    # moment that balance changes.
+    dues_reminded_for = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

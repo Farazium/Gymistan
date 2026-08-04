@@ -50,6 +50,9 @@ class DashboardView(APIView):
             {
                 'id': p.id,
                 'member_name': p.member.name if p.member else '—',
+                'package_name': p.package.name if p.package else '',
+                'admission_amount': float(p.admission_amount),
+                'dues_amount': float(p.dues_amount),
                 'amount_paid': float(p.amount_paid),
                 'status': p.status,
                 'payment_date': p.payment_date,
@@ -70,6 +73,22 @@ class DashboardView(APIView):
                 'reminder_sent': m.reminder_sent_for == m.expiry_date,
             }
             for m in expiring_qs
+        ]
+
+        # Money already earned but not yet collected — the desk chases these from
+        # here, so it sits next to the expiring list rather than buried in the
+        # roster behind a filter.
+        dues_qs = members.filter(dues__gt=0).order_by('-dues')[:10]
+        members_with_dues = [
+            {
+                'id': m.id,
+                'name': m.name,
+                'phone': m.phone,
+                'dues': float(m.dues),
+                # Already nudged for this exact amount? Frontend disables the button.
+                'reminder_sent': m.dues_reminded_for == m.dues,
+            }
+            for m in dues_qs
         ]
 
         products = list(Product.objects.filter(gym=gym, is_active=True))
@@ -162,6 +181,7 @@ class DashboardView(APIView):
             },
             'recent_payments': recent_payments_data,
             'members_expiring_soon': members_expiring,
+            'members_with_dues': members_with_dues,
         })
 
 
