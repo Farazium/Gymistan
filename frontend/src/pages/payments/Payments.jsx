@@ -14,6 +14,20 @@ import { fmtCurrency as fmt } from '../../utils/format'
 import { groupByMonth, useMonthSections } from '../../utils/monthGroups'
 import { useWaCredits } from '../../utils/waCredits'
 
+/**
+ * What a payment row was for, in one phrase. A joining payment covers the package
+ * AND the admission fee in a single record, so the list has to name both — showing
+ * only the package would quietly hide the admission money from whoever is reading
+ * the books.
+ */
+function paymentFor(p) {
+  const parts = []
+  if (p.package_name) parts.push(p.package_name)
+  if (Number(p.admission_amount) > 0) parts.push(parts.length ? 'Admission' : 'Admission Fee')
+  if (Number(p.dues_amount) > 0) parts.push('Dues')
+  return parts.join(' + ')
+}
+
 export default function Payments() {
   const { user } = useAuthStore()
   const hasWhatsApp = ['TIER2_WA', 'TIER3'].includes(user?.gym_tier)
@@ -98,10 +112,12 @@ export default function Payments() {
             onClick={() => exportToExcel(sorted.map((p) => ({
               Member: p.member_name,
               Phone: p.member_phone || '',
-              Package: p.package_name || (p.notes === 'Admission fee' ? 'Admission Fee' : ''),
+              Package: paymentFor(p),
               Amount: p.amount,
               'Amount Paid': p.amount_paid,
+              Remaining: p.remaining || 0,
               Discount: p.discount || 0,
+              Status: p.status === 'PARTIAL' ? 'Partial' : 'Paid',
               Method: p.payment_method === 'ONLINE' ? 'Online' : 'Cash',
               Date: new Date(p.payment_date).toLocaleDateString('en-PK'),
               Notes: p.notes || '',
@@ -171,9 +187,16 @@ export default function Payments() {
                         <p className="text-xs text-gray-400">{p.member_phone}</p>
                       </div>
                       <span className="shrink-0 w-28 text-primary-400 text-xs truncate">
-                        {p.package_name || (p.notes === 'Admission fee' ? 'Admission Fee' : <span className="text-gray-500">—</span>)}
+                        {paymentFor(p) || <span className="text-gray-500">—</span>}
                       </span>
-                      <span className="shrink-0 w-24 text-right font-semibold text-green-400">{fmt(p.amount_paid)}</span>
+                      <span className="shrink-0 w-24 text-right">
+                        <span className="block font-semibold text-green-400">{fmt(p.amount_paid)}</span>
+                        {p.status === 'PARTIAL' && (
+                          <span className="block text-[10px] text-yellow-400" title="Partly paid — dues outstanding">
+                            {fmt(p.remaining)} left
+                          </span>
+                        )}
+                      </span>
                       <span className="shrink-0 w-20 text-right text-sm">
                         {Number(p.discount) > 0 ? <span className="text-orange-400">{fmt(p.discount)}</span> : <span className="text-gray-600">—</span>}
                       </span>
