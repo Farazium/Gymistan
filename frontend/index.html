@@ -33,33 +33,37 @@
     <meta name="twitter:image" content="https://gymistan.dev/og-image.jpg" />
   </head>
   <body>
-    <div id="root"></div>
-
-    <!-- The page a crawler reads. React replaces #root above with the real
-         landing page; a fetcher that doesn't run scripts would otherwise find an
-         empty document and have nothing to index or summarise. -->
-    <noscript>
-      <h1>Gymistan — gym management software for Pakistan</h1>
-      <p>
-        Everything your gym runs on, in one dashboard: members, packages and
-        subscriptions, fees and renewals, part payments with dues tracking,
-        expense tracking, supplement stock, trainer salaries, finance reports,
-        WhatsApp payment receipts and ZKTeco biometric attendance. Amounts in
-        PKR, books an accountant can read.
-      </p>
-      <h2>Plans</h2>
-      <ul>
-        <li>Starter — members, packages, fees, expenses, inventory, reports</li>
-        <li>Connect — Starter plus WhatsApp receipts, renewal and dues reminders</li>
-        <li>Track — Starter plus ZKTeco biometric attendance and a live entrance screen</li>
-        <li>Elite — the full system: WhatsApp and attendance together</li>
-      </ul>
-      <p>
-        Try the live demo at <a href="https://gymistan.dev/demo">gymistan.dev/demo</a>
-        — real product, sample gym, no signup. Questions:
-        <a href="https://wa.me/923098435716">WhatsApp +92 309 8435716</a>.
-      </p>
-    </noscript>
+    <!-- The page a reader without JavaScript actually gets. It sits INSIDE #root
+         on purpose: React clears the container on mount, so a visitor sees it
+         only until the bundle runs, while a crawler or a link-preview bot — which
+         runs nothing — reads it as the page. It is deliberately not in
+         <noscript>: search engines parse that, but most HTML-to-text fetchers
+         (the ones behind "summarise this URL") throw it away, which is exactly
+         how this site came back blank. Keep it true to the landing page. -->
+    <div id="root">
+      <div style="max-width:44rem;margin:0 auto;padding:4rem 1.5rem;font-family:system-ui,sans-serif;color:#94a3b8;background:#0b1220">
+        <h1 style="color:#f1f5f9">Gymistan — gym management software for Pakistan</h1>
+        <p>
+          Everything your gym runs on, in one dashboard: members, packages and
+          subscriptions, fees and renewals, part payments with dues tracking,
+          expense tracking, supplement stock, trainer salaries, finance reports,
+          WhatsApp payment receipts and ZKTeco biometric attendance. Amounts in
+          PKR, books an accountant can read.
+        </p>
+        <h2 style="color:#e2e8f0">Plans</h2>
+        <ul>
+          <li>Starter — members, packages, fees, expenses, inventory, reports</li>
+          <li>Connect — Starter plus WhatsApp receipts, renewal and dues reminders</li>
+          <li>Track — Starter plus ZKTeco biometric attendance and a live entrance screen</li>
+          <li>Elite — the full system: WhatsApp and attendance together</li>
+        </ul>
+        <p>
+          Try the live demo at <a href="https://gymistan.dev/demo" style="color:#60a5fa">gymistan.dev/demo</a>
+          — the real product running on a sample gym, no signup. Questions:
+          <a href="https://wa.me/923098435716" style="color:#60a5fa">WhatsApp +92 309 8435716</a>.
+        </p>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
     <!-- Button "fill from cursor": anchor the accent disc where the pointer
          enters a .btn (and re-anchor to the exit point on leave), sized to reach
