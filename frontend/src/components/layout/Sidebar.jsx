@@ -79,7 +79,10 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+        {/* Scrollable but bar-less: on a short laptop window the menu (nine items
+            on Tier 3) doesn't fit, and clipping it would strand Attendance below
+            the fold — but a scrollbar drawn beside eight links is just noise. */}
+        <nav className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-1">
           {items.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}

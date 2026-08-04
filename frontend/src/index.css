@@ -136,6 +136,18 @@
   background: transparent;
 }
 
+/* Scrolls, but shows no bar. For panes that only overflow on a short window —
+   the sidebar nav is one — where a visible track next to eight menu items reads
+   as clutter, but clipping the last item would put it out of reach. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 /* Water-drop click ripple (login page). Rings + a central splash, tinted with
    the accent channels so it matches each gym's theme. Nodes are created in JS
    and removed when their animation ends. */

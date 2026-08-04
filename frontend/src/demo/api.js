@@ -31,7 +31,12 @@ const round2 = (n) => Math.round(n * 100) / 100
 const has = (hay, needle) => String(hay || '').toLowerCase().includes(needle)
 const dateOf = (isoString) => String(isoString).slice(0, 10)
 
-const memberStatus = (m) => (m.expiry_date && m.expiry_date <= iso(today()) ? 'EXPIRED' : 'ACTIVE')
+// Mirrors members/serializers.compute_status: expiry wins over dues, so a lapsed
+// membership reads EXPIRED even while a balance is owed.
+const memberStatus = (m) => {
+  if (m.expiry_date && m.expiry_date <= iso(today())) return 'EXPIRED'
+  return num(m.dues) > 0 ? 'PARTIAL' : 'ACTIVE'
+}
 const blacklistActive = (m) =>
   !!m.blacklisted && (!m.blacklist_until || m.blacklist_until >= iso(today()))
 
@@ -46,7 +51,8 @@ function memberRow(m) {
     father_name: m.father_name, package: m.package,
     package_name: pkgOf(m.package)?.name || null,
     trainer: m.trainer, trainer_name: trainerOf(m.trainer)?.name,
-    status: memberStatus(m), expiry_date: m.expiry_date, join_date: m.join_date,
+    status: memberStatus(m), dues: num(m.dues),
+    expiry_date: m.expiry_date, join_date: m.join_date,
     address: m.address, notes: m.notes, device_user_id: m.device_user_id,
     blacklisted: m.blacklisted, blacklist_active: blacklistActive(m),
     blacklist_reason: m.blacklist_reason, blacklist_until: m.blacklist_until,
@@ -176,6 +182,50 @@ const saleProfit = (s) => {
   return p ? (num(p.sell_price) - num(p.cost_price)) * s.quantity : 0
 }
 
+/**
+ * The single payment taken while a member is added or restored — admission fee,
+ * the first package fee when the desk collected it, and any balance the member
+ * walked out owing — mirroring members/views._create_admission_payment. Returns
+ * the payment, or null when there was nothing to record.
+ */
+function joiningPayment(member, body, rejoin = false) {
+  const T = today()
+  const truthy = (v) => v === true || String(v).toLowerCase() === 'true'
+  const fee = Math.max(Number(body.admission_fee || 0), 0)
+  const collect = truthy(body.collect_fee)
+  const pkg = collect ? pkgOf(member.package) : null
+  const carried = collect ? Math.max(num(member.dues), 0) : 0
+  const amount = fee + Number(pkg?.price || 0) + carried
+  if (amount <= 0) return null
+
+  // Nothing already charged can be discounted — only what is charged now.
+  const discount = Math.min(Math.max(Number(body.discount || 0), 0), amount - carried)
+  const payable = amount - discount
+  const paid = collect && String(body.payment_type).toUpperCase() === 'PARTIAL'
+    ? Math.min(Math.max(Number(body.amount_paid || 0), 0), payable)
+    : payable
+  const remaining = Math.max(payable - paid, 0)
+  member.dues = round2(Math.max(num(member.dues) - carried, 0) + remaining)
+
+  const payment = {
+    id: data().nextIds.payment++, gym: 1, member: member.id, member_name: member.name,
+    member_phone: member.phone, package: pkg?.id ?? null, package_name: pkg?.name ?? null,
+    collected_by: 1, collected_by_name: data().user.name,
+    amount, discount, amount_paid: paid,
+    admission_amount: fee, dues_amount: carried, remaining,
+    is_dues_payment: false, is_joining: true,
+    status: remaining > 0 ? 'PARTIAL' : 'PAID',
+    payment_method: String(body.payment_method).toUpperCase() === 'ONLINE' ? 'ONLINE' : 'CASH',
+    payment_date: iso(T), due_date: null,
+    prev_expiry: null, new_expiry: collect ? member.expiry_date : null,
+    month: monthKey(T), notes: collect ? 'Admission + first payment' : 'Admission fee',
+    is_rejoin: rejoin, slip_sent: false, deletable: true,
+    created_at: new Date().toISOString(),
+  }
+  data().payments.unshift(payment)
+  return payment
+}
+
 // --- dashboard ---------------------------------------------------------------
 function dashboard() {
   const T = today()
@@ -252,9 +302,20 @@ function dashboard() {
       profit_this_month: round2(invProfitThis),
     },
     recent_payments: pays.slice(0, 5).map((p) => ({
-      id: p.id, member_name: p.member_name || '—', amount_paid: num(p.amount_paid),
+      id: p.id, member_name: p.member_name || '—',
+      package_name: p.package_name || '',
+      admission_amount: num(p.admission_amount), dues_amount: num(p.dues_amount),
+      amount_paid: num(p.amount_paid),
       status: p.status, payment_date: p.payment_date,
     })),
+    members_with_dues: roster
+      .filter((m) => num(m.dues) > 0)
+      .sort((a, b) => num(b.dues) - num(a.dues))
+      .slice(0, 10)
+      .map((m) => ({
+        id: m.id, name: m.name, phone: m.phone, dues: num(m.dues),
+        reminder_sent: num(m.dues_reminded_for) === num(m.dues),
+      })),
     members_expiring_soon: expiring
       .sort((a, b) => (a.expiry_date < b.expiry_date ? -1 : 1))
       .slice(0, 10)
@@ -574,18 +635,28 @@ async function slipPdf(id) {
   doc.setFontSize(14).setFont(undefined, 'bold').text('Payment Receipt', 40, y)
   y += 24
   doc.setFontSize(10).setFont(undefined, 'normal')
+  // The real slip breaks a total back into what it was made of; keep the demo
+  // honest about the same lines.
+  const admission = num(payment.admission_amount)
+  const carried = num(payment.dues_amount)
+  const packageFee = num(payment.amount) - admission - carried
   const rows = [
     ['Receipt #', String(payment.id).padStart(5, '0')],
     ['Date', payment.payment_date],
     ['Member', payment.member_name || '—'],
     ['Phone', payment.member_phone || '—'],
     ['Package', payment.package_name || '—'],
-    ['Amount', money(payment.amount)],
+  ]
+  if (packageFee > 0) rows.push([admission || carried ? 'Package fee' : 'Amount', money(packageFee)])
+  if (admission > 0) rows.push(['Admission fee', money(admission)])
+  if (carried > 0) rows.push(['Previous dues', money(carried)])
+  rows.push(
     ['Discount', money(payment.discount)],
     ['Paid', money(payment.amount_paid)],
     ['Method', payment.payment_method],
     ['Status', payment.status],
-  ]
+  )
+  if (num(payment.remaining) > 0) rows.push(['Dues remaining', money(payment.remaining)])
   if (payment.new_expiry) rows.push(['Valid till', payment.new_expiry])
   for (const [k, v] of rows) {
     doc.text(k, 40, y)
@@ -647,8 +718,9 @@ export async function handle({ method, path, params, body }) {
   }
   if (method === 'get' && path === '/members/') {
     let rows = data().members.filter((x) => !x.is_deleted && !x.blacklisted)
-    if (params.status === 'ACTIVE') rows = rows.filter((x) => memberStatus(x) === 'ACTIVE')
-    if (params.status === 'EXPIRED') rows = rows.filter((x) => memberStatus(x) === 'EXPIRED')
+    if (['ACTIVE', 'PARTIAL', 'EXPIRED'].includes(params.status)) {
+      rows = rows.filter((x) => memberStatus(x) === params.status)
+    }
     if (params.package) rows = rows.filter((x) => String(x.package) === String(params.package))
     if (params.gender) rows = rows.filter((x) => x.gender === params.gender)
     // `has_trainer` (not a trainer id) is what the roster filter sends — see
@@ -714,24 +786,17 @@ export async function handle({ method, path, params, body }) {
       notes: patch.notes || '', is_deleted: false, deleted_at: null,
       blacklisted: false, blacklist_reason: '', blacklist_until: null, blacklisted_at: null,
       device_user_id: '', has_fingerprint: false, reminder_sent_for: null,
+      dues: 0, dues_reminded_for: null,
       created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
       _rate: 0.65,
     }
     data().members.push(member)
-    // An admission fee, if one was collected, is its own payment record.
-    const fee = Number(patch.admission_fee || 0)
-    if (fee > 0) {
-      const pid = data().nextIds.payment++
-      data().payments.unshift({
-        id: pid, gym: 1, member: id, member_name: member.name, member_phone: member.phone,
-        package: null, package_name: null, collected_by: 1, collected_by_name: data().user.name,
-        amount: fee, discount: 0, amount_paid: fee, status: 'PAID', payment_method: 'CASH',
-        payment_date: iso(T), due_date: null, prev_expiry: null, new_expiry: null,
-        month: monthKey(T), notes: 'Admission fee', is_rejoin: false,
-        slip_sent: String(patch.send_welcome) === 'true', deletable: true,
-        created_at: new Date().toISOString(),
-      })
-      if (String(patch.send_welcome) === 'true') spendCredit()
+    // Whatever they handed over on the way in, as one payment.
+    const joining = joiningPayment(member, patch)
+    if (String(patch.send_welcome) === 'true') {
+      // The welcome IS the receipt for that payment — don't offer to send it twice.
+      if (joining) joining.slip_sent = true
+      spendCredit()
     }
     return memberDetail(member)
   }
@@ -752,18 +817,11 @@ export async function handle({ method, path, params, body }) {
     if (body?.package) member.package = Number(body.package)
     if ('trainer' in (body || {})) member.trainer = body.trainer ? Number(body.trainer) : null
     if (body?.expiry_date) member.expiry_date = body.expiry_date
-    if (Number(body?.admission_fee || 0) > 0) {
-      const fee = Number(body.admission_fee)
-      data().payments.unshift({
-        id: data().nextIds.payment++, gym: 1, member: member.id, member_name: member.name,
-        member_phone: member.phone, package: null, package_name: null, collected_by: 1,
-        collected_by_name: data().user.name, amount: fee, discount: 0, amount_paid: fee,
-        status: 'PAID', payment_method: 'CASH', payment_date: iso(T), due_date: null,
-        prev_expiry: null, new_expiry: null, month: monthKey(T), notes: 'Admission fee',
-        is_rejoin: true, slip_sent: false, deletable: true, created_at: new Date().toISOString(),
-      })
+    const rejoining = joiningPayment(member, body || {}, true)
+    if (String(body?.send_welcome) === 'true') {
+      if (rejoining) rejoining.slip_sent = true
+      spendCredit()
     }
-    if (String(body?.send_welcome) === 'true') spendCredit()
     return { detail: 'Member restored' }
   }
   if ((mm = m(/^\/members\/(\d+)\/blacklist\/$/))) {
@@ -803,6 +861,20 @@ export async function handle({ method, path, params, body }) {
       throw fail(400, { message: 'Reminder already sent for this expiry' })
     }
     member.reminder_sent_for = member.expiry_date
+    spendCredit()
+    return { message: 'Reminder sent', reminder_sent: true }
+  }
+  if ((mm = m(/^\/members\/(\d+)\/dues-reminder\/$/)) && method === 'post') {
+    const member = memberOf(mm[1])
+    if (!member) throw fail(404, { message: 'Member not found' })
+    if (creditState().exhausted) {
+      throw fail(402, { message: 'Out of WhatsApp credits', out_of_credits: true })
+    }
+    if (num(member.dues) <= 0) throw fail(400, { message: 'This member has no outstanding dues' })
+    if (num(member.dues_reminded_for) === num(member.dues)) {
+      throw fail(400, { message: 'Reminder already sent for this amount' })
+    }
+    member.dues_reminded_for = num(member.dues)
     spendCredit()
     return { message: 'Reminder sent', reminder_sent: true }
   }
@@ -872,11 +944,26 @@ export async function handle({ method, path, params, body }) {
     const amount = Number(body.amount || 0)
     const discount = Number(body.discount || 0)
     const paid = Number(body.amount_paid ?? amount - discount)
+    const carried = Number(body.dues_amount || 0)
     if (discount > amount) throw fail(400, { discount: ['Discount cannot exceed the amount'] })
-    const status = body.status || 'PAID'
+    if (paid > amount - discount) {
+      throw fail(400, { amount_paid: ['Amount paid cannot exceed the payable amount'] })
+    }
+    if (carried > num(member.dues)) {
+      throw fail(400, { dues_amount: ['That is more than this member owes'] })
+    }
+    if (carried && discount > amount - carried) {
+      throw fail(400, { discount: ['Discount cannot be applied to outstanding dues'] })
+    }
+    // Same rules as payments/services.apply_payment: the numbers decide the
+    // status, the balance taken on is cleared, whatever is left becomes the new
+    // one, and a package moves the expiry whether it was paid in full or in part.
+    const remaining = Math.max(amount - discount - paid, 0)
+    const status = remaining > 0 ? 'PARTIAL' : 'PAID'
+    member.dues = round2(Math.max(num(member.dues) - carried, 0) + remaining)
     const prevExpiry = member.expiry_date
     let newExpiry = null
-    if (status === 'PAID' && pkg) {
+    if (pkg) {
       // Extend from the current expiry, stepping whole periods if it has lapsed,
       // so the day-of-month anchor is kept — same as the backend's renew_from.
       // The joining day is the anchor, so a clamped 31st recovers on long months.
@@ -897,6 +984,8 @@ export async function handle({ method, path, params, body }) {
       member_phone: member.phone, package: pkg?.id ?? null, package_name: pkg?.name ?? null,
       collected_by: 1, collected_by_name: data().user.name,
       amount, discount, amount_paid: paid, status,
+      admission_amount: 0, dues_amount: carried, remaining,
+      is_dues_payment: carried > 0 && !pkg, is_joining: false,
       payment_method: body.payment_method || 'CASH', payment_date: iso(T),
       due_date: body.due_date || null, prev_expiry: prevExpiry, new_expiry: newExpiry,
       month: monthKey(T), notes: body.notes || '', is_rejoin: false, slip_sent: false,

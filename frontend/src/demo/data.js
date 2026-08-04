@@ -231,6 +231,9 @@ export function buildDataset() {
       device_user_id: String(1000 + i),
       has_fingerprint: rnd() < 0.75,
       reminder_sent_for: null,
+      // Raised below by the part-paid seed payments.
+      dues: 0,
+      dues_reminded_for: null,
       created_at: `${iso(join)}T10:00:00Z`,
       updated_at: `${iso(join)}T10:00:00Z`,
       // demo-only: drives the attendance sheet's presence pattern
@@ -256,6 +259,7 @@ export function buildDataset() {
       blacklist_until: x.black ? (k === 2 ? iso(addMonths(T, 6)) : null) : null,
       blacklisted_at: x.black ? addDays(T, -int(5, 60)).toISOString() : null,
       device_user_id: '', has_fingerprint: false, reminder_sent_for: null,
+      dues: 0, dues_reminded_for: null,
       created_at: `${iso(join)}T10:00:00Z`, updated_at: `${iso(join)}T10:00:00Z`,
       _rate: 0.2,
     }
@@ -285,6 +289,8 @@ export function buildDataset() {
         package: pkg.id, package_name: pkg.name,
         collected_by: 1, collected_by_name: 'Demo Owner',
         amount: Number(pkg.price), discount, amount_paid: paid,
+        admission_amount: 0, dues_amount: 0, remaining: 0,
+        is_dues_payment: false, is_joining: false,
         status: 'PAID', payment_method: rnd() < 0.72 ? 'CASH' : 'ONLINE',
         payment_date: iso(date), due_date: null,
         prev_expiry: iso(addMonths(date, -pkg.duration_months)),
@@ -303,21 +309,35 @@ export function buildDataset() {
       id: payId++, gym: 1, member: m.id, member_name: m.name, member_phone: m.phone,
       package: null, package_name: null, collected_by: 1, collected_by_name: 'Demo Owner',
       amount: 1500, discount: 0, amount_paid: 1500, status: 'PAID', payment_method: 'CASH',
+      admission_amount: 1500, dues_amount: 0, remaining: 0,
+      is_dues_payment: false, is_joining: true,
       payment_date: iso(date), due_date: null, prev_expiry: null, new_expiry: null,
       month: monthKey(date), notes: 'Admission fee', is_rejoin: false, slip_sent: true,
       deletable: iso(date) === iso(T), created_at: `${iso(date)}T11:00:00Z`,
     })
   }
+  // Part-payments: the member took the cycle but still owes the rest, so the
+  // shortfall is carried on them as dues — that is what fills the dashboard's
+  // Outstanding Dues table and turns their badge yellow.
+  const duesPicked = new Set()
   for (let n = 0; n < 7; n++) {
     const m = pick(roster)
+    if (duesPicked.has(m.id)) continue
+    duesPicked.add(m.id)
     const pkg = packages.find((p) => p.id === m.package) || packages[0]
     const date = addDays(T, -int(1, 20))
+    const paid = Math.round(Number(pkg.price) / 2)
+    const remaining = Number(pkg.price) - paid
+    m.dues = remaining
     payments.push({
       id: payId++, gym: 1, member: m.id, member_name: m.name, member_phone: m.phone,
       package: pkg.id, package_name: pkg.name, collected_by: 1, collected_by_name: 'Demo Owner',
-      amount: Number(pkg.price), discount: 0, amount_paid: Math.round(Number(pkg.price) / 2),
+      amount: Number(pkg.price), discount: 0, amount_paid: paid,
+      admission_amount: 0, dues_amount: 0, remaining,
+      is_dues_payment: false, is_joining: false,
       status: 'PARTIAL', payment_method: 'CASH', payment_date: iso(date),
-      due_date: iso(addDays(date, 15)), prev_expiry: null, new_expiry: null,
+      due_date: iso(addDays(date, 15)), prev_expiry: iso(addMonths(date, -pkg.duration_months)),
+      new_expiry: iso(addMonths(date, pkg.duration_months)),
       month: monthKey(date), notes: 'Half now, half on the 15th', is_rejoin: false,
       slip_sent: false, deletable: false, created_at: `${iso(date)}T17:30:00Z`,
     })
