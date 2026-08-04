@@ -11,6 +11,12 @@ import { packagePalette } from '../../utils/packageColors'
 import { useWaCredits } from '../../utils/waCredits'
 import { fmtCurrency as fmt } from '../../utils/format'
 import RadioCard from '../../components/ui/RadioCard'
+import Modal from '../../components/ui/Modal'
+
+// A renewal this far ahead of the expiry is almost always the wrong member picked
+// off the search list, or a fee being taken twice. Paying a few days early is
+// normal, so the check only speaks up past this margin.
+const EARLY_RENEWAL_DAYS = 7
 
 function MemberSearch({ members, onChange, onSelect }) {
   const [query, setQuery] = useState('')
@@ -96,6 +102,8 @@ export default function PaymentForm({ onSuccess }) {
   // member's own state — see below.
   const [payType, setPayType] = useState('FULL')
   const [paidInput, setPaidInput] = useState('')
+  // A built, validated payload parked while the early-renewal warning is up.
+  const [pendingPayload, setPendingPayload] = useState(null)
   const { user } = useAuthStore()
   const hasWhatsApp = ['TIER2_WA', 'TIER3'].includes(user?.gym_tier)
   const outOfCredits = !!useWaCredits(hasWhatsApp)?.exhausted
@@ -144,6 +152,18 @@ export default function PaymentForm({ onSuccess }) {
   const amountPaid = payType === 'PARTIAL' ? Math.min(Math.max(Number(paidInput) || 0, 0), payable) : payable
   const remaining = Math.max(payable - amountPaid, 0)
 
+  // Days the member still has on the clock. Parsed by hand rather than through
+  // `new Date(iso)`, which reads a bare date as UTC and can land a day out.
+  const daysLeft = (() => {
+    if (!selectedMember?.expiry_date) return null
+    const [y, m, d] = selectedMember.expiry_date.split('-').map(Number)
+    if (!y || !m || !d) return null
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    return Math.round((new Date(y, m - 1, d) - today) / 86400000)
+  })()
+  // Only a renewal can be "early" — clearing a balance buys no time, so it never asks.
+  const earlyRenewal = renewing && !!selectedPkg && daysLeft !== null && daysLeft > EARLY_RENEWAL_DAYS
+
   const whatsAppMutation = useMutation({
     mutationFn: (id) => api.post(`/payments/${id}/whatsapp/`),
     // The list is refreshed on save, while this send is still in flight — refresh
@@ -182,7 +202,7 @@ export default function PaymentForm({ onSuccess }) {
       if (!entered || entered <= 0) { toast.error('Enter the amount the member paid'); return }
       if (entered > payable) { toast.error(`Amount paid cannot exceed ${fmt(payable)}`); return }
     }
-    mutation.mutate({
+    const payload = {
       ...data,
       // Clearing a balance buys no time, so it carries no package — that is what
       // stops the backend from rolling the expiry forward again.
@@ -193,7 +213,10 @@ export default function PaymentForm({ onSuccess }) {
       amount_paid: amountPaid,
       dues_amount: dues,
       notes: data.notes || (renewing ? '' : 'Outstanding dues'),
-    })
+    }
+    // Still well inside their membership: ask before stacking another cycle on top.
+    if (earlyRenewal) { setPendingPayload(payload); return }
+    mutation.mutate(payload)
   }
 
   const status = selectedMember?.status
@@ -202,6 +225,7 @@ export default function PaymentForm({ onSuccess }) {
     : null
 
   return (
+    <>
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div>
         <label className="label">Member *</label>
@@ -373,5 +397,52 @@ export default function PaymentForm({ onSuccess }) {
         {mutation.isPending ? 'Recording...' : 'Record Payment'}
       </button>
     </form>
+
+    {/* Renewing a membership that still has weeks to run — usually the wrong
+        member off the search list, so say plainly what it would do and make the
+        desk agree to it. Kept outside the <form>: buttons inside one submit it. */}
+    <Modal
+      isOpen={!!pendingPayload}
+      onClose={() => setPendingPayload(null)}
+      title="This member is still active"
+      size="sm"
+      showClose={false}
+    >
+      <div className="space-y-4">
+          <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-sm text-yellow-300">
+            <AlertCircle size={16} className="shrink-0 mt-0.5" />
+            <p>
+              <span className="font-medium">{selectedMember?.name}</span> is active until{' '}
+              <span className="font-medium">{expiryDate}</span> — {daysLeft} day{daysLeft === 1 ? '' : 's'} still to run.
+            </p>
+          </div>
+          <p className="text-sm text-gray-300">
+            Recording this payment adds another{' '}
+            {selectedPkg?.duration_months > 1
+              ? `${selectedPkg.duration_months} months`
+              : 'month'}{' '}
+            <span className="text-gray-400">on top of</span> that date — it does not
+            replace it. If you meant a different member, cancel and search again.
+          </p>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setPendingPayload(null)}
+              className="btn-danger justify-center"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={mutation.isPending}
+              onClick={() => { const p = pendingPayload; setPendingPayload(null); mutation.mutate(p) }}
+              className="btn-primary justify-center"
+            >
+              {mutation.isPending ? 'Recording...' : 'Yes, renew anyway'}
+            </button>
+        </div>
+      </div>
+    </Modal>
+    </>
   )
 }

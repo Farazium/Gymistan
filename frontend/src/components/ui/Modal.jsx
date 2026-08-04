@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 
-export default function Modal({ isOpen, onClose, title, children, size = 'md' }) {
+// `showClose={false}` drops the corner X — for modals that ask a question rather
+// than show something, where the answer should be one of the buttons below.
+export default function Modal({ isOpen, onClose, title, children, size = 'md', showClose = true }) {
   const [render, setRender] = useState(isOpen)
   const [show, setShow] = useState(false)
 
@@ -42,9 +44,13 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
       >
         <div className="flex items-center justify-between gap-3 p-4 sm:p-5 border-b border-gray-700">
           <h2 className="text-lg font-semibold text-gray-100">{title}</h2>
-          <button onClick={onClose} className="p-1 rounded-lg text-gray-400 hover:text-gray-200 transition [--btn-fill:55_65_81] [--btn-edge:31_41_55]">
-            <X size={20} />
-          </button>
+          {showClose && (
+            // Explicit type: a modal rendered inside a <form> would otherwise
+            // submit it on close, since a bare <button> defaults to submit.
+            <button type="button" onClick={onClose} className="p-1 rounded-lg text-gray-400 hover:text-gray-200 transition [--btn-fill:55_65_81] [--btn-edge:31_41_55]">
+              <X size={20} />
+            </button>
+          )}
         </div>
         <div className="overflow-y-auto p-4 sm:p-5 flex-1">{children}</div>
       </div>
