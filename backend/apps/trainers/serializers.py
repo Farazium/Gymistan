@@ -3,6 +3,7 @@ import datetime
 from rest_framework import serializers
 from django.db.models import Sum
 from .models import Trainer, SalaryPayment
+from apps.common.phone import normalize_pk_mobile
 from django.utils import timezone
 
 
@@ -68,6 +69,18 @@ class TrainerSerializer(serializers.ModelSerializer):
             'device_user_id', 'has_fingerprint', 'created_at',
         ]
         read_only_fields = ['id', 'created_at', 'has_fingerprint']
+
+    def validate_phone(self, value):
+        # Typed either way — with the leading 0 or without — but stored one way.
+        # The field is optional on a trainer, so blank stays blank.
+        if not (value or '').strip():
+            return ''
+        phone = normalize_pk_mobile(value)
+        if not phone:
+            raise serializers.ValidationError(
+                'Enter a valid mobile number — 03xxxxxxxxx or 3xxxxxxxxx.'
+            )
+        return phone
 
     def validate_monthly_salary(self, value):
         if value is not None and value < 0:

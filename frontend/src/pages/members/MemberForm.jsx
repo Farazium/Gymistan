@@ -8,6 +8,7 @@ import toast from 'react-hot-toast'
 import { useWaCredits } from '../../utils/waCredits'
 import EnrollModal from '../../components/EnrollModal'
 import { calcExpiryISO, calcExpiryDisplay } from '../../utils/expiry'
+import { normalizePkMobile, phoneRule } from '../../utils/phone'
 import CollectFeeSection, { useJoiningPayment } from '../../components/members/CollectFee'
 
 export default function MemberForm({ member, onSuccess, defaultMemberId }) {
@@ -72,7 +73,12 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
       const pkg = packages?.find((p) => String(p.id) === String(payload.package))
       const months = pkg ? pkg.duration_months : null
       const mid = payload.member_id ? String(payload.member_id).padStart(5, '0') : ''
-      const base = { ...payload, member_id: mid || null, trainer: payload.trainer || null }
+      const base = {
+        ...payload,
+        member_id: mid || null,
+        trainer: payload.trainer || null,
+        phone: normalizePkMobile(payload.phone) || payload.phone,
+      }
       // With the first payment collected the member is added active, their expiry
       // already a package-length away — the payment doesn't move it a second time.
       const memberStatus = payload.collect_fee ? 'ACTIVE' : payload.status
@@ -208,7 +214,7 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
             placeholder="03XX-XXXXXXX"
             {...register('phone', {
               required: 'Phone is required',
-              pattern: { value: /^[\d\s\-+()]+$/, message: 'Phone can only contain numbers' },
+              validate: phoneRule,
             })}
             onKeyDown={(e) => { if (!/[\d\s\-+()]/.test(e.key) && !['Backspace','Delete','Tab','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault() }}
           />

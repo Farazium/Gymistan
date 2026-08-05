@@ -38,22 +38,15 @@ from apps.common.dates import add_months
 from apps.gyms.models import Gym
 from apps.members.models import Member
 from apps.packages.models import Package
+from apps.common.phone import normalize_pk_mobile
 
 FIELDS = ['member_id', 'name', 'phone', 'join_date', 'package', 'father_name', 'gender', 'notes']
 
 
-def normalise_phone(raw):
-    """Local mobile in any of the shapes a spreadsheet holds it — 3121234567,
-    03121234567, +923121234567, 0312-1234567 — down to one 03xxxxxxxxx form.
-    Anything that isn't a plausible mobile comes back as None so the row can be
-    rejected rather than stored as a number nobody can dial."""
-    digits = ''.join(ch for ch in str(raw or '') if ch.isdigit())
-    if digits.startswith('92'):
-        digits = digits[2:]
-    digits = digits.lstrip('0')
-    if len(digits) == 10 and digits.startswith('3'):
-        return '0' + digits
-    return None
+# Same 03xxxxxxxxx form the member/trainer forms store, so an imported row and a
+# hand-typed one are the same number. None means the row is rejected rather than
+# stored as a number nobody can dial.
+normalise_phone = normalize_pk_mobile
 
 
 class Command(BaseCommand):

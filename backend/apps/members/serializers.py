@@ -1,7 +1,10 @@
 from rest_framework import serializers
 from django.utils.timezone import localdate
 from .models import Member
+from apps.common.phone import normalize_pk_mobile
 from apps.packages.serializers import PackageSerializer
+
+PHONE_ERROR = 'Enter a valid mobile number — 03xxxxxxxxx or 3xxxxxxxxx.'
 
 
 def compute_status(member):
@@ -40,6 +43,13 @@ class MemberSerializer(serializers.ModelSerializer):
 
     def get_blacklist_active(self, obj):
         return blacklist_is_active(obj)
+
+    def validate_phone(self, value):
+        # Typed either way — with the leading 0 or without — but stored one way.
+        phone = normalize_pk_mobile(value)
+        if not phone:
+            raise serializers.ValidationError(PHONE_ERROR)
+        return phone
 
     def validate(self, attrs):
         # A package that includes a trainer must have one assigned. Fall back to

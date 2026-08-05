@@ -7,6 +7,7 @@ import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
 import { apiErrorMessage } from '../../utils/apiError'
 import EnrollModal from '../../components/EnrollModal'
+import { normalizePkMobile, phoneRule } from '../../utils/phone'
 
 const todayISO = () => {
   const d = new Date()
@@ -29,6 +30,7 @@ export default function TrainerForm({ trainer, onSuccess }) {
         ...payload,
         monthly_salary: payload.monthly_salary || 0,
         join_date: payload.join_date || null,
+        phone: normalizePkMobile(payload.phone) || payload.phone,
       }
       return trainer
         ? api.patch(`/trainers/${trainer.id}/`, body)
@@ -83,9 +85,9 @@ export default function TrainerForm({ trainer, onSuccess }) {
             placeholder="03XX-XXXXXXX"
             {...register('phone', {
               required: 'Phone is required',
-              pattern: { value: /^\d{10,15}$/, message: 'Enter a valid phone (10–15 digits)' },
+              validate: phoneRule,
             })}
-            onKeyDown={(e) => { if (!/\d/.test(e.key) && !['Backspace','Delete','Tab','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault() }}
+            onKeyDown={(e) => { if (!/[\d\s\-+()]/.test(e.key) && !['Backspace','Delete','Tab','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault() }}
           />
           {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
         </div>
