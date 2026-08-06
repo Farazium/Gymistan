@@ -37,7 +37,7 @@ except ImportError:
     print('Missing libraries. Run:  pip install pyzk requests')
     sys.exit(1)
 
-VERSION = '1.9'
+VERSION = '2.0'
 DEFAULT_SERVER = 'https://gymistan.dev'
 DEVICE_PORT = 4370
 POLL_SECONDS = 60            # how often punches are swept up
@@ -241,15 +241,47 @@ def ask_running_agent_to_stop(timeout=25):
 
 
 # ---------------------------------------------------------------- device
-def local_subnet():
-    """This machine's own /24, which is the network the device is on too."""
+def routed_ip():
+    """The address the internet goes out of — usually the one the device is on."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         sock.connect(('8.8.8.8', 80))   # no packets sent; just picks the route
-        ip = sock.getsockname()[0]
+        return sock.getsockname()[0]
     finally:
         sock.close()
-    return ipaddress.ip_network(f'{ip}/24', strict=False), ip
+
+
+def local_subnets():
+    """Every /24 this PC sits on, because the device is not always on the one the
+    internet uses. A gym with no router hangs the device straight off the PC's
+    Ethernet port and gets online through a phone hotspot instead: the device is
+    then on 192.168.1.x while the default route points at the hotspot's subnet.
+    Looking only where the internet goes would never find it. With a router both
+    live on the same network and this returns the single subnet it always did."""
+    addresses = []
+    try:
+        addresses.append(routed_ip())
+    except OSError:
+        pass        # no internet yet; the other interfaces may still have the device
+    try:
+        addresses += socket.gethostbyname_ex(socket.gethostname())[2]
+    except OSError:
+        pass
+
+    subnets = []
+    for addr in addresses:
+        try:
+            ip = ipaddress.ip_address(addr)
+        except ValueError:
+            continue
+        # Loopback talks to nobody; a 169.254 address means this interface never
+        # got configured, so nothing is answering on it either.
+        if ip.is_loopback or ip.is_link_local:
+            continue
+        network = ipaddress.ip_network(f'{addr}/24', strict=False)
+        if not any(net == network for net, _ in subnets):
+            subnets.append((network, addr))
+    return subnets
 
 
 def port_open(host, port=DEVICE_PORT, timeout=SCAN_TIMEOUT):
@@ -259,21 +291,21 @@ def port_open(host, port=DEVICE_PORT, timeout=SCAN_TIMEOUT):
 
 
 def scan_for_device():
-    """Sweep the local /24 for anything answering on the ZKTeco port, so nobody
+    """Sweep every local /24 for anything answering on the ZKTeco port, so nobody
     has to know what an IP address is. Threaded — 254 hosts in a few seconds."""
-    try:
-        network, own_ip = local_subnet()
-    except OSError:
+    subnets = local_subnets()
+    if not subnets:
         log('This PC does not seem to be on a network.')
         return []
-    log(f'Looking for the device on {network} ...')
-    hosts = [h for h in network.hosts() if str(h) != own_ip]
     found = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=128) as pool:
-        for host, is_open in zip(hosts, pool.map(port_open, hosts)):
-            if is_open:
-                found.append(str(host))
-                log(f'  found a device at {host}')
+        for network, own_ip in subnets:
+            log(f'Looking for the device on {network} ...')
+            hosts = [h for h in network.hosts() if str(h) != own_ip]
+            for host, is_open in zip(hosts, pool.map(port_open, hosts)):
+                if is_open:
+                    found.append(str(host))
+                    log(f'  found a device at {host}')
     return found
 
 
@@ -459,33 +491,36 @@ def run_live(server, cfg, stop_after):
 class Server:
     def __init__(self, base_url, token):
         self.url = base_url.rstrip('/') + '/api/attendance/device/ingest/'
-        self.headers = {'X-Agent-Token': token}
+        # One session for the life of the agent, so the TCP and TLS handshake
+        # happen once instead of every three seconds. The handshake carries the
+        # server's certificate chain and dwarfs these tiny requests: repeating it
+        # all day costs a gym on a phone hotspot gigabytes a month for nothing.
+        self.http = requests.Session()
+        self.http.headers.update({'X-Agent-Token': token})
 
     def watermark(self):
         """The newest punch Gymistan already has, so we only send what's new."""
-        r = requests.get(self.url, headers=self.headers,
-                         params={'agent_version': VERSION}, timeout=30)
+        r = self.http.get(self.url, params={'agent_version': VERSION}, timeout=30)
         r.raise_for_status()
         return r.json()
 
     def next_command(self, serial=''):
-        r = requests.get(self.url.replace('/ingest/', '/commands/'),
-                         headers=self.headers, timeout=30,
-                         params={'agent_version': VERSION, 'serial': serial})
+        r = self.http.get(self.url.replace('/ingest/', '/commands/'), timeout=30,
+                          params={'agent_version': VERSION, 'serial': serial})
         r.raise_for_status()
         return r.json()
 
     def command_result(self, cmd_id, ok, result=None, message='', running=False):
-        r = requests.post(self.url.replace('/ingest/', '/commands/'), headers=self.headers,
-                          json={'id': cmd_id, 'ok': ok, 'result': result or {},
-                                'message': message, 'running': running}, timeout=30)
+        r = self.http.post(self.url.replace('/ingest/', '/commands/'),
+                           json={'id': cmd_id, 'ok': ok, 'result': result or {},
+                                 'message': message, 'running': running}, timeout=30)
         r.raise_for_status()
         return r.json()
 
     def live_scans(self, scans):
-        r = requests.post(self.url.replace('/ingest/', '/live-scan/'), headers=self.headers,
-                          json={'scans': [{'uid': u, 'at': dt.isoformat()} for u, dt in scans]},
-                          timeout=30)
+        r = self.http.post(self.url.replace('/ingest/', '/live-scan/'),
+                           json={'scans': [{'uid': u, 'at': dt.isoformat()} for u, dt in scans]},
+                           timeout=30)
         r.raise_for_status()
         return r.json()
 
@@ -495,7 +530,7 @@ class Server:
             'serial': serial,
             'punches': [{'uid': uid, 'at': dt.isoformat()} for uid, dt in punches],
         }
-        r = requests.post(self.url, headers=self.headers, json=payload, timeout=60)
+        r = self.http.post(self.url, json=payload, timeout=60)
         r.raise_for_status()
         return r.json()
 

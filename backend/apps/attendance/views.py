@@ -736,7 +736,7 @@ class AgentIngestView(APIView):
 # The agent build we ship today. An older one still syncs punches perfectly well,
 # so this is not a hard gate — it only lets the panel offer an update, and lets a
 # job it cannot understand say so in words a gym can act on.
-CURRENT_AGENT_VERSION = '1.9'
+CURRENT_AGENT_VERSION = '2.0'
 AGENT_DOWNLOAD_URL = '/GymistanAgent.exe'
 
 COMMAND_WAIT = 25          # seconds the browser will hold while the agent works
