@@ -4,6 +4,8 @@ import {
   Building2, LogOut, Dumbbell, Boxes, Settings, Fingerprint, Wallet, BarChart2, UserCog, MessageCircle, X
 } from 'lucide-react'
 import useAuthStore from '../../store/authStore'
+import useLiveStore from '../../store/liveStore'
+import { initAudio } from '../../utils/entranceSound'
 import { API_ORIGIN } from '../../api/axios'
 import { isDemo, exitDemo } from '../../demo'
 import toast from 'react-hot-toast'
@@ -29,6 +31,7 @@ const superAdminItems = [
 
 export default function Sidebar({ open = false, onClose = () => {} }) {
   const { user, logout } = useAuthStore()
+  const { live, setLive } = useLiveStore()
   const navigate = useNavigate()
 
   const hasAttendance = ['TIER2_AT', 'TIER3'].includes(user?.gym_tier)
@@ -112,7 +115,36 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
               }
             >
               <Fingerprint size={18} />
-              Attendance
+              <span className="flex-1">Attendance</span>
+              {/* The entrance feed runs app-wide, so the switch for it belongs
+                  somewhere always on screen rather than on the Attendance page
+                  the desk staff have navigated away from. Nested in the link, so
+                  it has to stop the click reaching it — otherwise turning the
+                  sound on would also march you off to another page. */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  const nv = !live
+                  if (nv) initAudio()   // browsers only allow sound off a real click
+                  setLive(nv)
+                }}
+                aria-pressed={live}
+                aria-label={live ? 'Stop the live entrance feed' : 'Start the live entrance feed'}
+                title={live
+                  ? 'Live entrance is on — a sound plays on each scan. Click to stop.'
+                  : 'Live entrance is off. Click to hear each scan as it happens.'}
+                className="no-fx -mr-1 p-1.5 rounded-md hover:bg-white/10 transition"
+              >
+                <span
+                  className={`block w-2.5 h-2.5 rounded-full transition-colors ${
+                    live
+                      ? 'bg-green-400 shadow-[0_0_8px_2px_rgba(74,222,128,0.55)] animate-pulse'
+                      : 'bg-gray-600'
+                  }`}
+                />
+              </button>
             </NavLink>
           )}
         </nav>
