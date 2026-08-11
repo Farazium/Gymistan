@@ -48,7 +48,10 @@ class GymDetailView(APIView):
 
     def patch(self, request, pk=None):
         gym = self.get_gym(request, pk)
-        serializer = GymSerializer(gym, data=request.data, partial=True)
+        # The request goes in so the serializer can tell a superadmin's edit from a
+        # gym editing itself — see GymSerializer.SUPERADMIN_ONLY.
+        serializer = GymSerializer(gym, data=request.data, partial=True,
+                                   context={'request': request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)

@@ -67,6 +67,24 @@ class GymSerializer(serializers.ModelSerializer):
         # Credits move only through top-ups and sends, never a gym PATCH.
         read_only_fields = ['wa_allowance', 'wa_used']
 
+    # What a gym is sold, as opposed to how it looks. A gym admin PATCHes this same
+    # endpoint from Settings (name, logo, colours), so without this they could hand
+    # themselves a tier — and with it WhatsApp and attendance — for free.
+    SUPERADMIN_ONLY = {'tier', 'whatsapp_rate', 'is_active',
+                       'expiry_date', 'subscription_amount'}
+
+    def validate(self, data):
+        request = self.context.get('request')
+        role = getattr(getattr(request, 'user', None), 'role', None)
+        # No request in context means an internal caller, not the API — trusted.
+        if request is not None and role != 'SUPERADMIN':
+            blocked = sorted(self.SUPERADMIN_ONLY & set(data))
+            if blocked:
+                raise serializers.ValidationError(
+                    {f: 'Only a superadmin can change this.' for f in blocked}
+                )
+        return data
+
     def get_member_count(self, obj):
         return obj.members.filter(is_deleted=False).count()
 
