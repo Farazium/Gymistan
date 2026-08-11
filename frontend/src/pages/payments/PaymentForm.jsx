@@ -109,7 +109,7 @@ function todayInput() {
  * need to know. That is also why it carries its own date — the desk often writes
  * up yesterday's visitors this morning.
  */
-function DailyMemberForm({ onSuccess }) {
+export function DailyMemberForm({ onSuccess }) {
   const queryClient = useQueryClient()
   const today = todayInput()
   const { register, handleSubmit } = useForm({
@@ -205,37 +205,6 @@ function DailyMemberForm({ onSuccess }) {
 }
 
 export default function PaymentForm({ onSuccess }) {
-  const { user } = useAuthStore()
-  const dailyEnabled = !!user?.gym_features?.daily_member
-  const [mode, setMode] = useState('MEMBER')
-
-  if (!dailyEnabled) return <MemberPaymentForm onSuccess={onSuccess} />
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-2">
-        <RadioCard
-          checked={mode === 'MEMBER'}
-          onChange={() => setMode('MEMBER')}
-          label="Member"
-          hint="Renewal or dues"
-        />
-        <RadioCard
-          checked={mode === 'DAILY'}
-          onChange={() => setMode('DAILY')}
-          label="Daily member"
-          hint="One day, no membership"
-          accent="yellow"
-        />
-      </div>
-      {mode === 'MEMBER'
-        ? <MemberPaymentForm onSuccess={onSuccess} />
-        : <DailyMemberForm onSuccess={onSuccess} />}
-    </div>
-  )
-}
-
-function MemberPaymentForm({ onSuccess }) {
   const [selectedMemberId, setSelectedMemberId] = useState('')
   const [selectedMember, setSelectedMember] = useState(null)
   const [sendWhatsApp, setSendWhatsApp] = useState(false)

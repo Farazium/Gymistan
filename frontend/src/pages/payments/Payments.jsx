@@ -1,12 +1,12 @@
 import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Download, MessageCircle, CheckCircle2, Search, Trash2, Loader2 } from 'lucide-react'
+import { Plus, Download, MessageCircle, CheckCircle2, Search, Trash2, Loader2, CalendarPlus } from 'lucide-react'
 import { exportToExcel } from '../../utils/exportExcel'
 import api from '../../api/axios'
 import useAuthStore from '../../store/authStore'
 import Modal from '../../components/ui/Modal'
 import MonthSection from '../../components/ui/MonthSection'
-import PaymentForm from './PaymentForm'
+import PaymentForm, { DailyMemberForm } from './PaymentForm'
 import toast from 'react-hot-toast'
 import { invalidateFinance } from '../../utils/invalidateFinance'
 import { apiErrorMessage } from '../../utils/apiError'
@@ -40,6 +40,11 @@ export default function Payments() {
   const [search, setSearch] = useState('')
   const [packageFilter, setPackageFilter] = useState('')
   const [showModal, setShowModal] = useState(false)
+  // Day passes get their own button rather than a mode inside the payment modal:
+  // it is a different job, done by a different kind of visitor, and the desk
+  // should not have to open a members form to reach it.
+  const [showDaily, setShowDaily] = useState(false)
+  const dailyEnabled = !!user?.gym_features?.daily_member
   const queryClient = useQueryClient()
 
   const { data: packages = [] } = useQuery({
@@ -138,6 +143,14 @@ export default function Payments() {
           >
             <Download size={18} />
           </button>
+          {dailyEnabled && (
+            <button
+              onClick={() => setShowDaily(true)}
+              className="btn bg-yellow-500/15 text-yellow-300 border border-yellow-500/30 hover:text-white hover:border-yellow-500 hover:shadow-lg hover:shadow-yellow-500/20 backdrop-blur-sm transition-all [--btn-fill:234_179_8] [--btn-edge:161_98_7]"
+            >
+              <CalendarPlus size={16} /> Daily Member
+            </button>
+          )}
           <button onClick={() => setShowModal(true)} className="btn-primary">
             <Plus size={16} /> Record Payment
           </button>
@@ -271,6 +284,10 @@ export default function Payments() {
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Record Payment">
         <PaymentForm onSuccess={() => { setShowModal(false); queryClient.invalidateQueries({ queryKey: ['payments'] }) }} />
+      </Modal>
+
+      <Modal isOpen={showDaily} onClose={() => setShowDaily(false)} title="Daily Member Payment">
+        <DailyMemberForm onSuccess={() => { setShowDaily(false); queryClient.invalidateQueries({ queryKey: ['payments'] }) }} />
       </Modal>
     </div>
   )
