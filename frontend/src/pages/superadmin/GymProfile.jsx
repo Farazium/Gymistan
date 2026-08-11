@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, Users, CreditCard, Receipt, TrendingUp,
-  Building2, Pencil, X, Save, KeyRound, Eye, EyeOff, Phone, MapPin, Calendar, User, Boxes, ShoppingCart, DollarSign, RefreshCw, MessageCircle, Plus
+  Building2, Pencil, X, Save, KeyRound, Eye, EyeOff, Phone, MapPin, Calendar, User, Boxes, ShoppingCart, DollarSign, RefreshCw, MessageCircle, Plus, ToggleRight
 } from 'lucide-react'
 import api from '../../api/axios'
 import StatCard from '../../components/ui/StatCard'
@@ -27,6 +27,43 @@ function InfoRow({ icon: Icon, label, value }) {
         <p className="text-gray-100 font-medium mt-0.5">{value || <span className="text-gray-500">—</span>}</p>
       </div>
     </div>
+  )
+}
+
+/**
+ * One per-gym feature switch. The whole `features` object is sent on every
+ * change rather than just the key that moved: the backend stores it as one JSON
+ * field, so a PATCH carrying a single key would drop the others.
+ */
+function FeatureToggle({ gymId, features, featureKey, label, hint }) {
+  const queryClient = useQueryClient()
+  const on = !!features?.[featureKey]
+
+  const mutation = useMutation({
+    mutationFn: (next) => api.patch(`/gyms/${gymId}/`, {
+      features: { ...(features || {}), [featureKey]: next },
+    }),
+    onSuccess: (_, next) => {
+      queryClient.invalidateQueries({ queryKey: ['gym-stats', gymId] })
+      toast.success(next ? `${label} enabled` : `${label} disabled`)
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Failed to update')),
+  })
+
+  return (
+    <label className="flex items-start gap-3 cursor-pointer select-none">
+      <input
+        type="checkbox"
+        checked={on}
+        disabled={mutation.isPending}
+        onChange={(e) => mutation.mutate(e.target.checked)}
+        className="w-4 h-4 mt-0.5 rounded accent-primary-500 disabled:opacity-40"
+      />
+      <span>
+        <span className="block text-sm text-gray-100 font-medium">{label}</span>
+        <span className="block text-xs text-gray-500 mt-0.5">{hint}</span>
+      </span>
+    </label>
   )
 }
 
@@ -423,6 +460,25 @@ export default function GymProfile() {
             <p className="text-xs text-gray-500 mt-0.5">Edit in Gym Details</p>
           </div>
         </div>
+      </div>
+
+      {/* Extras — switches this one gym was given, outside what its tier includes.
+          Kept apart from Tier on purpose: a tier is what a gym is sold, these are
+          one-off requests, and mixing them would make the plans look inconsistent. */}
+      <div className="card p-5">
+        <h2 className="font-semibold text-gray-100 flex items-center gap-2 mb-1">
+          <ToggleRight size={16} className="text-primary-400" /> Extras
+        </h2>
+        <p className="text-xs text-gray-500 mb-4">
+          Features enabled for this gym only. Off everywhere else.
+        </p>
+        <FeatureToggle
+          gymId={id}
+          features={gym.features}
+          featureKey="daily_member"
+          label="Daily members"
+          hint="Payments page gets a day-pass entry — name, date and amount, with no membership created."
+        />
       </div>
 
       {/* Prepaid WhatsApp messages — only for plans that include messaging */}

@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 from apps.gyms.models import Gym
 from apps.members.models import Member
 from apps.packages.models import Package
@@ -30,7 +31,11 @@ class Payment(SoftDeleteModel):
     admission_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PAID)
     payment_method = models.CharField(max_length=20, choices=PaymentMethod.choices, default=PaymentMethod.CASH)
-    payment_date = models.DateField(auto_now_add=True)
+    # Today unless the entry says otherwise. Only a daily-member payment is allowed
+    # to say otherwise (PaymentSerializer.validate discards the client's date on
+    # every other kind), because back-dating a membership payment would move money
+    # into a month whose books have already been read.
+    payment_date = models.DateField(default=timezone.localdate)
     due_date = models.DateField(null=True, blank=True)
     prev_expiry = models.DateField(null=True, blank=True)
     new_expiry = models.DateField(null=True, blank=True)
@@ -50,6 +55,12 @@ class Payment(SoftDeleteModel):
     # Set when the payment is *only* a balance settlement — it buys no cycle, so it
     # leaves the expiry date untouched. Derived in services.apply_payment.
     is_dues_payment = models.BooleanField(default=False)
+    # A daily member — someone who paid for one day's use and was never enrolled.
+    # There is no Member row behind them, so the name they gave is the only record
+    # of who paid; the phone and a note are optional extras the desk may skip.
+    # Gated on the gym's `daily_member` feature switch.
+    walkin_name = models.CharField(max_length=120, blank=True)
+    walkin_phone = models.CharField(max_length=20, blank=True)
     slip_sent = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -68,5 +79,13 @@ class Payment(SoftDeleteModel):
         """Still owed on this payment. Zero on a fully-settled one."""
         return max(self.payable - (self.amount_paid or 0), 0)
 
+    @property
+    def is_walkin(self):
+        """True on a daily-member payment. The name is what marks it, not the absent
+        member: a payment whose member row was deleted also has `member` None, but it
+        never carries a walk-in name."""
+        return bool(self.walkin_name)
+
     def __str__(self):
-        return f'{self.member.name} - PKR {self.amount_paid} ({self.status})'
+        who = self.member.name if self.member else (self.walkin_name or 'Unknown')
+        return f'{who} - PKR {self.amount_paid} ({self.status})'

@@ -17,6 +17,18 @@ from apps.gyms.models import Gym, GymPayment, WhatsAppUsage, WA_TIERS, AT_TIERS
 from apps.accounts.permissions import IsGymMember, IsSuperAdmin
 
 
+def _payer(payment):
+    """Whose money this was, for a screen that lists payments.
+
+    Usually a member. A daily member has no membership behind them, so the name
+    they gave at the desk is the record — without this they'd read as 'Unknown' on
+    the dashboard and in the day sheet, which looks like a fault in the books.
+    """
+    if payment.member:
+        return payment.member.name
+    return payment.walkin_name or 'Unknown'
+
+
 class DashboardView(APIView):
     permission_classes = [IsAuthenticated, IsGymMember]
 
@@ -50,7 +62,7 @@ class DashboardView(APIView):
         recent_payments_data = [
             {
                 'id': p.id,
-                'member_name': p.member.name if p.member else '—',
+                'member_name': _payer(p),
                 'package_name': p.package.name if p.package else '',
                 'admission_amount': float(p.admission_amount),
                 'dues_amount': float(p.dues_amount),
@@ -249,7 +261,12 @@ def _fee_category(payment):
     month, and money that did not cover what was charged (so a balance is still
     running). Both are spelled out here.
     """
-    if payment.is_dues_payment:
+    if payment.is_walkin:
+        # A day pass. Named apart from Member Fee on purpose: it is fee income, but
+        # it buys no month and belongs to nobody on the roster, so folding it in
+        # would inflate what the gym thinks its memberships earned.
+        label = 'Daily Member Fee'
+    elif payment.is_dues_payment:
         # Settles a balance and buys no time — not this month's fee at all.
         label = 'Dues Payment'
     elif payment.dues_amount:
@@ -355,7 +372,7 @@ class FinanceLedgerView(APIView):
         for p in Payment.objects.filter(gym=gym, payment_date__range=[start, end]).select_related('member'):
             entries.append({
                 'date': p.payment_date.isoformat(),
-                'description': p.member.name if p.member else 'Unknown Member',
+                'description': _payer(p),
                 # One row per payment: a bundled joining stays whole here.
                 'category': _payment_category(p),
                 'type': 'IN',
@@ -525,7 +542,7 @@ class DailyCollectionView(APIView):
             # package fee produces one line in each section — see _payment_lines.
             for category, amount in _payment_lines(p):
                 entry = {
-                    'member': p.member.name if p.member else 'Unknown',
+                    'member': _payer(p),
                     'package': p.package.name if p.package else '—',
                     # Same vocabulary as the ledger: the sheet has to show which of
                     # the day's cash was a balance coming in, and which left one behind.

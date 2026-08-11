@@ -1,7 +1,7 @@
 from decimal import Decimal
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Gym, GymPayment, WhatsAppTopup, TierInfo
+from .models import Gym, GymPayment, WhatsAppTopup, TierInfo, FEATURE_KEYS
 from django.utils import timezone
 
 User = get_user_model()
@@ -63,14 +63,15 @@ class GymSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Gym
-        fields = ['id', 'name', 'address', 'phone', 'owner_phone', 'logo', 'is_active', 'joining_date', 'expiry_date', 'subscription_amount', 'tier', 'whatsapp_rate', 'theme_color', 'card_color', 'background_mode', 'background_image', 'created_at', 'updated_at', 'member_count', 'user_count', 'wa_allowance', 'wa_used', 'wa_remaining', 'wa_percent_used']
+        fields = ['id', 'name', 'address', 'phone', 'owner_phone', 'logo', 'is_active', 'joining_date', 'expiry_date', 'subscription_amount', 'tier', 'whatsapp_rate', 'theme_color', 'card_color', 'background_mode', 'background_image', 'features', 'created_at', 'updated_at', 'member_count', 'user_count', 'wa_allowance', 'wa_used', 'wa_remaining', 'wa_percent_used']
         # Credits move only through top-ups and sends, never a gym PATCH.
         read_only_fields = ['wa_allowance', 'wa_used']
 
-    # What a gym is sold, as opposed to how it looks. A gym admin PATCHes this same
-    # endpoint from Settings (name, logo, colours), so without this they could hand
-    # themselves a tier — and with it WhatsApp and attendance — for free.
-    SUPERADMIN_ONLY = {'tier', 'whatsapp_rate', 'is_active',
+    # What a gym is sold, as opposed to how it looks — the plan it pays for and the
+    # switches it was given. A gym admin PATCHes this same endpoint from Settings
+    # (name, logo, colours), so without this they could hand themselves a tier —
+    # and with it WhatsApp and attendance — or a feature, for free.
+    SUPERADMIN_ONLY = {'tier', 'features', 'whatsapp_rate', 'is_active',
                        'expiry_date', 'subscription_amount'}
 
     def validate(self, data):
@@ -84,6 +85,16 @@ class GymSerializer(serializers.ModelSerializer):
                     {f: 'Only a superadmin can change this.' for f in blocked}
                 )
         return data
+
+    def validate_features(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError('Features must be an object.')
+        unknown = sorted(set(value) - set(FEATURE_KEYS))
+        if unknown:
+            raise serializers.ValidationError(f'Unknown feature(s): {", ".join(unknown)}')
+        # Stored strictly as booleans so has_feature() never has to guess what a
+        # stray "false" string or a 0 was meant to mean.
+        return {k: bool(v) for k, v in value.items()}
 
     def get_member_count(self, obj):
         return obj.members.filter(is_deleted=False).count()

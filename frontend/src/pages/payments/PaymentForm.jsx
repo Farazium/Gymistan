@@ -93,7 +93,149 @@ function MemberSearch({ members, onChange, onSelect }) {
   )
 }
 
+/** Today, as the yyyy-mm-dd an <input type="date"> wants. Built from the local
+ *  parts rather than toISOString(), which converts to UTC and lands a day out
+ *  for anyone east of Greenwich — Karachi included. */
+function todayInput() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/**
+ * A day pass, for gyms that sell them (the `daily_member` feature switch).
+ *
+ * Nothing here touches a membership: there is no member to find, no package to
+ * charge, no expiry to move. Someone walked in, paid for the day, and the books
+ * need to know. That is also why it carries its own date — the desk often writes
+ * up yesterday's visitors this morning.
+ */
+function DailyMemberForm({ onSuccess }) {
+  const queryClient = useQueryClient()
+  const today = todayInput()
+  const { register, handleSubmit } = useForm({
+    defaultValues: { payment_date: today, payment_method: 'CASH' },
+  })
+
+  const mutation = useMutation({
+    mutationFn: (payload) => api.post('/payments/', payload),
+    onSuccess: () => {
+      toast.success('Daily member payment recorded')
+      // No member and no expiry moved, so the roster is untouched — only the
+      // books need refreshing.
+      invalidateFinance(queryClient)
+      onSuccess()
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Failed to record payment')),
+  })
+
+  const onSubmit = (data) => {
+    const name = (data.walkin_name || '').trim()
+    if (!name) { toast.error('Enter the name'); return }
+    const amount = Number(data.amount)
+    if (!amount || amount <= 0) { toast.error('Enter the amount paid'); return }
+    if (!data.payment_date) { toast.error('Pick a date'); return }
+    if (data.payment_date > today) { toast.error('The date cannot be in the future'); return }
+    mutation.mutate({
+      walkin_name: name,
+      walkin_phone: (data.walkin_phone || '').trim(),
+      payment_date: data.payment_date,
+      // A day pass is paid in full on the spot — no partial, no dues, no discount.
+      amount,
+      amount_paid: amount,
+      payment_method: data.payment_method,
+      notes: data.notes || '',
+    })
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div>
+        <label className="label">Name *</label>
+        <input className="input" placeholder="Who paid" autoFocus {...register('walkin_name')} />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="label">Date *</label>
+          <input className="input" type="date" max={today} {...register('payment_date')} />
+        </div>
+        <div>
+          <label className="label">Amount (PKR) *</label>
+          <input
+            className="input"
+            type="number"
+            min="1"
+            placeholder="0"
+            onWheel={e => e.target.blur()}
+            onKeyDown={e => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault() }}
+            {...register('amount')}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="label">Phone <span className="text-gray-500 text-xs">(optional)</span></label>
+          <input className="input" placeholder="03XXXXXXXXX" {...register('walkin_phone')} />
+        </div>
+        <div>
+          <label className="label">Payment Method</label>
+          <select className="input" {...register('payment_method')}>
+            <option value="CASH">Cash</option>
+            <option value="ONLINE">Online</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label className="label">Notes <span className="text-gray-500 text-xs">(optional)</span></label>
+        <textarea className="input h-16 resize-none" {...register('notes')} />
+      </div>
+
+      <p className="text-xs text-gray-500">
+        This records the money only — no membership is created, and nothing is sent
+        on WhatsApp. The receipt can be downloaded from the list.
+      </p>
+
+      <button type="submit" disabled={mutation.isPending} className="btn-primary w-full justify-center">
+        {mutation.isPending ? 'Recording...' : 'Record Payment'}
+      </button>
+    </form>
+  )
+}
+
 export default function PaymentForm({ onSuccess }) {
+  const { user } = useAuthStore()
+  const dailyEnabled = !!user?.gym_features?.daily_member
+  const [mode, setMode] = useState('MEMBER')
+
+  if (!dailyEnabled) return <MemberPaymentForm onSuccess={onSuccess} />
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-2">
+        <RadioCard
+          checked={mode === 'MEMBER'}
+          onChange={() => setMode('MEMBER')}
+          label="Member"
+          hint="Renewal or dues"
+        />
+        <RadioCard
+          checked={mode === 'DAILY'}
+          onChange={() => setMode('DAILY')}
+          label="Daily member"
+          hint="One day, no membership"
+          accent="yellow"
+        />
+      </div>
+      {mode === 'MEMBER'
+        ? <MemberPaymentForm onSuccess={onSuccess} />
+        : <DailyMemberForm onSuccess={onSuccess} />}
+    </div>
+  )
+}
+
+function MemberPaymentForm({ onSuccess }) {
   const [selectedMemberId, setSelectedMemberId] = useState('')
   const [selectedMember, setSelectedMember] = useState(null)
   const [sendWhatsApp, setSendWhatsApp] = useState(false)

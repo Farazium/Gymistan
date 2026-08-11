@@ -22,6 +22,9 @@ class UserSerializer(serializers.ModelSerializer):
     gym_address = serializers.CharField(source='gym.address', read_only=True)
     gym_logo = serializers.ImageField(source='gym.logo', read_only=True)
     gym_tier = serializers.CharField(source='gym.tier', read_only=True)
+    # Per-gym feature switches, so the UI can show what this gym was given. Gating
+    # here is cosmetic — the API enforces each switch on its own.
+    gym_features = serializers.JSONField(source='gym.features', read_only=True)
     gym_theme = serializers.CharField(source='gym.theme_color', read_only=True)
     gym_card = serializers.CharField(source='gym.card_color', read_only=True)
     gym_background_mode = serializers.CharField(source='gym.background_mode', read_only=True)
@@ -29,7 +32,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'name', 'email', 'role', 'is_active', 'gym', 'gym_name', 'gym_phone', 'gym_address', 'gym_logo', 'gym_tier', 'gym_theme', 'gym_card', 'gym_background_mode', 'gym_background_image', 'created_at']
+        fields = ['id', 'name', 'email', 'role', 'is_active', 'gym', 'gym_name', 'gym_phone', 'gym_address', 'gym_logo', 'gym_tier', 'gym_features', 'gym_theme', 'gym_card', 'gym_background_mode', 'gym_background_image', 'created_at']
 
 
 class LoginSerializer(serializers.Serializer):

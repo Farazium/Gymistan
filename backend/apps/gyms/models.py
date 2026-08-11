@@ -19,6 +19,14 @@ WA_TIERS = (Tier.TIER2_WA, Tier.TIER3)
 AT_TIERS = (Tier.TIER2_AT, Tier.TIER3)
 
 
+# Per-gym feature switches (Gym.features), for anything one gym asked for that the
+# tiers don't express. A switch here is the alternative to branching on a gym id:
+# the behaviour ships to everyone but stays off until a superadmin turns it on.
+FEATURE_DAILY_MEMBER = 'daily_member'   # walk-in fee, recorded without a membership
+
+FEATURE_KEYS = (FEATURE_DAILY_MEMBER,)
+
+
 class ThemeColor(models.TextChoices):
     ROSE    = 'rose',    'Rose'
     RED     = 'red',     'Red'
@@ -91,6 +99,10 @@ class Gym(models.Model):
     # stored in background_image and cropped to the background's aspect on upload).
     background_mode = models.CharField(max_length=20, choices=BackgroundMode.choices, default=BackgroundMode.DEFAULT)
     background_image = models.ImageField(upload_to='gym_backgrounds/', null=True, blank=True)
+    # Feature switches this gym has been given, `{key: true}` — see FEATURE_KEYS.
+    # Read through has_feature(); a missing key is off, so an empty dict is the
+    # normal state and no gym has to be migrated when a new switch is added.
+    features = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -99,6 +111,9 @@ class Gym(models.Model):
 
     def __str__(self):
         return self.name
+
+    def has_feature(self, key):
+        return bool((self.features or {}).get(key))
 
     @property
     def wa_remaining(self):

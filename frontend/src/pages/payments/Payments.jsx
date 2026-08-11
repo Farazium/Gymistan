@@ -21,6 +21,9 @@ import { useWaCredits } from '../../utils/waCredits'
  * the books.
  */
 export function paymentFor(p) {
+  // A day pass buys no package, so naming it is the only way the row says what
+  // the money was for.
+  if (p.is_walkin) return 'Daily Member'
   const parts = []
   if (p.package_name) parts.push(p.package_name)
   if (Number(p.admission_amount) > 0) parts.push(parts.length ? 'Admission' : 'Admission Fee')
@@ -117,7 +120,8 @@ export default function Payments() {
         <div className="flex gap-2">
           <button
             onClick={() => exportToExcel(sorted.map((p) => ({
-              Member: p.member_name,
+              Member: p.member_name || '',
+              Type: p.is_walkin ? 'Daily' : 'Member',
               Phone: p.member_phone || '',
               Package: paymentFor(p),
               Amount: p.amount,
@@ -190,7 +194,17 @@ export default function Payments() {
                   {group.items.map((p) => (
                     <div key={p.id} className="flex items-center gap-4 px-4 py-3 hover:bg-primary-500/10 transition-colors">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-100 truncate">{p.member_name}</p>
+                        <p className="font-medium text-gray-100 truncate flex items-center gap-2">
+                          <span className="truncate">{p.member_name}</span>
+                          {p.is_walkin && (
+                            <span
+                              title="Day pass — not a member"
+                              className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-yellow-500/15 text-yellow-400 border border-yellow-500/30"
+                            >
+                              Daily
+                            </span>
+                          )}
+                        </p>
                         <p className="text-xs text-gray-400">{p.member_phone}</p>
                       </div>
                       <span className="shrink-0 w-28 text-primary-400 text-xs truncate">
@@ -219,7 +233,7 @@ export default function Payments() {
                         <button onClick={() => downloadSlip(p.id)} title="Download Slip" className="p-1.5 text-gray-400 hover:text-white rounded-lg transition">
                           <Download size={14} />
                         </button>
-                        {hasWhatsApp && (
+                        {hasWhatsApp && !p.is_walkin && (
                           p.slip_sent ? (
                             <span title="Receipt already sent" className="p-1.5 text-green-400 cursor-default">
                               <CheckCircle2 size={14} />
@@ -238,7 +252,9 @@ export default function Payments() {
                           )
                         )}
                         {p.deletable && (
-                          <button onClick={() => { if (confirm(`Delete this payment record?\n\n${p.member_name || 'The member'}'s expiry and dues will be rolled back to what they were before this payment.`)) deleteMutation.mutate(p.id) }} title="Delete" className="p-1.5 text-gray-400 hover:text-white rounded-lg transition [--btn-fill:239_68_68] [--btn-edge:185_28_28]">
+                          <button onClick={() => { if (confirm(p.is_walkin
+                            ? `Delete this payment record?\n\n${p.member_name}'s day pass will be removed from the books. No membership is affected.`
+                            : `Delete this payment record?\n\n${p.member_name || 'The member'}'s expiry and dues will be rolled back to what they were before this payment.`)) deleteMutation.mutate(p.id) }} title="Delete" className="p-1.5 text-gray-400 hover:text-white rounded-lg transition [--btn-fill:239_68_68] [--btn-edge:185_28_28]">
                             <Trash2 size={14} />
                           </button>
                         )}

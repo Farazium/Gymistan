@@ -16,6 +16,8 @@ The rules, in one place:
 * A part-payment still buys the cycle: the expiry moves exactly as it would on a
   full payment, and whatever is left over is carried on the member as `dues`.
 * A payment with no package buys no time — it only draws the balance down.
+* A daily-member payment has no member at all: it lands in the books and touches
+  nothing else.
 * Deleting a payment undoes all of that (`revert_payment`) — a record that is
   gone from the books must not leave the month it bought behind on the member.
 """
@@ -31,6 +33,11 @@ def apply_payment(payment):
     """Settle a freshly-created payment against its member. Saves both."""
     member = payment.member
     if member is None:
+        # A daily member has no membership to settle — no expiry to move, no balance
+        # to carry. All that's left is to stamp the status the amounts imply, so the
+        # record doesn't sit on the model default and claim PAID regardless.
+        payment.status = 'PARTIAL' if payment.remaining > 0 else 'PAID'
+        payment.save(update_fields=['status'])
         return payment
 
     carried = _d(payment.dues_amount)

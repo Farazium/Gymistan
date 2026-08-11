@@ -18,7 +18,7 @@ class PaymentListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated, IsGymMember]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'member', 'package']
-    search_fields = ['member__name', 'member__phone', 'month']
+    search_fields = ['member__name', 'member__phone', 'month', 'walkin_name', 'walkin_phone']
     ordering_fields = ['payment_date', 'amount_paid']
     ordering = ['-created_at']
 
@@ -92,6 +92,12 @@ class SendWhatsAppSlipView(APIView):
             )
         except Payment.DoesNotExist:
             return Response({'message': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # A daily member gave a name at the desk, not a number we can message —
+        # and even when they left one, they never signed up to be contacted.
+        if payment.is_walkin:
+            return Response({'message': 'Daily member payments have no WhatsApp receipt'},
+                            status=status.HTTP_400_BAD_REQUEST)
 
         if payment.gym.tier not in WA_TIERS:
             return Response({'message': 'WhatsApp is not enabled for your plan'},

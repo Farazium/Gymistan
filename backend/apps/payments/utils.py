@@ -289,13 +289,27 @@ def _generate_receipt_slip(payment):
 
         next_expiry = payment.new_expiry or (member.expiry_date if member else None)
         pkg = payment.package or (member.package if member else None)
+        # A daily member has no id to print — saying so is more use to whoever reads
+        # the slip than an empty Member ID box.
+        if payment.is_walkin:
+            ident = ('Type', 'Daily Member')
+            name = payment.walkin_name
+        else:
+            ident = ('Member ID', (member.member_id or '—') if member else '—')
+            name = member.name if member else '—'
         rows = [
-            ('Member ID', (member.member_id or '—') if member else '—',
-             'Name', member.name if member else '—'),
+            (*ident, 'Name', name),
             ('Paid On', _fmt_date(payment.payment_date),
              'Mode of Payment', payment.get_payment_method_display()),
         ]
-        if payment.is_dues_payment:
+        if payment.is_walkin:
+            # No cycle bought, so no expiry pair — the note, if the desk left one,
+            # is the only thing that says what the visit was.
+            rows.append(('Payment For', 'Daily Member Fee',
+                         'Phone', payment.walkin_phone or '—'))
+            if payment.notes:
+                rows.append(('Note', payment.notes))
+        elif payment.is_dues_payment:
             # Settling an old balance buys no time, so an expiry pair here would
             # read like a renewal that never happened.
             rows.append(('Payment For', 'Outstanding Dues',
