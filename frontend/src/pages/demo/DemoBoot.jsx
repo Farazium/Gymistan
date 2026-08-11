@@ -6,7 +6,7 @@
    the reload happens, dressed to match the sign-in screen. */
 import { useEffect, useRef, useState } from 'react'
 import { Dumbbell, Loader2 } from 'lucide-react'
-import { Starfield, CursorGlow } from '../../components/space/Scene'
+import { Starfield } from '../../components/space/Scene'
 import { BRAND_ACCENT } from '../../components/space/effects'
 import useAuthStore from '../../store/authStore'
 import { markDemo } from '../../demo'
@@ -44,7 +44,6 @@ export default function DemoBoot() {
     >
       <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950" />
       <Starfield />
-      <CursorGlow />
 
       <div className="relative text-center">
         <div className="relative inline-flex mb-6">

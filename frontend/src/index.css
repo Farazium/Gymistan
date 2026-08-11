@@ -148,40 +148,6 @@
   height: 0;
 }
 
-/* Water-drop click ripple (login page). Rings + a central splash, tinted with
-   the accent channels so it matches each gym's theme. Nodes are created in JS
-   and removed when their animation ends. */
-.ripple-layer {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-.ripple-ring {
-  position: absolute;
-  border-radius: 50%;
-  transform: translate(-50%, -50%) scale(0);
-  border: 2px solid rgb(var(--p400) / 0.55);
-  box-shadow: 0 0 12px rgb(var(--p400) / 0.25), inset 0 0 10px rgb(var(--p400) / 0.15);
-  animation: ripple-out var(--dur, 0.9s) cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
-}
-@keyframes ripple-out {
-  0%   { transform: translate(-50%, -50%) scale(0);   opacity: 0.85; border-width: 3px; }
-  60%  { opacity: 0.4; }
-  100% { transform: translate(-50%, -50%) scale(1);   opacity: 0; border-width: 0.5px; }
-}
-.ripple-splash {
-  position: absolute;
-  border-radius: 50%;
-  transform: translate(-50%, -50%) scale(0.1);
-  background: radial-gradient(circle, rgb(var(--p400) / 0.5), rgb(var(--p500) / 0.18) 45%, transparent 68%);
-  animation: ripple-splash 0.5s ease-out forwards;
-}
-@keyframes ripple-splash {
-  0%   { transform: translate(-50%, -50%) scale(0.1); opacity: 0.9; }
-  100% { transform: translate(-50%, -50%) scale(1);   opacity: 0; }
-}
-
 /* Browser autofill paints inputs white/pale-yellow by default, which looks
    wrong on our dark fields. Override it to a dark fill with light text so an
    autofilled email/password matches the rest of the form. */

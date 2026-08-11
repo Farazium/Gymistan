@@ -1,8 +1,8 @@
 /* gymistan.dev — the public landing page.
    ------------------------------------------------------------------------
    Deliberately wears the sign-in screen's skin: the same deep-space backdrop,
-   starfield, cursor spotlight, floating dumbbells and water-drop click ripple
-   (all shared from components/space), the same Blue brand accent pinned on the
+   starfield and floating dumbbells (both shared from components/space), the
+   same Blue brand accent pinned on the
    page root, and the same anime.js reveal — staggered fade + rise — except here
    it fires as each section scrolls into view instead of on mount.
 
@@ -17,8 +17,8 @@ import {
   LogIn, ShieldCheck, Wallet, Clock, Sparkles, Menu, X, CheckCircle2, Mail,
 } from 'lucide-react'
 import anime from 'animejs/lib/anime.es.js'
-import { Starfield, CursorGlow, DumbbellField } from '../../components/space/Scene'
-import { PREFERS_REDUCED_MOTION, BRAND_ACCENT, spawnRipple } from '../../components/space/effects'
+import { Starfield, DumbbellField } from '../../components/space/Scene'
+import { PREFERS_REDUCED_MOTION, BRAND_ACCENT } from '../../components/space/effects'
 import { CONTACT_EMAIL, composeUrl } from '../../utils/contact'
 import EmailLink from '../../components/ui/EmailLink'
 
@@ -505,7 +505,7 @@ function WhatsAppSection() {
 /* ------------------------ Attendance spotlight -------------------------- */
 const SCANS = [
   { name: 'Usman Malik', status: 'active', sub: 'Valid till 12 Sep 2026' },
-  { name: 'Ayesha Siddiqui', status: 'active', sub: 'Valid till 3 Aug 2026' },
+  { name: 'Fatima Azhar', status: 'active', sub: 'Valid till 3 Aug 2026' },
   { name: 'Adeel Nawaz', status: 'expired', sub: 'Expired 18 Jul 2026' },
   { name: 'Kamran Sheikh', status: 'trainer', sub: 'Trainer · Welcome' },
 ]
@@ -861,30 +861,19 @@ function Footer() {
 
 /* --------------------------------- page --------------------------------- */
 export default function Landing() {
-  const rippleRef = useRef(null)
-
-  // Ripple across the open backdrop only — a tap on a card, the nav or the footer
-  // is a tap on content, not on the sky behind it.
-  const onRipple = (e) => spawnRipple(e, rippleRef.current, (t) => !!t.closest?.('[data-solid]'))
-
   return (
     <div
       className="relative min-h-screen overflow-x-hidden bg-slate-950"
       style={BRAND_ACCENT}
-      onPointerDown={onRipple}
     >
       {/* The sign-in screen's scene, fixed behind the whole scroll. */}
       <div className="pointer-events-none fixed inset-0 z-0">
         <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950" />
         <Starfield />
-        <CursorGlow />
         <div className="pointer-events-auto absolute inset-0">
           <DumbbellField count={12} clearCenter={false} />
         </div>
       </div>
-
-      {/* Ripple rings land here — above the scene, never blocking clicks. */}
-      <div ref={rippleRef} className="ripple-layer fixed inset-0 z-[5]" />
 
       <div className="relative z-10">
         <Nav />

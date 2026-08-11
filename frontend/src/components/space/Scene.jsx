@@ -1,7 +1,6 @@
 /* The sign-in screen's deep-space scene, shared with the marketing landing page
-   so both wear the same skin: a twinkling starfield, a cursor spotlight, and a
-   field of zero-gravity dumbbells. Click ripples and the shared constants live
-   next door in effects.js. */
+   so both wear the same skin: a twinkling starfield and a field of zero-gravity
+   dumbbells. The shared constants live next door in effects.js. */
 import { useState, useRef, useEffect } from 'react'
 import { Dumbbell } from 'lucide-react'
 import anime from 'animejs/lib/anime.es.js'
@@ -119,50 +118,6 @@ export function Starfield() {
   }, [])
 
   return <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full" />
-}
-
-/* ----------------------------------------------------------------------------
-   Cursor spotlight — a soft light that eases toward the pointer.
----------------------------------------------------------------------------- */
-export function CursorGlow() {
-  const ref = useRef(null)
-  useEffect(() => {
-    if (PREFERS_REDUCED_MOTION) return
-    const el = ref.current
-    let x = window.innerWidth / 2
-    let y = window.innerHeight / 2
-    let tx = x
-    let ty = y
-    let raf
-    const onMove = (e) => {
-      tx = e.clientX
-      ty = e.clientY
-    }
-    const frame = () => {
-      x += (tx - x) * 0.12
-      y += (ty - y) * 0.12
-      el.style.transform = `translate3d(${(x - 170).toFixed(1)}px, ${(y - 170).toFixed(1)}px, 0)`
-      raf = requestAnimationFrame(frame)
-    }
-    raf = requestAnimationFrame(frame)
-    window.addEventListener('mousemove', onMove)
-    return () => {
-      cancelAnimationFrame(raf)
-      window.removeEventListener('mousemove', onMove)
-    }
-  }, [])
-  return (
-    <div
-      ref={ref}
-      className="pointer-events-none absolute left-0 top-0"
-      style={{
-        width: 340,
-        height: 340,
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgb(var(--p500) / 0.12), transparent 60%)',
-      }}
-    />
-  )
 }
 
 // Scattered around the edges, leaving the middle clear for the sign-in card (or
@@ -338,9 +293,12 @@ export function DumbbellField({ count = 15, clearCenter = true }) {
                 className="db-icon block text-primary-300"
                 size={d.size}
                 strokeWidth={1.4}
+                /* Faint on purpose — this is a backdrop the hero copy and the
+                   sign-in card sit on top of, so it reads as texture rather
+                   than as something competing for attention. */
                 style={{
-                  opacity: 0.12 + d.depth * 0.5,
-                  filter: `drop-shadow(0 0 ${9 * d.depth}px rgb(var(--p400) / ${0.28 * d.depth})) blur(${((1 - d.depth) * 1.4).toFixed(2)}px)`,
+                  opacity: 0.08 + d.depth * 0.26,
+                  filter: `drop-shadow(0 0 ${7 * d.depth}px rgb(var(--p400) / ${0.15 * d.depth})) blur(${((1 - d.depth) * 1.4).toFixed(2)}px)`,
                 }}
               />
             </span>

@@ -3,10 +3,10 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { Dumbbell, Eye, EyeOff, Lock, Mail, LogIn, Loader2 } from 'lucide-react'
 import anime from 'animejs/lib/anime.es.js'
-// The deep-space scene (starfield, cursor glow, dumbbell field, click ripple) is
-// shared with the landing page — see components/space.
-import { Starfield, CursorGlow, DumbbellField } from '../../components/space/Scene'
-import { PREFERS_REDUCED_MOTION, BRAND_ACCENT, spawnRipple } from '../../components/space/effects'
+// The deep-space scene (starfield, dumbbell field) is shared with the landing
+// page — see components/space.
+import { Starfield, DumbbellField } from '../../components/space/Scene'
+import { PREFERS_REDUCED_MOTION, BRAND_ACCENT } from '../../components/space/effects'
 import useAuthStore from '../../store/authStore'
 import { isDemo, exitDemo } from '../../demo'
 import Modal from '../../components/ui/Modal'
@@ -22,7 +22,6 @@ export default function Login() {
   const { register, handleSubmit, formState: { errors } } = useForm()
   const contentRef = useRef(null)
   const cardRef = useRef(null)
-  const rippleRef = useRef(null)
   const warpRef = useRef(null)
   const successRef = useRef(null)
   const warpingRef = useRef(false)
@@ -119,11 +118,6 @@ export default function Login() {
     requestAnimationFrame(run)
   }
 
-  // A water-drop ripple wherever the user taps — but not over the sign-in card
-  // itself, only across the open space around it.
-  const onRipple = (e) =>
-    spawnRipple(e, rippleRef.current, (t) => cardRef.current?.contains(t))
-
   // Staggered entrance for the brand + card + footer, and a breathing logo glow.
   useEffect(() => {
     const root = contentRef.current
@@ -182,17 +176,12 @@ export default function Login() {
     <div
       className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden bg-slate-950"
       style={BRAND_ACCENT}
-      onPointerDown={onRipple}
     >
       {/* Deep-space backdrop */}
       <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950" />
       <Starfield />
-      <CursorGlow />
 
       <DumbbellField />
-
-      {/* Ripple rings spawn here — above the scene, never blocking clicks */}
-      <div ref={rippleRef} className="ripple-layer z-30" />
 
       {/* Hyperspace warp overlay — hidden until a successful sign-in */}
       <canvas
