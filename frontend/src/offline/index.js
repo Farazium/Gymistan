@@ -6,6 +6,7 @@ export {
   update, remove, retry, isAvailable, PENDING, FAILED,
 } from './queue'
 export { replayQueue } from './replay'
+export { warmCache } from './warm'
 
 /**
  * True when this reply came from the queue rather than the server.

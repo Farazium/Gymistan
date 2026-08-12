@@ -12,7 +12,7 @@ import { animationsEnabled, applyAnimations, clearAnimations } from '../../utils
 import { mediaUrl } from '../../utils/mediaUrl'
 import { isDemo } from '../../demo'
 import useOfflineSession from '../../hooks/useOfflineSession'
-import useReplayQueue from '../../hooks/useReplayQueue'
+import useOfflineSync from '../../hooks/useOfflineSync'
 
 export default function AppLayout() {
   const { isAuthenticated, refreshUser, user } = useAuthStore()
@@ -23,9 +23,9 @@ export default function AppLayout() {
   // server, so a machine that leaves the gym can't keep reading the cache.
   useOfflineSession()
 
-  // Sends anything the desk entered offline as soon as there is a server again,
-  // and tells the bar how much is still waiting.
-  const { pending, failed } = useReplayQueue()
+  // Sends anything entered offline as soon as there is a server again, then
+  // pulls the main lists down so the cache is ready for the next outage.
+  const { pending, failed } = useOfflineSync()
 
   useEffect(() => {
     if (isAuthenticated) refreshUser()
