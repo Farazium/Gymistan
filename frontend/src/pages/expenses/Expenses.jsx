@@ -118,12 +118,17 @@ export default function Expenses() {
   const queued = pendingExpenses(usePendingWrites())
   const rows = [...queued, ...expenses]
 
-  // Sort newest first, then group by month
+  // Sort newest first, then group by month. Two expenses on the same day are
+  // ordered by which was entered last — a day's entries read as a running list,
+  // so the one just typed belongs at the top. The server sorts the same way
+  // (-date, -created_at); this repeats it rather than trusting the order a list
+  // arrived in, since the queued rows have to be slotted in too.
   const sorted = [...rows].sort((a, b) => {
     if (a.date !== b.date) return a.date < b.date ? 1 : -1
     // Queued rows are the newest thing this device did; ids are strings there.
     if (isPendingRow(a) !== isPendingRow(b)) return isPendingRow(a) ? -1 : 1
-    return 0
+    if (isPendingRow(a)) return b.__queueId - a.__queueId
+    return b.id - a.id
   })
 
   const groups = groupByMonth(sorted, (e) => e.date)

@@ -33,7 +33,11 @@ class Expense(SoftDeleteModel):
 
     class Meta:
         db_table = 'expenses'
-        ordering = ['-date']
+        # Two expenses entered on the same day are ordered by which was entered
+        # last, not by whichever row the database happened to hand back first.
+        # A day's entries read as a running list at the desk, so the one just
+        # typed belongs at the top.
+        ordering = ['-date', '-created_at']
 
     def __str__(self):
         return f'{self.title} - PKR {self.amount}'

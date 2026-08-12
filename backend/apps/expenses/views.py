@@ -14,7 +14,7 @@ class ExpenseListCreateView(generics.ListCreateAPIView):
     filterset_fields = ['category']
     search_fields = ['title', 'description']
     ordering_fields = ['date', 'amount']
-    ordering = ['-date']
+    ordering = ['-date', '-created_at']
 
     def get_queryset(self):
         qs = Expense.objects.filter(gym=self.request.user.gym)
