@@ -10,6 +10,7 @@ import EnrollModal from '../../components/EnrollModal'
 import { calcExpiryISO, calcExpiryDisplay } from '../../utils/expiry'
 import { normalizePkMobile, phoneRule } from '../../utils/phone'
 import CollectFeeSection, { useJoiningPayment } from '../../components/members/CollectFee'
+import { isQueued, QUEUED_MESSAGE } from '../../offline'
 
 export default function MemberForm({ member, onSuccess, defaultMemberId }) {
   const { user } = useAuthStore()
@@ -95,6 +96,13 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
         : api.post('/members/', body)
     },
     onSuccess: (res, variables) => {
+      // A queued write has no id, so the fingerprint-enrolment branch below
+      // can't run either — it needs the member the server made.
+      if (isQueued(res)) {
+        toast.success(QUEUED_MESSAGE)
+        onSuccess()
+        return
+      }
       toast.success(member ? 'Member updated' : 'Member added')
       // Just added, box ticked, plan has attendance: they've been pushed to the
       // device — offer to enroll the fingerprint right away.

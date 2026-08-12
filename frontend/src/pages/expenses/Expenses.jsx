@@ -11,6 +11,7 @@ import { apiErrorMessage } from '../../utils/apiError'
 import { invalidateFinance } from '../../utils/invalidateFinance'
 import { fmtCurrency as fmt } from '../../utils/format'
 import { groupByMonth, useMonthSections } from '../../utils/monthGroups'
+import { isQueued, QUEUED_MESSAGE } from '../../offline'
 
 const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 
@@ -35,7 +36,7 @@ function ExpenseForm({ onSuccess }) {
   })
   const mutation = useMutation({
     mutationFn: (data) => api.post('/expenses/', data),
-    onSuccess: () => { toast.success('Expense added'); onSuccess() },
+    onSuccess: (res) => { toast.success(isQueued(res) ? QUEUED_MESSAGE : 'Expense added'); onSuccess() },
     onError: (err) => toast.error(apiErrorMessage(err, 'Failed to add expense')),
   })
   return (

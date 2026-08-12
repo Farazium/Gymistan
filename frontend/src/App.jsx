@@ -23,6 +23,7 @@ import Trainers from './pages/trainers/Trainers'
 import TrainerProfile from './pages/trainers/TrainerProfile'
 import Attendance from './pages/attendance/Attendance'
 import Settings from './pages/settings/Settings'
+import PendingSync from './pages/offline/PendingSync'
 import useAuthStore from './store/authStore'
 import { isDemo } from './demo'
 import { animationsOn } from './utils/animations'
@@ -124,6 +125,9 @@ export default function App() {
             <Route path="/attendance" element={<Attendance />} />
             <Route path="/finance" element={<Finance />} />
             <Route path="/settings" element={<Settings />} />
+            {/* Reached from the offline bar rather than the sidebar: it is only
+                worth looking at when something is actually waiting. */}
+            <Route path="/pending-sync" element={<PendingSync />} />
             <Route path="/admin/gyms" element={<Gyms />} />
             <Route path="/admin/gyms/:id" element={<GymProfile />} />
             <Route path="/admin/subscriptions" element={<GymPayments />} />

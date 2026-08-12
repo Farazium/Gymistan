@@ -5,16 +5,27 @@ import Sidebar from './Sidebar'
 import LiveEntrance from '../LiveEntrance'
 import AnimatedBackground from '../AnimatedBackground'
 import DemoBanner from '../DemoBanner'
+import OfflineBar from '../OfflineBar'
 import useAuthStore from '../../store/authStore'
 import { applyTheme, applySurface } from '../../utils/theme'
 import { animationsEnabled, applyAnimations, clearAnimations } from '../../utils/animations'
 import { mediaUrl } from '../../utils/mediaUrl'
 import { isDemo } from '../../demo'
+import useOfflineSession from '../../hooks/useOfflineSession'
+import useReplayQueue from '../../hooks/useReplayQueue'
 
 export default function AppLayout() {
   const { isAuthenticated, refreshUser, user } = useAuthStore()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+
+  // Drops the session once this device has gone too long without reaching the
+  // server, so a machine that leaves the gym can't keep reading the cache.
+  useOfflineSession()
+
+  // Sends anything the desk entered offline as soon as there is a server again,
+  // and tells the bar how much is still waiting.
+  const { pending, failed } = useReplayQueue()
 
   useEffect(() => {
     if (isAuthenticated) refreshUser()
@@ -86,6 +97,7 @@ export default function AppLayout() {
             </span>
           </header>
           {demo && <DemoBanner />}
+          <OfflineBar pending={pending} failed={failed} />
           <div key={location.pathname} className="page-enter p-4 sm:p-6 max-w-7xl mx-auto">
             <Outlet />
           </div>

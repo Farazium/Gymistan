@@ -10,6 +10,8 @@ import { invalidateFinance } from '../../utils/invalidateFinance'
 import { packagePalette } from '../../utils/packageColors'
 import { useWaCredits } from '../../utils/waCredits'
 import { fmtCurrency as fmt } from '../../utils/format'
+import { currentStatus } from '../../utils/memberStatus'
+import { isQueued, QUEUED_MESSAGE } from '../../offline'
 import RadioCard from '../../components/ui/RadioCard'
 import Modal from '../../components/ui/Modal'
 
@@ -252,7 +254,10 @@ export default function PaymentForm({ onSuccess }) {
   //  * owes money and expired        -> balance + the new cycle, as one figure
   //  * owes nothing                  -> the package fee
   const dues = Number(selectedMember?.dues || 0)
-  const expired = selectedMember?.status === 'EXPIRED'
+  // Worked out from the expiry date here, not read off the row: a cached member
+  // loaded before an outage still carries the status they had then, and charging
+  // a lapsed member for a balance instead of a renewal is a real mis-take.
+  const expired = !!selectedMember && currentStatus(selectedMember) === 'EXPIRED'
   const renewing = !!selectedMember && (dues === 0 || expired)
   const packageFee = renewing ? Number(selectedPkg?.price) || 0 : 0
   const discountWatch = Number(useWatch({ control, name: 'discount' }) || 0)
@@ -291,13 +296,24 @@ export default function PaymentForm({ onSuccess }) {
   const mutation = useMutation({
     mutationFn: (payload) => api.post('/payments/', payload),
     onSuccess: (res) => {
-      toast.success('Payment recorded')
+      // Offline, this went onto the device's queue instead of the server. It is
+      // a real record of money taken, but it has no id yet — so the receipt
+      // cannot be sent and the desk is told plainly what happened rather than
+      // being shown a success it can't act on.
+      const queued = isQueued(res)
+      toast.success(queued ? QUEUED_MESSAGE : 'Payment recorded')
+
       invalidateFinance(queryClient)
       // The payment just moved the member's expiry and/or their outstanding
       // balance — the roster and this form's own member list both go stale.
       queryClient.invalidateQueries({ queryKey: ['members'] })
       queryClient.invalidateQueries({ queryKey: ['members-list'] })
-      if (sendWhatsApp && hasWhatsApp && !outOfCredits) whatsAppMutation.mutate(res.data.id)
+      if (!queued && sendWhatsApp && hasWhatsApp && !outOfCredits) {
+        whatsAppMutation.mutate(res.data.id)
+      } else if (queued && sendWhatsApp) {
+        toast('Receipt not sent — send it from the payments list once you are back online',
+          { icon: '📩', duration: 6000 })
+      }
       onSuccess()
     },
     onError: (err) => toast.error(apiErrorMessage(err, 'Failed to record payment')),
@@ -330,7 +346,7 @@ export default function PaymentForm({ onSuccess }) {
     mutation.mutate(payload)
   }
 
-  const status = selectedMember?.status
+  const status = selectedMember ? currentStatus(selectedMember) : undefined
   const expiryDate = selectedMember?.expiry_date
     ? new Date(selectedMember.expiry_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '/')
     : null

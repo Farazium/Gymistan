@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import api from '../api/axios'
 import { isDemo } from '../demo'
+import { clearUserCaches } from '../pwa'
+import { startOfflineClock, clearOfflineClock } from '../utils/offlineSession'
 
 /* Where the signed-in user is persisted. A demo runs in sessionStorage, so it
    lives and dies with its tab and can never overwrite a real session the same
@@ -26,6 +28,8 @@ const useAuthStore = create(
         const { data } = await api.post('/auth/login/', { email, password })
         localStorage.setItem('access_token', data.access)
         localStorage.setItem('refresh_token', data.refresh)
+        // A fresh session starts with a full leash — see utils/offlineSession.
+        startOfflineClock()
         set({ user: data.user, isAuthenticated: true })
         return data.user
       },
@@ -38,6 +42,13 @@ const useAuthStore = create(
       logout: () => {
         localStorage.removeItem('access_token')
         localStorage.removeItem('refresh_token')
+        // The service worker keeps this gym's reads on the device so the app
+        // still opens offline. Signing out has to take them with it, or the next
+        // person to open the app on a machine with no line is shown the last
+        // gym's members and takings. Fire-and-forget: nothing downstream of
+        // sign-out depends on it, and it must not delay leaving.
+        clearUserCaches()
+        clearOfflineClock()
         set({ user: null, isAuthenticated: false })
       },
 

@@ -12,7 +12,7 @@ import PhotoViewer from '../../components/ui/PhotoViewer'
 import PhotoCropper from '../../components/ui/PhotoCropper'
 import { apiErrorMessage } from '../../utils/apiError'
 import { isNotFound, retryUnlessNotFound } from '../../utils/queryRetry'
-import { statusStyle } from '../../utils/memberStatus'
+import { statusStyle, currentStatus } from '../../utils/memberStatus'
 import { fmtCurrency } from '../../utils/format'
 
 function BlacklistForm({ onSubmit, isPending }) {
@@ -248,10 +248,10 @@ export default function MemberProfile() {
                 // Deleted and blacklisted take precedence over the membership status.
                 const deleted = member.is_deleted
                 const bl = member.blacklist_active
-                const label = deleted ? 'Deleted' : bl ? 'Blacklisted' : statusStyle(member.status).label
+                const label = deleted ? 'Deleted' : bl ? 'Blacklisted' : statusStyle(currentStatus(member)).label
                 const cls = deleted ? 'bg-gray-500/20 text-gray-300'
                   : bl ? 'bg-amber-500/20 text-amber-400'
-                  : statusStyle(member.status).badge
+                  : statusStyle(currentStatus(member)).badge
                 return (
                   <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium flex items-center gap-1 ${cls}`}>
                     {deleted ? <Trash2 size={11} /> : bl ? <Ban size={11} /> : null}

@@ -7,6 +7,14 @@
          if that changes. -->
     <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Installing the app is what makes the browser keep its offline storage
+         instead of evicting it under pressure, so it is worth iOS's separate set
+         of rules: Safari ignores the manifest's icons and its display mode, and
+         reads these three instead. The manifest itself covers everywhere else. -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Gymistan" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Gymistan — gym management software for Pakistan</title>
 
     <!-- Everything below is for the readers that never run JavaScript: search

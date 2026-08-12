@@ -16,7 +16,7 @@ import { apiErrorMessage } from '../../utils/apiError'
 import { invalidateFinance } from '../../utils/invalidateFinance'
 import { useWaCredits } from '../../utils/waCredits'
 import { calcExpiryISO } from '../../utils/expiry'
-import { statusStyle } from '../../utils/memberStatus'
+import { statusStyle, currentStatus } from '../../utils/memberStatus'
 import { fmtCurrency } from '../../utils/format'
 import CollectFeeSection, { useJoiningPayment } from '../../components/members/CollectFee'
 import { usePageState } from '../../utils/pagination'
@@ -409,7 +409,7 @@ export default function Members() {
               Gender: m.gender === 'FEMALE' ? 'Female' : 'Male',
               'Father Name': m.father_name || '',
               Package: m.package_name || '',
-              Status: m.status,
+              Status: currentStatus(m),
               'Join Date': m.join_date || '',
               'Expiry Date': m.expiry_date || '',
               Address: m.address || '',
@@ -568,10 +568,10 @@ export default function Members() {
                   <Td>{m.trainer_name || <span className="text-gray-400">—</span>}</Td>
                   <Td>
                     <span
-                      className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusStyle(m.status).badge}`}
+                      className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusStyle(currentStatus(m)).badge}`}
                       title={Number(m.dues) > 0 ? `Dues: ${fmtCurrency(m.dues)}` : undefined}
                     >
-                      {statusStyle(m.status).label}
+                      {statusStyle(currentStatus(m)).label}
                     </span>
                   </Td>
                   <Td className={m.expiry_date ? '' : 'text-gray-400'}>
