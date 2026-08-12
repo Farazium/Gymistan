@@ -4,15 +4,18 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  // The API base is a build-time variable and may or may not share an origin with
-  // the app, so the runtime caching rules are built from it rather than guessing
-  // at a path prefix. Read through loadEnv because import.meta.env doesn't exist
-  // out here in the config.
   const env = loadEnv(mode, process.cwd(), 'VITE_')
-  const API_BASE = env.VITE_API_URL || 'http://localhost:8000/api'
-  const API_ORIGIN = API_BASE.replace(/\/api\/?$/, '')
 
-  const isApi = (url) => url.href.startsWith(API_BASE)
+  // A `urlPattern` function below is not called here — Workbox turns it into
+  // source text and writes it into sw.js, where nothing from this file's scope
+  // exists. Anything a matcher closes over arrives at the worker as an
+  // undefined identifier and throws on the first request it looks at, which is
+  // a failure that leaves no trace at build time and disables the cache
+  // entirely at runtime. So the matchers below are self-contained, and they
+  // match on the path rather than on VITE_API_URL: that variable is
+  // `https://localhost:8000/api` in development and a bare `/api` in
+  // production, and only one of those is a thing you can compare a full URL to.
+  // The path is `/api/...` either way, cross-origin or not.
 
   return {
     plugins: [
@@ -86,7 +89,9 @@ export default defineConfig(({ mode }) => {
               // be answered from the cache — a cached 200 would look exactly
               // like a reachable server and the leash would never run out.
               urlPattern: ({ url, request }) =>
-                request.method === 'GET' && isApi(url) && !url.searchParams.has('__probe'),
+                request.method === 'GET'
+                && /^\/api\//.test(url.pathname)
+                && !url.searchParams.has('__probe'),
               handler: 'NetworkFirst',
               options: {
                 cacheName: 'gymistan-api',
@@ -101,7 +106,7 @@ export default defineConfig(({ mode }) => {
               // photo that is one edit old is not a correctness problem, and
               // waiting on the network for every avatar in a 300-row table is.
               urlPattern: ({ url, request }) =>
-                request.method === 'GET' && url.href.startsWith(`${API_ORIGIN}/media/`),
+                request.method === 'GET' && url.pathname.startsWith('/media/'),
               handler: 'StaleWhileRevalidate',
               options: {
                 cacheName: 'gymistan-media',
