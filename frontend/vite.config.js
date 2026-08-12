@@ -18,6 +18,16 @@ export default defineConfig(({ mode }) => {
   // The path is `/api/...` either way, cross-origin or not.
 
   return {
+    // Which build is this? A service worker serves whatever it already has, so
+    // an open tab can go on running last week's app long after a deploy — and
+    // every symptom of that looks like a bug in the new code. Stamping the build
+    // into the bundle makes the question answerable in one glance instead of by
+    // deduction. Printed on boot; see src/main.jsx.
+    define: {
+      __BUILD_ID__: JSON.stringify(
+        new Date().toISOString().replace('T', ' ').slice(0, 16) + ' UTC'
+      ),
+    },
     plugins: [
       react(),
       VitePWA({
