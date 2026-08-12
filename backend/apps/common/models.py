@@ -1,7 +1,7 @@
-"""Shared soft-delete behaviour for cashflow records (payments, expenses,
-inventory sales).
+"""Shared model behaviour: soft-delete for cashflow records, and the
+once-and-only-once record that makes a retried write safe.
 
-Policy: a record can be truly removed only within a short grace window after it
+Soft-delete policy: a record can be truly removed only within a short grace window after it
 was entered (a genuine just-made mistake). After that it is locked into the books
 permanently and can never be deleted — this keeps the finance ledger / income
 statement reconcilable and gives an audit trail. "Deleting" within the window is a
@@ -51,3 +51,45 @@ class SoftDeleteModel(models.Model):
         self.deleted_at = timezone.now()
         self.deleted_by = user
         self.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+
+
+class IdempotencyRecord(models.Model):
+    """One row per write the client has claimed, so a retry can never do it twice.
+
+    The problem this exists for is specific and expensive. The desk records a
+    payment; the request reaches the server and the payment is created; the reply
+    is lost on the way back (the line drops, the phone hotspot stalls, the tab is
+    closed). The client never saw a success, so it sends the write again — and
+    the member is charged twice, their expiry moves forward twice, and the books
+    show money that was never handed over. No amount of care on the client can
+    fix that: from out there, "the reply was lost" and "the request never
+    arrived" look identical.
+
+    So the client stamps every write with a key it generated itself, and the
+    server promises that a key it has already seen produces the *original*
+    answer rather than a second payment. See apps/common/idempotency.py.
+
+    The stored response is the whole point: replaying has to return what the
+    first attempt returned, including the created row's id, or the client cannot
+    tell a successful retry from a failure.
+    """
+    key = models.CharField(max_length=100, unique=True)
+    user = models.ForeignKey(
+        'accounts.User', on_delete=models.CASCADE, null=True, blank=True, related_name='+'
+    )
+    method = models.CharField(max_length=10)
+    path = models.CharField(max_length=255)
+    # Null while the request is still being handled. A second attempt that finds
+    # a row in this state is a genuine concurrent duplicate and is told to wait,
+    # rather than being allowed to run the write alongside the first one.
+    status_code = models.IntegerField(null=True, blank=True)
+    response_body = models.JSONField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'idempotency_records'
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['created_at'])]
+
+    def __str__(self):
+        return f'{self.method} {self.path} [{self.key[:12]}…] -> {self.status_code}'

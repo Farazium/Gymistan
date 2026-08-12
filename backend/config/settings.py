@@ -32,6 +32,9 @@ THIRD_PARTY_APPS = [
 ]
 
 LOCAL_APPS = [
+    # Shared behaviour with a table of its own (the idempotency ledger), so it
+    # has to be installed rather than merely imported.
+    'apps.common',
     'apps.accounts',
     'apps.gyms',
     'apps.members',
@@ -55,6 +58,10 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Last, so it wraps the view as closely as possible: what it records is the
+    # response the view produced, and what it must not record is some other
+    # middleware's error page.
+    'apps.common.idempotency.IdempotencyMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -130,6 +137,14 @@ CORS_ALLOWED_ORIGINS = [
     os.getenv('FRONTEND_URL', 'http://localhost:5173'),
 ]
 CORS_ALLOW_CREDENTIALS = True
+
+# The frontend stamps every write with this so a retry can't charge a member
+# twice (apps/common/idempotency.py). It is a custom header, so the browser will
+# not send it cross-origin unless the preflight says it may.
+from corsheaders.defaults import default_headers  # noqa: E402
+CORS_ALLOW_HEADERS = list(default_headers) + ['idempotency-key']
+# ...and the reply's marker is invisible to JS cross-origin unless exposed.
+CORS_EXPOSE_HEADERS = ['Idempotent-Replay']
 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'Asia/Karachi'
