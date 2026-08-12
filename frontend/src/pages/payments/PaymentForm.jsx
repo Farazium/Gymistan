@@ -120,8 +120,8 @@ export function DailyMemberForm({ onSuccess }) {
 
   const mutation = useMutation({
     mutationFn: (payload) => api.post('/payments/', payload),
-    onSuccess: () => {
-      toast.success('Daily member payment recorded')
+    onSuccess: (res) => {
+      toast.success(isQueued(res) ? QUEUED_MESSAGE : 'Daily member payment recorded')
       // No member and no expiry moved, so the roster is untouched — only the
       // books need refreshing.
       invalidateFinance(queryClient)
@@ -294,7 +294,16 @@ export default function PaymentForm({ onSuccess }) {
   })
 
   const mutation = useMutation({
-    mutationFn: (payload) => api.post('/payments/', payload),
+    // __queueMeta rides on the axios config, not the body, so it never reaches
+    // the server. It is what lets a payment queued offline show the member's
+    // name in the list instead of the id the payload actually carries.
+    mutationFn: (payload) => api.post('/payments/', payload, {
+      __queueMeta: {
+        member_name: selectedMember?.name,
+        member_phone: selectedMember?.phone,
+        package_name: selectedPkg?.name,
+      },
+    }),
     onSuccess: (res) => {
       // Offline, this went onto the device's queue instead of the server. It is
       // a real record of money taken, but it has no id yet — so the receipt

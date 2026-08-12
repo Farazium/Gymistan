@@ -12,6 +12,8 @@ import { invalidateFinance } from '../../utils/invalidateFinance'
 import { apiErrorMessage } from '../../utils/apiError'
 import { fmtCurrency as fmt } from '../../utils/format'
 import { groupByMonth, useMonthSections } from '../../utils/monthGroups'
+import { usePendingWrites, pendingPayments, isPendingRow } from '../../offline/pending'
+import PendingBadge from '../../components/PendingBadge'
 import { useWaCredits } from '../../utils/waCredits'
 
 /**
@@ -104,9 +106,20 @@ export default function Payments() {
     sendWhatsApp.mutate(id, { onSettled: () => sendingRef.current.delete(id) })
   }
 
+  // Payments taken while the line was down sit in the list with the rest. They
+  // are real money that changed hands; keeping them on a separate screen until
+  // the internet returns would leave the desk holding two sets of books.
+  const queued = pendingPayments(usePendingWrites())
+  const rows = [...queued, ...payments]
+
   // Sort newest first (by date, then by id so same-day payments keep insertion order), group by month
-  const sorted = [...payments].sort((a, b) => {
+  const sorted = [...rows].sort((a, b) => {
     if (a.payment_date !== b.payment_date) return a.payment_date < b.payment_date ? 1 : -1
+    // A queued row is the most recent thing that happened on this device, and its
+    // id is a string — so order those among themselves and keep them on top,
+    // rather than handing NaN to the comparator.
+    if (isPendingRow(a) !== isPendingRow(b)) return isPendingRow(a) ? -1 : 1
+    if (isPendingRow(a)) return b.__queueId - a.__queueId
     return b.id - a.id
   })
 
@@ -119,7 +132,7 @@ export default function Payments() {
         <div>
           <h1 className="text-2xl font-bold text-primary-400">Payments</h1>
           <p className="text-gray-500 text-sm mt-1">
-            {payments.length} records
+            {rows.length} records
           </p>
         </div>
         <div className="flex gap-2">
@@ -170,7 +183,7 @@ export default function Payments() {
 
       {isLoading ? (
         <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-primary-500 border-t-transparent rounded-full" /></div>
-      ) : !payments.length ? (
+      ) : !rows.length ? (
         <div className="card flex flex-col items-center py-16 text-gray-400">
           No payments recorded yet.
         </div>
@@ -205,7 +218,7 @@ export default function Payments() {
                   </div>
 
                   {group.items.map((p) => (
-                    <div key={p.id} className="flex items-center gap-4 px-4 py-3 hover:bg-primary-500/10 transition-colors">
+                    <div key={p.id} className={`flex items-center gap-4 px-4 py-3 hover:bg-primary-500/10 transition-colors ${isPendingRow(p) ? 'opacity-75' : ''}`}>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-100 truncate flex items-center gap-2">
                           <span className="truncate">{p.member_name}</span>
@@ -217,6 +230,7 @@ export default function Payments() {
                               Daily
                             </span>
                           )}
+                          {isPendingRow(p) && <PendingBadge />}
                         </p>
                         <p className="text-xs text-gray-400">{p.member_phone}</p>
                       </div>
@@ -243,10 +257,15 @@ export default function Payments() {
                         {new Date(p.payment_date).toLocaleDateString('en-PK')}
                       </span>
                       <div className="shrink-0 w-20 flex items-center justify-end gap-1">
+                        {/* Nothing here can act on a queued payment: the server has
+                            never heard of it, so there is no slip to fetch and no
+                            receipt to send. Both come back once it syncs. */}
+                        {!isPendingRow(p) && (
                         <button onClick={() => downloadSlip(p.id)} title="Download Slip" className="p-1.5 text-gray-400 hover:text-white rounded-lg transition">
                           <Download size={14} />
                         </button>
-                        {hasWhatsApp && !p.is_walkin && (
+                        )}
+                        {hasWhatsApp && !p.is_walkin && !isPendingRow(p) && (
                           p.slip_sent ? (
                             <span title="Receipt already sent" className="p-1.5 text-green-400 cursor-default">
                               <CheckCircle2 size={14} />

@@ -46,13 +46,18 @@ function newKey() {
  * already been stamped with one on its way out — and that is the key the server
  * may have seen. Making a fresh one now would hide a write that already landed.
  */
-export async function enqueue({ key, method, url, data, label, userId }) {
+export async function enqueue({ key, method, url, data, label, userId, meta }) {
   const record = await db.add({
     key: key || newKey(),
     method: String(method || 'post').toUpperCase(),
     url,
     data: data ?? null,
     label: label || 'Change',
+    // Whatever the page knew that the request body does not carry — a member's
+    // name behind their id, say. Only ever read back for display, so a pending
+    // row can look like the row it will become instead of like a reference
+    // number. Never sent anywhere.
+    meta: meta ?? null,
     userId: userId ?? null,
     status: PENDING,
     attempts: 0,

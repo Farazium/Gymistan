@@ -17,6 +17,8 @@ import { invalidateFinance } from '../../utils/invalidateFinance'
 import { useWaCredits } from '../../utils/waCredits'
 import { calcExpiryISO } from '../../utils/expiry'
 import { statusStyle, currentStatus } from '../../utils/memberStatus'
+import { usePendingWrites, pendingMembers, isPendingRow } from '../../offline/pending'
+import PendingBadge from '../../components/PendingBadge'
 import { fmtCurrency } from '../../utils/format'
 import CollectFeeSection, { useJoiningPayment } from '../../components/members/CollectFee'
 import { usePageState } from '../../utils/pagination'
@@ -375,7 +377,15 @@ export default function Members() {
   })
 
   const rawMembers = data?.results || data || []
-  const members = [...rawMembers].sort((a, b) => {
+  // Someone enrolled while the line was down belongs on the roster: the desk
+  // took their money and their details, and hiding them until the internet
+  // returns invites entering them a second time.
+  const queued = pendingMembers(usePendingWrites())
+
+  const members = [...queued, ...rawMembers].sort((a, b) => {
+    // Queued rows stay on top whatever the sort — they are the ones that still
+    // need something to happen, and their ids are strings.
+    if (isPendingRow(a) !== isPendingRow(b)) return isPendingRow(a) ? -1 : 1
     if (!sort.key) return 0
     let av = a[sort.key] ?? ''
     let bv = b[sort.key] ?? ''
@@ -554,9 +564,18 @@ export default function Members() {
                     </span>
                   </Td>
                   <Td className="font-medium">
-                    <button onClick={() => navigate(`/members/${m.id}`)} className="no-fx hover:text-primary-400 transition text-left">
-                      {m.name}
-                    </button>
+                    {/* No profile to open: the server has never seen this member,
+                        so there is nothing at /members/<id> to show. */}
+                    {isPendingRow(m) ? (
+                      <span className="flex items-center gap-2">
+                        <span>{m.name}</span>
+                        <PendingBadge />
+                      </span>
+                    ) : (
+                      <button onClick={() => navigate(`/members/${m.id}`)} className="no-fx hover:text-primary-400 transition text-left">
+                        {m.name}
+                      </button>
+                    )}
                   </Td>
                   <Td>{m.phone}</Td>
                   <Td>
@@ -578,6 +597,13 @@ export default function Members() {
                     {m.expiry_date ? new Date(m.expiry_date).toLocaleDateString('en-PK') : '—'}
                   </Td>
                   <Td>
+                    {/* Editing or removing a member the server does not have yet
+                        would send a request about nothing. Both come back the
+                        moment they sync; until then this entry is changed by
+                        discarding it from Pending sync and entering it again. */}
+                    {isPendingRow(m) ? (
+                      <span className="text-xs text-gray-500">—</span>
+                    ) : (
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => { setEditMember(m); setShowModal(true) }}
@@ -596,6 +622,7 @@ export default function Members() {
                         <Trash2 size={14} />
                       </button>
                     </div>
+                    )}
                   </Td>
                 </Tr>
               ))}

@@ -12,6 +12,8 @@ import { invalidateFinance } from '../../utils/invalidateFinance'
 import { fmtCurrency as fmt } from '../../utils/format'
 import { groupByMonth, useMonthSections } from '../../utils/monthGroups'
 import { isQueued, QUEUED_MESSAGE } from '../../offline'
+import { usePendingWrites, pendingExpenses, isPendingRow } from '../../offline/pending'
+import PendingBadge from '../../components/PendingBadge'
 
 const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 
@@ -111,8 +113,18 @@ export default function Expenses() {
     onError: (err) => toast.error(apiErrorMessage(err, 'Failed to delete expense')),
   })
 
+  // Expenses entered during an outage sit in the list with the rest — they are
+  // money that left the till whether or not the server knows yet.
+  const queued = pendingExpenses(usePendingWrites())
+  const rows = [...queued, ...expenses]
+
   // Sort newest first, then group by month
-  const sorted = [...expenses].sort((a, b) => (a.date < b.date ? 1 : -1))
+  const sorted = [...rows].sort((a, b) => {
+    if (a.date !== b.date) return a.date < b.date ? 1 : -1
+    // Queued rows are the newest thing this device did; ids are strings there.
+    if (isPendingRow(a) !== isPendingRow(b)) return isPendingRow(a) ? -1 : 1
+    return 0
+  })
 
   const groups = groupByMonth(sorted, (e) => e.date)
   const months = useMonthSections()
@@ -123,7 +135,7 @@ export default function Expenses() {
         <div>
           <h1 className="text-2xl font-bold text-primary-400">Expenses</h1>
           <p className="text-gray-500 text-sm mt-1">
-            {expenses.length} entries
+            {rows.length} entries
           </p>
         </div>
         <div className="flex gap-2">
@@ -155,7 +167,7 @@ export default function Expenses() {
 
       {isLoading ? (
         <div className="flex justify-center py-16"><div className="animate-spin w-6 h-6 border-4 border-primary-500 border-t-transparent rounded-full" /></div>
-      ) : !expenses.length ? (
+      ) : !rows.length ? (
         <div className="card flex flex-col items-center py-16 text-gray-400">
           <Receipt size={32} className="mb-2 opacity-30" />
           No expenses found.
@@ -187,9 +199,12 @@ export default function Expenses() {
                     <span className="shrink-0 w-7" />
                   </div>
                   {group.items.map((e) => (
-                    <div key={e.id} className="flex items-center gap-4 px-4 py-3 hover:bg-primary-500/10 transition-colors">
+                    <div key={e.id} className={`flex items-center gap-4 px-4 py-3 hover:bg-primary-500/10 transition-colors ${isPendingRow(e) ? 'opacity-75' : ''}`}>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-100 truncate">{e.title}</p>
+                        <p className="font-medium text-gray-100 truncate flex items-center gap-2">
+                          <span className="truncate">{e.title}</span>
+                          {isPendingRow(e) && <PendingBadge />}
+                        </p>
                         {e.description && <p className="text-xs text-gray-400 truncate">{e.description}</p>}
                       </div>
                       <div className="shrink-0 w-24">

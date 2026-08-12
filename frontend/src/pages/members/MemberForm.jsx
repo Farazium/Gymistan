@@ -91,9 +91,12 @@ export default function MemberForm({ member, onSuccess, defaultMemberId }) {
             expiry_date: calcExpiryISO(payload.join_date, memberStatus, months),
             ...(payload.collect_fee ? { discount: calc.discount, amount_paid: calc.amountPaid } : {}),
           }
+      // Display-only, and on the config rather than the body so the server never
+      // sees it — same trick as PaymentForm.
+      const config = { __queueMeta: { package_name: pkg?.name } }
       return member
-        ? api.patch(`/members/${member.id}/`, body)
-        : api.post('/members/', body)
+        ? api.patch(`/members/${member.id}/`, body, config)
+        : api.post('/members/', body, config)
     },
     onSuccess: (res, variables) => {
       // A queued write has no id, so the fingerprint-enrolment branch below

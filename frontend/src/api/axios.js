@@ -66,6 +66,9 @@ async function queueWrite(config) {
       url: config.url,
       data,
       label: describeWrite(config),
+      // Set by the page when the body alone would not render a readable row.
+      // Lives on the axios config, so it never reaches the server.
+      meta: config.__queueMeta || null,
       userId: currentUserId(),
     })
 
