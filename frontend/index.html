@@ -40,13 +40,21 @@
     <meta name="twitter:description" content="Members, fees, expenses, trainer salaries, WhatsApp receipts and biometric attendance. Built for Pakistani gyms, amounts in PKR." />
     <meta name="twitter:image" content="https://gymistan.dev/og-image.jpg" />
 
-    <!-- The boot screen. Hidden in the served HTML and switched on by the script
-         at the bottom of the body, which is what keeps it away from the readers
-         the fallback text below is for: a crawler runs no JavaScript, so it
-         never sees this and never loses the text. -->
+    <!-- The boot screen.
+         Everything below hangs off a single class set by the one-liner that
+         follows, and that indirection is the whole design. A crawler runs no
+         JavaScript, so `js` is never added, so the fallback copy in the body
+         stays visible to it exactly as before and the spinner never appears.
+         Hiding that copy with a plain stylesheet instead would hide it from the
+         fetchers that read a page's text without running anything — which is
+         precisely the readership it exists for.
+         It sits in the head, before the body is parsed, so the fallback is
+         never painted for a person even for a frame. -->
+    <script>document.documentElement.className += ' js'</script>
     <style>
+      .js #boot-seo { display: none; }
       #boot-loader { display: none; }
-      #boot-loader.on {
+      .js #boot-loader {
         display: flex;
         align-items: center;
         justify-content: center;
@@ -110,23 +118,6 @@
         </p>
       </div>
     </div>
-    <!-- Swap the crawler's page for the spinner, for whoever is actually here.
-         This runs immediately, before the bundle, so the text is never on screen
-         long enough to be read as the site being broken.
-
-         It has to be JavaScript, not CSS. Hiding the fallback with a stylesheet
-         would hide it from the fetchers that read a page's text without running
-         anything — which is the readership it exists for, and hiding it from
-         them is the failure this whole block was written to fix. A crawler runs
-         none of this and gets the page exactly as before. -->
-    <script>
-      (function () {
-        var seo = document.getElementById('boot-seo');
-        var loader = document.getElementById('boot-loader');
-        if (seo) seo.style.display = 'none';
-        if (loader) loader.className = 'on';
-      })();
-    </script>
     <script type="module" src="/src/main.jsx"></script>
     <!-- Button "fill from cursor": anchor the accent disc where the pointer
          enters a .btn (and re-anchor to the exit point on leave), sized to reach
