@@ -81,6 +81,20 @@ async function queueWrite(config) {
   }
 }
 
+/**
+ * Could this reply only have come from the server?
+ *
+ * The service worker's read cache stores GET responses with status 200 and
+ * nothing else, and never touches a request carrying `__probe`. So anything
+ * outside that set reached the network to exist.
+ */
+function provesContact(config, status) {
+  if (!config) return false
+  if (String(config.method || 'get').toUpperCase() !== 'GET') return true
+  if (status !== 200) return true
+  return config.params ? '__probe' in config.params : false
+}
+
 /** The signed-in user's id, read straight from storage to avoid a store cycle. */
 function currentUserId() {
   try {
@@ -93,12 +107,20 @@ function currentUserId() {
 
 api.interceptors.response.use(
   (res) => {
-    // A reply of any kind is proof the line is up — including a 4xx, which had to
-    // reach the server to be produced. That same proof is what resets the offline
-    // session leash, so it is stamped here rather than on the browser's `online`
-    // event, which only means a network exists.
-    useNetStore.getState().markOnline()
-    markServerSeen()
+    // Careful: a 200 on a GET is NOT evidence of a connection. The service
+    // worker answers reads from its cache with exactly that, so treating it as
+    // contact makes the app announce "back online" to a machine with the cable
+    // out, and — the part that actually matters — keeps resetting the offline
+    // session leash from our own cache, so a device that never reaches a server
+    // again is never signed out.
+    //
+    // What the cache cannot fake: a write (nothing but GETs is ever cached), a
+    // status other than 200 (only 200s are stored), and a `__probe` request
+    // (excluded from the cache route by name). Those are the replies that count.
+    if (provesContact(res.config, res.status)) {
+      useNetStore.getState().markOnline()
+      markServerSeen()
+    }
     return res
   },
   async (error) => {
@@ -118,6 +140,7 @@ api.interceptors.response.use(
         if (queued) return queued
       }
     } else if (error.response) {
+      // Only 200s are ever cached, so any error status came from the server.
       useNetStore.getState().markOnline()
       markServerSeen()
     }

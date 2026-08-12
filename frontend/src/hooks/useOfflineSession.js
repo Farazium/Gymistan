@@ -5,7 +5,7 @@
 
 import { useEffect } from 'react'
 import toast from 'react-hot-toast'
-import api from '../api/axios'
+import { probeServer } from '../utils/probe'
 import useAuthStore from '../store/authStore'
 import { isDemo } from '../demo'
 import { countFor } from '../offline'
@@ -20,29 +20,6 @@ import {
 // needs, but it is what makes the countdown in the offline bar move at a
 // believable rate, and it costs nothing.
 const CHECK_MS = 60 * 1000
-
-/**
- * Ask the server whether it is actually there.
- *
- * Only reached when the stamp already looks old, which happens in two very
- * different situations: a desk that has genuinely been offline for two days, and
- * a tab that was simply left open and idle on a healthy connection with nothing
- * to fetch. Signing the second one out would be wrong, so the leash is never cut
- * on the strength of the stamp alone — the server gets asked first.
- *
- * `__probe` keeps the service worker's hands off it: without that the request
- * would be answered from the read cache and a dead line would look alive.
- */
-async function serverIsReachable() {
-  try {
-    await api.get('/auth/me/', { params: { __probe: Date.now() } })
-    return true // the interceptor has already re-stamped the clock
-  } catch (error) {
-    // A reply of any kind still proves contact — even a refusal had to come from
-    // somewhere. Only silence counts as unreachable.
-    return !!error.response
-  }
-}
 
 export default function useOfflineSession() {
   const logout = useAuthStore((s) => s.logout)
@@ -62,7 +39,10 @@ export default function useOfflineSession() {
 
     const check = async () => {
       if (stopped || !offlineSessionExpired()) return
-      if (await serverIsReachable()) return
+      // Never cut the leash on the strength of the stamp alone. An old stamp
+      // also describes a tab left open and idle on a perfectly good line, and
+      // signing that desk out would be wrong. probeServer re-stamps on success.
+      if (await probeServer()) return
       if (stopped || !offlineSessionExpired()) return
 
       // Anything still queued is not lost — it stays in IndexedDB against this

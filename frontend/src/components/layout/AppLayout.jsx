@@ -13,6 +13,7 @@ import { mediaUrl } from '../../utils/mediaUrl'
 import { isDemo } from '../../demo'
 import useOfflineSession from '../../hooks/useOfflineSession'
 import useOfflineSync from '../../hooks/useOfflineSync'
+import useConnectivityWatch from '../../hooks/useConnectivityWatch'
 
 export default function AppLayout() {
   const { isAuthenticated, refreshUser, user } = useAuthStore()
@@ -21,6 +22,9 @@ export default function AppLayout() {
 
   // Drops the session once this device has gone too long without reaching the
   // server, so a machine that leaves the gym can't keep reading the cache.
+  // Cached reads look exactly like live ones, so the connection is checked by
+  // asking rather than by assuming.
+  useConnectivityWatch()
   useOfflineSession()
 
   // Sends anything entered offline as soon as there is a server again, then
