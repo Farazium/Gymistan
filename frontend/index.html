@@ -39,6 +39,32 @@
     <meta name="twitter:title" content="Gymistan — everything your gym runs on, in one dashboard" />
     <meta name="twitter:description" content="Members, fees, expenses, trainer salaries, WhatsApp receipts and biometric attendance. Built for Pakistani gyms, amounts in PKR." />
     <meta name="twitter:image" content="https://gymistan.dev/og-image.jpg" />
+
+    <!-- The boot screen. Hidden in the served HTML and switched on by the script
+         at the bottom of the body, which is what keeps it away from the readers
+         the fallback text below is for: a crawler runs no JavaScript, so it
+         never sees this and never loses the text. -->
+    <style>
+      #boot-loader { display: none; }
+      #boot-loader.on {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        min-height: 100dvh;
+        background: #0b1220;
+      }
+      #boot-loader svg {
+        width: 64px;
+        height: 64px;
+        animation: boot-spin 1.1s linear infinite;
+      }
+      @keyframes boot-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) {
+        #boot-loader svg { animation: boot-pulse 1.6s ease-in-out infinite; }
+        @keyframes boot-pulse { 50% { opacity: 0.35; } }
+      }
+    </style>
   </head>
   <body>
     <!-- The page a reader without JavaScript actually gets. It sits INSIDE #root
@@ -49,7 +75,19 @@
          (the ones behind "summarise this URL") throw it away, which is exactly
          how this site came back blank. Keep it true to the landing page. -->
     <div id="root">
-      <div style="max-width:44rem;margin:0 auto;padding:4rem 1.5rem;font-family:system-ui,sans-serif;color:#94a3b8;background:#0b1220">
+      <!-- What a person sees for the moment before the bundle runs: the mark
+           from the sidebar, turning. It is the same dumbbell as favicon.svg. -->
+      <div id="boot-loader" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17.596 12.768a2 2 0 1 0 2.829-2.829l-1.768-1.767a2 2 0 0 0 2.828-2.829l-2.828-2.828a2 2 0 0 0-2.829 2.828l-1.767-1.768a2 2 0 1 0-2.829 2.829z"/>
+          <path d="m2.5 21.5 1.4-1.4"/>
+          <path d="m20.1 3.9 1.4-1.4"/>
+          <path d="M5.343 21.485a2 2 0 1 0 2.829-2.828l1.767 1.768a2 2 0 1 0 2.829-2.829l-6.364-6.364a2 2 0 1 0-2.829 2.829l1.768 1.767a2 2 0 0 0-2.828 2.829z"/>
+          <path d="m9.6 14.4 4.8-4.8"/>
+        </svg>
+      </div>
+      <div id="boot-seo" style="max-width:44rem;margin:0 auto;padding:4rem 1.5rem;font-family:system-ui,sans-serif;color:#94a3b8;background:#0b1220">
         <h1 style="color:#f1f5f9">Gymistan — gym management software for Pakistan</h1>
         <p>
           Everything your gym runs on, in one dashboard: members, packages and
@@ -72,6 +110,23 @@
         </p>
       </div>
     </div>
+    <!-- Swap the crawler's page for the spinner, for whoever is actually here.
+         This runs immediately, before the bundle, so the text is never on screen
+         long enough to be read as the site being broken.
+
+         It has to be JavaScript, not CSS. Hiding the fallback with a stylesheet
+         would hide it from the fetchers that read a page's text without running
+         anything — which is the readership it exists for, and hiding it from
+         them is the failure this whole block was written to fix. A crawler runs
+         none of this and gets the page exactly as before. -->
+    <script>
+      (function () {
+        var seo = document.getElementById('boot-seo');
+        var loader = document.getElementById('boot-loader');
+        if (seo) seo.style.display = 'none';
+        if (loader) loader.className = 'on';
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
     <!-- Button "fill from cursor": anchor the accent disc where the pointer
          enters a .btn (and re-anchor to the exit point on leave), sized to reach
