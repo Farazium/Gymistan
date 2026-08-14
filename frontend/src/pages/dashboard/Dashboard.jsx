@@ -460,25 +460,83 @@ function GymDashboard() {
         </div>
       </div>
 
-      <div className="card">
-        <div className="p-4 border-b border-gray-700">
-          <h3 className="font-semibold text-gray-100">Recent Payments</h3>
+      {/* Recent payments no longer runs the full width: the money that came in
+          and the memberships that just ran out are read together — one is the
+          day's takings, the other is the day's work. */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="card">
+          <div className="p-4 border-b border-gray-700">
+            <h3 className="font-semibold text-gray-100">Recent Payments</h3>
+          </div>
+          <div className="overflow-x-auto">
+          <Table>
+            <Thead><Th>Member</Th><Th>Package</Th><Th>Amount</Th><Th>Status</Th><Th>Date</Th></Thead>
+            <Tbody>
+              {data.recent_payments.map((p) => (
+                <Tr key={p.id}>
+                  <Td>{p.member_name}</Td>
+                  <Td className="text-primary-400">{paymentFor(p) || <span className="text-gray-500">—</span>}</Td>
+                  <Td className="font-medium">{fmt(p.amount_paid)}</Td>
+                  <Td><span className={`badge-${p.status.toLowerCase()}`}>{p.status}</span></Td>
+                  <Td className="text-gray-400">{new Date(p.payment_date).toLocaleDateString('en-PK')}</Td>
+                </Tr>
+              ))}
+              {!data.recent_payments.length && <Tr><Td colSpan={5} className="text-center text-gray-400 py-8">No payments yet</Td></Tr>}
+            </Tbody>
+          </Table>
+          </div>
         </div>
-        <Table>
-          <Thead><Th>Member</Th><Th>Package</Th><Th>Amount</Th><Th>Status</Th><Th>Date</Th></Thead>
-          <Tbody>
-            {data.recent_payments.map((p) => (
-              <Tr key={p.id}>
-                <Td>{p.member_name}</Td>
-                <Td className="text-primary-400">{paymentFor(p) || <span className="text-gray-500">—</span>}</Td>
-                <Td className="font-medium">{fmt(p.amount_paid)}</Td>
-                <Td><span className={`badge-${p.status.toLowerCase()}`}>{p.status}</span></Td>
-                <Td className="text-gray-400">{new Date(p.payment_date).toLocaleDateString('en-PK')}</Td>
-              </Tr>
-            ))}
-            {!data.recent_payments.length && <Tr><Td colSpan={5} className="text-center text-gray-400 py-8">No payments yet</Td></Tr>}
-          </Tbody>
-        </Table>
+
+        {/* Caught a moment too late. A membership that lapsed this week is far
+            more likely to be won back than one from last month, which is why the
+            window is short and why this sits on the dashboard at all. */}
+        <div className="card">
+          <div className="p-4 border-b border-gray-700 flex items-center justify-between gap-3">
+            <h3 className="font-semibold text-gray-100">Recently Expired</h3>
+            <span className="text-xs text-gray-500">Last 5 days</span>
+          </div>
+          <div className="overflow-x-auto">
+          <Table>
+            <Thead><Th>Member</Th><Th>Phone</Th><Th>Expired</Th>{waEnabled && <Th>Reminder</Th>}</Thead>
+            <Tbody>
+              {(data.members_recently_expired || []).map((m) => {
+                const sending = sendReminder.isPending && sendReminder.variables === m.id
+                return (
+                <Tr key={m.id}>
+                  <Td className="font-medium">{m.name}</Td>
+                  <Td>{m.phone}</Td>
+                  <Td className="text-red-400 font-medium">
+                    {new Date(m.expiry_date).toLocaleDateString('en-PK')}
+                    <span className="block text-[10px] text-gray-500">
+                      {m.days_ago === 0 ? 'today' : m.days_ago === 1 ? 'yesterday' : `${m.days_ago} days ago`}
+                    </span>
+                  </Td>
+                  {waEnabled && (
+                    <Td>
+                      {m.reminder_sent ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-green-400"><Check size={13} /> Sent</span>
+                      ) : (
+                        <button
+                          onClick={() => sendReminder.mutate(m.id)}
+                          disabled={sending || outOfCredits}
+                          title={outOfCredits ? 'Out of WhatsApp messages — top up to send' : 'Send WhatsApp renewal reminder'}
+                          className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg border border-green-500/30 text-green-400 hover:text-white hover:bg-green-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed [--btn-fill:34_197_94] [--btn-edge:21_128_61]"
+                        >
+                          {sending ? <Loader2 size={13} className="animate-spin" /> : <MessageCircle size={13} />}
+                          {sending ? 'Sending' : 'Remind'}
+                        </button>
+                      )}
+                    </Td>
+                  )}
+                </Tr>
+              )})}
+              {!(data.members_recently_expired || []).length && (
+                <Tr><Td colSpan={waEnabled ? 4 : 3} className="text-center text-gray-400 py-8">Nobody expired in the last 5 days</Td></Tr>
+              )}
+            </Tbody>
+          </Table>
+          </div>
+        </div>
       </div>
     </div>
   )

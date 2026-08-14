@@ -39,3 +39,15 @@ def expiring_soon_q(days, today=None):
     """Still-active members whose expiry falls within the next `days` days."""
     today = today or localdate()
     return Q(expiry_date__gt=today, expiry_date__lte=today + datetime.timedelta(days=days))
+
+
+def recently_expired_q(days, today=None):
+    """Members whose membership lapsed within the last `days` days.
+
+    The window matters: a member who ran out yesterday is someone the desk can
+    still catch, while one who left six months ago is a different conversation
+    and would bury the first kind under a list nobody reads. The expiry day
+    itself counts as expired, matching `expired_q`.
+    """
+    today = today or localdate()
+    return Q(expiry_date__lte=today, expiry_date__gte=today - datetime.timedelta(days=days))

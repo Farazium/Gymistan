@@ -9,6 +9,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 from django.conf import settings
+from django.utils import timezone
 
 # Brand palette (black)
 BRAND = colors.HexColor('#111827')
@@ -649,18 +650,28 @@ def send_whatsapp_welcome(member, welcome_back=False, admission_payment=None):
 
 
 def send_whatsapp_expiry_reminder(member):
-    """Send a text-only renewal reminder via the `membership_expiry_notice` template."""
+    """Send a text-only renewal reminder about the member's expiry date.
+
+    Two templates, chosen by whether the date has passed. Both take the same
+    three parameters, so this is only ever a choice of wording — but it is not a
+    cosmetic one: telling someone whose membership ran out on Tuesday that it is
+    "scheduled to end" on Tuesday reads as a mistake in our records, and the desk
+    gets the phone call rather than the renewal.
+    """
     if not member or not member.phone:
         return False, 'Member has no phone number'
     if not _reserve_credit(member.gym):
         return False, OUT_OF_CREDITS
     phone = _normalize_pk_phone(member.phone)
+    lapsed = bool(member.expiry_date) and member.expiry_date <= timezone.localdate()
+    template = (settings.WHATSAPP_EXPIRED_TEMPLATE_NAME if lapsed
+                else settings.WHATSAPP_REMINDER_TEMPLATE_NAME)
     payload = {
         "messaging_product": "whatsapp",
         "to": phone,
         "type": "template",
         "template": {
-            "name": settings.WHATSAPP_REMINDER_TEMPLATE_NAME,
+            "name": template,
             "language": {"code": settings.WHATSAPP_TEMPLATE_LANG},
             "components": [
                 {"type": "body", "parameters": [

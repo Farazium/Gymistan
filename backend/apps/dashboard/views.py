@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.utils.timezone import localdate
 from datetime import timedelta
 from apps.members.models import Member
-from apps.members.queries import active_q, expired_q, expiring_soon_q
+from apps.members.queries import active_q, expired_q, expiring_soon_q, recently_expired_q
 from apps.payments.models import Payment
 from apps.expenses.models import Expense
 from apps.inventory.models import Product, StockLog
@@ -39,6 +39,10 @@ class DashboardView(APIView):
         last_month_start = (month_start - timedelta(days=1)).replace(day=1)
 
         EXPIRY_WINDOW = 3  # days ahead considered "expiring soon"
+        # How far back the "recently expired" list reaches. Short on purpose: a
+        # membership that lapsed yesterday is one the desk can still catch, and a
+        # long window would bury those under people who left months ago.
+        LAPSED_WINDOW = 5
         members = Member.objects.filter(gym=gym, is_deleted=False)
         active_members = members.filter(active_q(today)).count()
         expired_members = members.filter(expired_q(today)).count()
@@ -86,6 +90,27 @@ class DashboardView(APIView):
                 'reminder_sent': m.reminder_sent_for == m.expiry_date,
             }
             for m in expiring_qs
+        ]
+
+        # Memberships that ran out in the last few days. They sit beside the
+        # expiring list because they are the same job caught a moment too late,
+        # and the desk is far more likely to win them back this week than next.
+        lapsed_qs = members.filter(
+            recently_expired_q(LAPSED_WINDOW, today)
+        ).order_by('-expiry_date')[:10]
+        members_recently_expired = [
+            {
+                'id': m.id,
+                'name': m.name,
+                'phone': m.phone,
+                'expiry_date': m.expiry_date,
+                'days_ago': (today - m.expiry_date).days,
+                'dues': float(m.dues),
+                # Already reminded since this membership ran out? The button is
+                # keyed on the expiry date, so renewing re-opens it.
+                'reminder_sent': m.reminder_sent_for == m.expiry_date,
+            }
+            for m in lapsed_qs
         ]
 
         # Money already earned but not yet collected — the desk chases these from
@@ -194,6 +219,7 @@ class DashboardView(APIView):
             },
             'recent_payments': recent_payments_data,
             'members_expiring_soon': members_expiring,
+            'members_recently_expired': members_recently_expired,
             'members_with_dues': members_with_dues,
         })
 
