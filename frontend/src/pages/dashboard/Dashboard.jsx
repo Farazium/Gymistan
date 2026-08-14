@@ -387,7 +387,9 @@ function GymDashboard() {
             <h3 className="font-semibold text-gray-100">Outstanding Dues</h3>
             {!!duesTotal && <span className="text-sm font-semibold text-yellow-400">{fmt(duesTotal)}</span>}
           </div>
-          <Table>
+          {/* The default 32rem floor is a phone measure. Half a desktop card is
+              just under it, which bought a scrollbar that scrolled nothing. */}
+          <Table minWidth="min-w-[18rem]">
             <Thead><Th>Member</Th><Th>Phone</Th><Th>Dues</Th>{waEnabled && <Th>Reminder</Th>}</Thead>
             <Tbody>
               {membersWithDues.map((m) => {
@@ -425,7 +427,7 @@ function GymDashboard() {
           <div className="p-4 border-b border-gray-700">
             <h3 className="font-semibold text-gray-100">Members Expiring Soon</h3>
           </div>
-          <Table>
+          <Table minWidth="min-w-[18rem]">
             <Thead><Th>Member</Th><Th>Phone</Th><Th>Expires</Th>{waEnabled && <Th>Reminder</Th>}</Thead>
             <Tbody>
               {data.members_expiring_soon.map((m) => {
@@ -472,7 +474,7 @@ function GymDashboard() {
               fit behind a sideways scrollbar, and a figure you have to drag to
               see is one nobody reads. The package sits under the name and the
               status under the amount, which is how they are read anyway. */}
-          <Table>
+          <Table minWidth="min-w-[18rem]">
             <Thead><Th>Member</Th><Th>Amount</Th><Th>Date</Th></Thead>
             <Tbody>
               {data.recent_payments.map((p) => (
@@ -508,7 +510,7 @@ function GymDashboard() {
           {/* Phone under the name, "3 days ago" under the date — same reason as
               the payments table beside it: nothing worth reading should need a
               sideways scroll to reach. */}
-          <Table>
+          <Table minWidth="min-w-[18rem]">
             <Thead><Th>Member</Th><Th>Expired</Th>{waEnabled && <Th>Reminder</Th>}</Thead>
             <Tbody>
               {(data.members_recently_expired || []).map((m) => {
