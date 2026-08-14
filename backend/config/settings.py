@@ -174,10 +174,20 @@ WHATSAPP_WABA_ID = os.getenv('WHATSAPP_WABA_ID', '')
 WHATSAPP_TEMPLATE_NAME = os.getenv('WHATSAPP_TEMPLATE_NAME', 'payment_receipt_v2')
 WHATSAPP_WELCOME_TEMPLATE_NAME = os.getenv('WHATSAPP_WELCOME_TEMPLATE_NAME', 'member_welcome')
 WHATSAPP_REMINDER_TEMPLATE_NAME = os.getenv('WHATSAPP_REMINDER_TEMPLATE_NAME', 'membership_expiry_notice')
-# The same notice for someone whose membership has already run out. A separate
-# template because the tense is the whole message: telling a lapsed member their
-# membership is "scheduled to end" on a date that has passed reads as a mistake.
-WHATSAPP_EXPIRED_TEMPLATE_NAME = os.getenv('WHATSAPP_EXPIRED_TEMPLATE_NAME', 'membership_expired_notice')
+# The notice for someone whose membership has already run out. Separate from the
+# one above because the tense is the whole message: telling a lapsed member their
+# membership is "scheduled to end" on a date that has passed reads as a mistake in
+# our records, and the desk gets a phone call instead of a renewal.
+#
+# It points at membership_end_date_notice, which is deliberately written to read
+# correctly either side of the date -- "recorded as ending on {{3}}. After that
+# date the membership shows as expired on your record." That matters because Meta
+# will not give a template UTILITY status if it invites the member to buy
+# anything: "it can be settled at the reception" (an existing balance) is
+# accepted, "it can be renewed at the reception" (a new purchase) is
+# recategorised as MARKETING, which costs more and needs marketing opt-in. So the
+# nudge to renew stays out of the message and stays with the person who rang.
+WHATSAPP_EXPIRED_TEMPLATE_NAME = os.getenv('WHATSAPP_EXPIRED_TEMPLATE_NAME', 'membership_end_date_notice')
 WHATSAPP_DUES_TEMPLATE_NAME = os.getenv('WHATSAPP_DUES_TEMPLATE_NAME', 'fee_balance_notice')
 WHATSAPP_TEMPLATE_LANG = os.getenv('WHATSAPP_TEMPLATE_LANG', 'en_US')
 WHATSAPP_API_VERSION = os.getenv('WHATSAPP_API_VERSION', 'v22.0')
