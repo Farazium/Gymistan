@@ -106,9 +106,10 @@ class DashboardView(APIView):
                 'expiry_date': m.expiry_date,
                 'days_ago': (today - m.expiry_date).days,
                 'dues': float(m.dues),
-                # Already reminded since this membership ran out? The button is
-                # keyed on the expiry date, so renewing re-opens it.
-                'reminder_sent': m.reminder_sent_for == m.expiry_date,
+                # Counted apart from the before-expiry warning: being told on
+                # Friday that it ends Sunday is not being told on Monday that it
+                # has. Keyed on the expiry date, so renewing re-opens the button.
+                'reminder_sent': m.lapsed_reminder_sent_for == m.expiry_date,
             }
             for m in lapsed_qs
         ]

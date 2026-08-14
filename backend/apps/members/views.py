@@ -405,9 +405,15 @@ class BlacklistMemberView(APIView):
 class SendReminderView(APIView):
     """Send a one-off WhatsApp renewal reminder to a member (from the dashboard).
 
-    Idempotent per expiry date: once a reminder is sent for the member's current
-    expiry_date it can't be sent again (guarded by Member.reminder_sent_for), so
-    the same person isn't pinged repeatedly for the same expiry."""
+    Two notices share this route, because to the desk it is one button: the
+    membership is about to end, or it has ended. Which one goes out is decided by
+    the date, not by the caller.
+
+    Idempotent per expiry date, and the two are counted separately. A member
+    warned on the Friday that their membership ends on Sunday can still be told
+    on the Monday that it has — those are different facts, and sharing one flag
+    meant the second message was silently marked as already sent.
+    """
     permission_classes = [IsAuthenticated, IsGymMember]
 
     def post(self, request, pk):
@@ -421,13 +427,15 @@ class SendReminderView(APIView):
             return Response({'message': OUT_OF_CREDITS, 'out_of_credits': True}, status=402)
         if not member.phone:
             return Response({'message': 'Member has no phone number'}, status=400)
-        if member.reminder_sent_for == member.expiry_date:
+        lapsed = bool(member.expiry_date) and member.expiry_date <= timezone.localdate()
+        field = 'lapsed_reminder_sent_for' if lapsed else 'reminder_sent_for'
+        if getattr(member, field) == member.expiry_date:
             return Response({'message': 'Reminder already sent for this expiry'}, status=400)
         ok, detail = send_whatsapp_expiry_reminder(member)
         if not ok:
             return Response({'message': detail or 'Failed to send reminder'}, status=502)
-        member.reminder_sent_for = member.expiry_date
-        member.save(update_fields=['reminder_sent_for'])
+        setattr(member, field, member.expiry_date)
+        member.save(update_fields=[field])
         return Response({'message': 'Reminder sent', 'reminder_sent': True})
 
 

@@ -468,23 +468,33 @@ function GymDashboard() {
           <div className="p-4 border-b border-gray-700">
             <h3 className="font-semibold text-gray-100">Recent Payments</h3>
           </div>
-          <div className="overflow-x-auto">
+          {/* Three columns, not five. At half the page width five columns only
+              fit behind a sideways scrollbar, and a figure you have to drag to
+              see is one nobody reads. The package sits under the name and the
+              status under the amount, which is how they are read anyway. */}
           <Table>
-            <Thead><Th>Member</Th><Th>Package</Th><Th>Amount</Th><Th>Status</Th><Th>Date</Th></Thead>
+            <Thead><Th>Member</Th><Th>Amount</Th><Th>Date</Th></Thead>
             <Tbody>
               {data.recent_payments.map((p) => (
                 <Tr key={p.id}>
-                  <Td>{p.member_name}</Td>
-                  <Td className="text-primary-400">{paymentFor(p) || <span className="text-gray-500">—</span>}</Td>
-                  <Td className="font-medium">{fmt(p.amount_paid)}</Td>
-                  <Td><span className={`badge-${p.status.toLowerCase()}`}>{p.status}</span></Td>
-                  <Td className="text-gray-400">{new Date(p.payment_date).toLocaleDateString('en-PK')}</Td>
+                  <Td>
+                    <span className="block font-medium text-gray-100 truncate">{p.member_name}</span>
+                    <span className="block text-xs text-primary-400 truncate">
+                      {paymentFor(p) || <span className="text-gray-500">—</span>}
+                    </span>
+                  </Td>
+                  <Td>
+                    <span className="block font-medium">{fmt(p.amount_paid)}</span>
+                    {p.status !== 'PAID' && (
+                      <span className={`badge-${p.status.toLowerCase()} text-[10px]`}>{p.status}</span>
+                    )}
+                  </Td>
+                  <Td className="text-gray-400 whitespace-nowrap">{new Date(p.payment_date).toLocaleDateString('en-PK')}</Td>
                 </Tr>
               ))}
-              {!data.recent_payments.length && <Tr><Td colSpan={5} className="text-center text-gray-400 py-8">No payments yet</Td></Tr>}
+              {!data.recent_payments.length && <Tr><Td colSpan={3} className="text-center text-gray-400 py-8">No payments yet</Td></Tr>}
             </Tbody>
           </Table>
-          </div>
         </div>
 
         {/* Caught a moment too late. A membership that lapsed this week is far
@@ -495,18 +505,24 @@ function GymDashboard() {
             <h3 className="font-semibold text-gray-100">Recently Expired</h3>
             <span className="text-xs text-gray-500">Last 5 days</span>
           </div>
-          <div className="overflow-x-auto">
+          {/* Phone under the name, "3 days ago" under the date — same reason as
+              the payments table beside it: nothing worth reading should need a
+              sideways scroll to reach. */}
           <Table>
-            <Thead><Th>Member</Th><Th>Phone</Th><Th>Expired</Th>{waEnabled && <Th>Reminder</Th>}</Thead>
+            <Thead><Th>Member</Th><Th>Expired</Th>{waEnabled && <Th>Reminder</Th>}</Thead>
             <Tbody>
               {(data.members_recently_expired || []).map((m) => {
                 const sending = sendReminder.isPending && sendReminder.variables === m.id
                 return (
                 <Tr key={m.id}>
-                  <Td className="font-medium">{m.name}</Td>
-                  <Td>{m.phone}</Td>
-                  <Td className="text-red-400 font-medium">
-                    {new Date(m.expiry_date).toLocaleDateString('en-PK')}
+                  <Td>
+                    <span className="block font-medium text-gray-100 truncate">{m.name}</span>
+                    <span className="block text-xs text-gray-400">{m.phone}</span>
+                  </Td>
+                  <Td className="whitespace-nowrap">
+                    <span className="block text-red-400 font-medium">
+                      {new Date(m.expiry_date).toLocaleDateString('en-PK')}
+                    </span>
                     <span className="block text-[10px] text-gray-500">
                       {m.days_ago === 0 ? 'today' : m.days_ago === 1 ? 'yesterday' : `${m.days_ago} days ago`}
                     </span>
@@ -531,11 +547,10 @@ function GymDashboard() {
                 </Tr>
               )})}
               {!(data.members_recently_expired || []).length && (
-                <Tr><Td colSpan={waEnabled ? 4 : 3} className="text-center text-gray-400 py-8">Nobody expired in the last 5 days</Td></Tr>
+                <Tr><Td colSpan={waEnabled ? 3 : 2} className="text-center text-gray-400 py-8">Nobody expired in the last 5 days</Td></Tr>
               )}
             </Tbody>
           </Table>
-          </div>
         </div>
       </div>
     </div>

@@ -48,6 +48,13 @@ class Member(models.Model):
     # Expiry-date value we last sent a WhatsApp renewal reminder for, so a member is
     # reminded only once per membership cycle (reset naturally when expiry changes).
     reminder_sent_for = models.DateField(null=True, blank=True)
+    # The same, for the notice sent AFTER the membership has actually lapsed.
+    # Kept apart from `reminder_sent_for` because they are two different messages
+    # at two different moments: one says the membership is about to end, the other
+    # says it has. Sharing a field meant that warning someone on the Friday
+    # silenced the Monday notice telling them they had actually run out — the
+    # dashboard showed "Sent" for a message nobody had ever received.
+    lapsed_reminder_sent_for = models.DateField(null=True, blank=True)
     # Same idea for the dues nudge: the outstanding figure we last reminded about,
     # so a member is chased once per balance and the button re-opens by itself the
     # moment that balance changes.
