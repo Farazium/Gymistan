@@ -172,23 +172,37 @@ WHATSAPP_TOKEN = os.getenv('WHATSAPP_TOKEN', '')
 WHATSAPP_PHONE_NUMBER_ID = os.getenv('WHATSAPP_PHONE_NUMBER_ID', '')
 WHATSAPP_WABA_ID = os.getenv('WHATSAPP_WABA_ID', '')
 WHATSAPP_TEMPLATE_NAME = os.getenv('WHATSAPP_TEMPLATE_NAME', 'payment_receipt_v2')
+# A receipt for a payment that did not settle in full. Its own template because the
+# plain one closes on "Membership valid till {{4}}. Keep training!" — a cheerful
+# sign-off that reads as a receipt in full, and the member is left to find the
+# balance inside the PDF. This one names what is still owed in the message.
+WHATSAPP_PARTIAL_TEMPLATE_NAME = os.getenv('WHATSAPP_PARTIAL_TEMPLATE_NAME', 'payment_receipt_partial')
+# The receipt for a payment that bought no cycle and cleared an old balance. It
+# states the dues are gone, so it is only ever sent when they actually are.
+WHATSAPP_DUES_CLEARED_TEMPLATE_NAME = os.getenv('WHATSAPP_DUES_CLEARED_TEMPLATE_NAME', 'dues_cleared_receipt')
 WHATSAPP_WELCOME_TEMPLATE_NAME = os.getenv('WHATSAPP_WELCOME_TEMPLATE_NAME', 'member_welcome')
-WHATSAPP_REMINDER_TEMPLATE_NAME = os.getenv('WHATSAPP_REMINDER_TEMPLATE_NAME', 'membership_expiry_notice')
+# A returning member gets their own wording: member_welcome opens "Welcome to
+# {{1}}!", which is the wrong greeting for someone who was already a member. The
+# PDF has always known the difference; now the message does too.
+WHATSAPP_RETURN_TEMPLATE_NAME = os.getenv('WHATSAPP_RETURN_TEMPLATE_NAME', 'member_return_details')
+# The warning that goes out before the date. membership_end_date_notice is
+# written to read correctly either side of it -- "recorded as ending on {{3}}.
+# After that date the membership shows as expired on your record" -- which is
+# what lets it carry the before-expiry warning as plainly as the after.
+WHATSAPP_REMINDER_TEMPLATE_NAME = os.getenv('WHATSAPP_REMINDER_TEMPLATE_NAME', 'membership_end_date_notice')
 # The notice for someone whose membership has already run out. Separate from the
 # one above because the tense is the whole message: telling a lapsed member their
 # membership is "scheduled to end" on a date that has passed reads as a mistake in
 # our records, and the desk gets a phone call instead of a renewal.
 #
-# It points at membership_end_date_notice, which is deliberately written to read
-# correctly either side of the date -- "recorded as ending on {{3}}. After that
-# date the membership shows as expired on your record." That matters because Meta
-# will not give a template UTILITY status if it invites the member to buy
-# anything: "it can be settled at the reception" (an existing balance) is
-# accepted, "it can be renewed at the reception" (a new purchase) is
-# recategorised as MARKETING, which costs more and needs marketing opt-in. So the
-# nudge to renew stays out of the message and stays with the person who rang.
-WHATSAPP_EXPIRED_TEMPLATE_NAME = os.getenv('WHATSAPP_EXPIRED_TEMPLATE_NAME', 'membership_end_date_notice')
-WHATSAPP_DUES_TEMPLATE_NAME = os.getenv('WHATSAPP_DUES_TEMPLATE_NAME', 'fee_balance_notice')
+# Whatever either name points at, the wording has to stay clear of inviting a
+# purchase: Meta will not give a template UTILITY status if it does. "It can be
+# settled at the reception" (an existing balance) is accepted, "it can be renewed
+# at the reception" (a new purchase) is recategorised as MARKETING, which costs
+# more and needs marketing opt-in. So the nudge to renew stays out of the message
+# and stays with the person who rang.
+WHATSAPP_EXPIRED_TEMPLATE_NAME = os.getenv('WHATSAPP_EXPIRED_TEMPLATE_NAME', 'membership_lapsed_notice_v2')
+WHATSAPP_DUES_TEMPLATE_NAME = os.getenv('WHATSAPP_DUES_TEMPLATE_NAME', 'dues_reminder')
 WHATSAPP_TEMPLATE_LANG = os.getenv('WHATSAPP_TEMPLATE_LANG', 'en_US')
 WHATSAPP_API_VERSION = os.getenv('WHATSAPP_API_VERSION', 'v22.0')
 # Status webhook. VERIFY_TOKEN is any string we choose — Meta echoes it back on the

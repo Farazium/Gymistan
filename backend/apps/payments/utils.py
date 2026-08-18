@@ -504,10 +504,44 @@ def _upload_pdf_media(pdf_buffer, filename, token, phone_number_id):
     return None, r.text
 
 
+def _receipt_template(payment, member):
+    """Pick the receipt template and its body params for this payment.
+
+    Three receipts, because one wording cannot honestly cover all three cases:
+
+    - Part-paid: `payment_receipt_partial` names the balance in the message. The
+      plain receipt signs off "Keep training!" and leaves the member to find what
+      they still owe inside the PDF.
+    - A settlement that clears the member's balance outright: `dues_cleared_receipt`
+      says the dues are gone. It is chosen on `member.dues` rather than on this
+      payment alone — a payment can settle its own carried amount in full and still
+      leave the member owing something from elsewhere, and telling them they are
+      "fully cleared" when they are not is the one mistake this template can make.
+    - Everything else: the plain receipt.
+
+    Returns (template_name, [param strings]) in the template's own order.
+    """
+    expiry = _fmt_date(payment.new_expiry or member.expiry_date)
+    name = _wa_param(member.name)
+    gym_name = _wa_param(payment.gym.name)
+    paid = f'{payment.amount_paid:,.0f}'
+
+    if payment.remaining > 0:
+        # {{1}} name, {{2}} paid, {{3}} gym, {{4}} still owed, {{5}} valid till
+        return settings.WHATSAPP_PARTIAL_TEMPLATE_NAME, [
+            name, paid, gym_name, f'{payment.remaining:,.0f}', expiry,
+        ]
+    if payment.is_dues_payment and (member.dues or 0) <= 0:
+        # {{1}} name, {{2}} paid, {{3}} gym
+        return settings.WHATSAPP_DUES_CLEARED_TEMPLATE_NAME, [name, paid, gym_name]
+    # {{1}} name, {{2}} paid, {{3}} gym, {{4}} valid till
+    return settings.WHATSAPP_TEMPLATE_NAME, [name, paid, gym_name, expiry]
+
+
 def send_whatsapp_slip(payment):
     """Send the branded payment PDF to the member as a WhatsApp document, wrapped in
-    the approved receipt template (`WHATSAPP_TEMPLATE_NAME`, currently
-    payment_receipt_v2). Returns (success: bool, detail: str)."""
+    whichever approved receipt template fits the payment — see `_receipt_template`.
+    Returns (success: bool, detail: str)."""
     token = settings.WHATSAPP_TOKEN
     phone_number_id = settings.WHATSAPP_PHONE_NUMBER_ID
     if not token or not phone_number_id:
@@ -533,20 +567,18 @@ def send_whatsapp_slip(payment):
         return False, f'PDF upload failed: {err}'
 
     # 3. Send the template with the PDF as the document header.
-    #    Body params, in the template's order: who paid, how much, which gym, and
-    #    how long they are covered for. The gym name stays in the body because
-    #    members see the shared "Gymistan" sender, never their own gym's name.
-    #    The expiry is read the way the PDF reads it, so the message and the
-    #    document it carries can never disagree; _fmt_date prints an em dash when
-    #    a payment renews nothing (an admission fee), which keeps the parameter
-    #    non-empty — Meta rejects a blank one.
-    expiry = payment.new_expiry or member.expiry_date
+    #    The gym name is always a body param because members see the shared
+    #    "Gymistan" sender, never their own gym's name. The expiry is read the way
+    #    the PDF reads it, so the message and the document it carries can never
+    #    disagree; _fmt_date prints an em dash when a payment renews nothing (an
+    #    admission fee), which keeps the parameter non-empty — Meta rejects a blank.
+    template, body_params = _receipt_template(payment, member)
     payload = {
         "messaging_product": "whatsapp",
         "to": phone,
         "type": "template",
         "template": {
-            "name": settings.WHATSAPP_TEMPLATE_NAME,
+            "name": template,
             "language": {"code": settings.WHATSAPP_TEMPLATE_LANG},
             "components": [
                 {"type": "header", "parameters": [
@@ -554,10 +586,7 @@ def send_whatsapp_slip(payment):
                      "document": {"id": media_id, "filename": filename}}
                 ]},
                 {"type": "body", "parameters": [
-                    {"type": "text", "text": _wa_param(member.name)},
-                    {"type": "text", "text": f'{payment.amount_paid:,.0f}'},
-                    {"type": "text", "text": _wa_param(payment.gym.name)},
-                    {"type": "text", "text": _fmt_date(expiry)},
+                    {"type": "text", "text": p} for p in body_params
                 ]},
             ],
         },
@@ -601,7 +630,13 @@ def _send_wa_message(payload):
 
 
 def send_whatsapp_welcome(member, welcome_back=False, admission_payment=None):
-    """Send the branded welcome PDF to a member via the `member_welcome` template.
+    """Send the branded welcome PDF to a member.
+
+    Two templates, matching the two the PDF has always had: a returning member gets
+    `member_return_details` ("your membership has been reactivated"), a new one
+    `member_welcome` ("Welcome to {{1}}!"). Greeting somebody who trained here for
+    two years as a newcomer is the kind of small wrongness a member notices.
+
     Pass the admission payment, if one was taken, so the member receives the same
     slip the gym can download rather than a fee-less variant of it."""
     token = settings.WHATSAPP_TOKEN
@@ -623,12 +658,24 @@ def send_whatsapp_welcome(member, welcome_back=False, admission_payment=None):
         _refund_credit(member.gym)
         return False, f'PDF upload failed: {err}'
 
+    # Read the same way generate_welcome_slip reads it, so the message and the
+    # document it carries can never greet the member differently.
+    returning = admission_payment.is_rejoin if admission_payment is not None else welcome_back
+    if returning:
+        # {{1}} member name, {{2}} gym name
+        template = settings.WHATSAPP_RETURN_TEMPLATE_NAME
+        body_params = [_wa_param(member.name), _wa_param(member.gym.name)]
+    else:
+        # {{1}} gym name
+        template = settings.WHATSAPP_WELCOME_TEMPLATE_NAME
+        body_params = [_wa_param(member.gym.name)]
+
     payload = {
         "messaging_product": "whatsapp",
         "to": phone,
         "type": "template",
         "template": {
-            "name": settings.WHATSAPP_WELCOME_TEMPLATE_NAME,
+            "name": template,
             "language": {"code": settings.WHATSAPP_TEMPLATE_LANG},
             "components": [
                 {"type": "header", "parameters": [
@@ -636,7 +683,7 @@ def send_whatsapp_welcome(member, welcome_back=False, admission_payment=None):
                      "document": {"id": media_id, "filename": filename}}
                 ]},
                 {"type": "body", "parameters": [
-                    {"type": "text", "text": member.gym.name}
+                    {"type": "text", "text": p} for p in body_params
                 ]},
             ],
         },
